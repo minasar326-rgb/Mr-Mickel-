@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇬🇧</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="المنصة الرسمية لمستر مايكل شحاته للغة الإنجليزية ومناهج الثانوية العامة واللغات - The Master of English" />
+    <meta name="keywords" content="مستر مايكل شحاته, لغة إنجليزية, ثانوية عامة 2026, The Master, إنجليزي ثانوي, شرح جرامر, كلمات إنجليزي" />
+    <meta name="author" content="Mr. Michael Shehata" />
+    
+    <!-- Google Fonts: Cairo, Tajawal, Plus Jakarta Sans, Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+    
+    <title>منصة مستر مايكل شحاته | The Master - اللغة الإنجليزية للثانوية العامة</title>
+    
+    <script>
+      // Clean noise, message channel closure, and extension violations
+      (function() {
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event && event.reason) {
+            var msg = String(event.reason.message || event.reason);
+            if (
+              msg.includes('message channel closed') ||
+              msg.includes('A listener indicated an asynchronous response') ||
+              msg.includes('pdf-viewer-detect')
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              return true;
+            }
+          }
+        }, true);
+
+        var _log = console.log;
+        var _warn = console.warn;
+        var _error = console.error;
+
+        console.log = function() {
+          var first = arguments[0];
+          if (typeof first === 'string' && (first.includes('pdf-viewer-detect') || first.includes('shortcutFormat') || first.includes('isBrowserPdfViewerPage'))) {
+            return;
+          }
+          _log.apply(console, arguments);
+        };
+
+        console.warn = function() {
+          var first = arguments[0];
+          if (typeof first === 'string' && (
+            first.includes('unload') || 
+            first.includes('Permissions policy violation') ||
+            first.includes('Cross-Origin-Opener-Policy')
+          )) {
+            return;
+          }
+          _warn.apply(console, arguments);
+        };
+
+        console.error = function() {
+          var first = arguments[0];
+          if (typeof first === 'string' && (
+            first.includes('message channel closed') ||
+            first.includes('A listener indicated an asynchronous response') ||
+            first.includes('pdf-viewer-detect') ||
+            first.includes('Cross-Origin-Opener-Policy')
+          )) {
+            return;
+          }
+          _error.apply(console, arguments);
+        };
+      })();
+    </script>
+  </head>
+  <body style="margin: 0; background-color: #0F172A; font-family: 'Cairo', sans-serif;">
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%); color: white; text-align: center; padding: 2rem;">
+        <div style="width: 70px; height: 70px; border-radius: 20px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 900; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);">
+          MS
+        </div>
+        <h2 style="font-size: 1.6rem; font-weight: 900; margin: 0 0 0.5rem;">منصة مستر مايكل شحاته 🇬🇧</h2>
+        <p style="color: #94A3B8; font-size: 0.95rem; margin: 0 0 1.5rem;">The Master of English • جاري تحميل المنصة...</p>
+        <div style="width: 42px; height: 42px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #4F46E5; border-radius: 50%; animation: ms-spin 0.8s linear infinite;"></div>
+        <style>
+          @keyframes ms-spin { to { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      window.addEventListener('error', function(e) {
+        var msg = e && (e.message || (e.error && e.error.message) || '');
+        if (typeof msg === 'string' && (
+          msg.includes('message channel closed') ||
+          msg.includes('A listener indicated an asynchronous response') ||
+          msg.includes('pdf-viewer-detect') ||
+          msg.includes('shortcutFormat')
+        )) {
+          return;
+        }
+        console.error('Window error caught:', e);
+        var r = document.getElementById('root');
+        if (r && (!r.childNodes.length || r.innerText.includes('جاري تحميل المنصة'))) {
+          r.innerHTML = '<div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0F172A; color: white; text-align: center; padding: 2rem; font-family: Cairo, sans-serif;">' +
+            '<div style="max-width: 500px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">' +
+            '<h2 style="color: #F87171; margin-bottom: 0.5rem; font-weight: 900;">منصة مستر مايكل شحاته</h2>' +
+            '<p style="color: #94A3B8; font-size: 0.95rem; margin-bottom: 1.5rem;">تم تحديث المنصة بنجاح. يرجى الضغط على الزر التالي لتحديث الواجهة فوراً:</p>' +
+            '<button onclick="location.reload(true)" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; border: none; border-radius: 50px; padding: 12px 30px; font-size: 1rem; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(79,70,229,0.4);">' +
+            'تحديث وتشغيل المنصة الآن 🔄' +
+            '</button>' +
+            '</div></div>';
+        }
+      });
+    </script>
+  </body>
+</html>

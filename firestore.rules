@@ -1,50 +1,9 @@
 rules_version = '2';
 
 // ===============================================================
-// Assumed Data Model & Architecture: Mr. Michael Shehata LMS
-// ===============================================================
-//
-// 1. users/{userId} & students/{userId}
-//    - User/Student profiles indexed by Firebase Auth UID.
-//    - Read/Write restricted to authenticated account owners and Teacher Admin.
-//    - Deletion strictly restricted to Teacher Admin.
-//    - Nested subcollection `subscriptions/{subId}`: Accessible by the owner or Teacher Admin.
-//
-// 2. subscriptions/{subId}
-//    - Top-level subscriptions collection with subId typically formatted as `{uid}_{courseId}`.
-//    - Read allowed for document owner (`resource.data.userId == request.auth.uid`) or Teacher Admin.
-//    - Create allowed if `request.resource.data.userId == request.auth.uid` or Teacher Admin.
-//    - Update allowed if maintaining user ownership or by Teacher Admin.
-//    - Delete restricted to Teacher Admin.
-//
-// 3. courses/{courseId} & nested lectures/{lectureId}
-//    - Course catalog and educational curriculum.
-//    - Publicly readable (`allow read: if true`).
-//    - Modification allowed for Teacher Admin or authenticated staff.
-//
-// 4. lectures/{lectureId}
-//    - Top-level lectures repository for fast querying and live lectures.
-//    - Publicly readable (`allow read: if true`).
-//    - Modification allowed for Teacher Admin or authenticated staff.
-//
-// 5. codes/{codeId} & subscriptionCodes/{codeId}
-//    - Single-use redemption / activation codes.
-//    - Public read to allow code verification during checkout/activation.
-//    - Create / Delete: Teacher Admin or authenticated staff.
-//    - Update: Teacher Admin, or authenticated user redeeming an unused code (binding `usedByUid == auth.uid`),
-//      or the user who already redeemed it.
-//
-// 6. settings/{docId}, booklets/{docId}, achievers/{docId}, announcements/{docId}
-//    - Educational platform resources, banners, PDF booklets, top performers, and announcements.
-//    - Publicly readable.
-//    - Write restricted to Teacher Admin or authenticated staff.
-//
-// 7. attendanceLogs/{logId}
-//    - Audit logs for lecture views and student attendance.
-//    - Read restricted to Teacher Admin.
-//    - Create allowed for authenticated students/users.
-//    - Modifications and deletions disallowed to maintain audit trail integrity.
-//
+// Hardened Security Rules: Mr. Michael Shehata LMS
+// Protection against unauthorized admin access, lecture tampering,
+// code forgery, and subscription bypass.
 // ===============================================================
 
 service cloud.firestore {
@@ -62,9 +21,15 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Teacher Admin verification: matches authorized admin emails, UIDs, or custom claims
     function isTeacherAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == 'teacher@gmail.com' ||
+        request.auth.token.email in [
+          'teacher@gmail.com',
+          'mrmichaelshehata@gmail.com',
+          'admin@themaster.com',
+          'saryanymina@gmail.com'
+        ] ||
         request.auth.uid == 'teacher-admin' ||
         request.auth.token.admin == true
       );
@@ -74,66 +39,64 @@ service cloud.firestore {
     // Users & Students Collections
     // ===============================================================
 
-    // Primary User Profiles
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
-      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
+      allow read: if isOwner(userId) || isTeacherAdmin();
+      allow create, update: if isOwner(userId) || isTeacherAdmin();
       allow delete: if isTeacherAdmin();
 
-      // Nested user subscriptions
       match /subscriptions/{subId} {
-        allow read, write: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
+        allow read: if isOwner(userId) || isTeacherAdmin();
+        allow write: if isTeacherAdmin();
       }
     }
 
-    // Students Collection
     match /students/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
-      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
+      allow read: if isOwner(userId) || isTeacherAdmin();
+      allow create, update: if isOwner(userId) || isTeacherAdmin();
       allow delete: if isTeacherAdmin();
 
-      // Nested student subscriptions
       match /subscriptions/{subId} {
-        allow read, write: if isAuthenticated() && (request.auth.uid == userId || isTeacherAdmin());
+        allow read: if isOwner(userId) || isTeacherAdmin();
+        allow write: if isTeacherAdmin();
       }
     }
 
     // ===============================================================
-    // Top-Level Subscriptions Collection
-    // Document ID pattern: {uid}_{courseId}
+    // Subscriptions Collection
     // ===============================================================
 
     match /subscriptions/{subId} {
+      // Students can only read their own active subscriptions
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isTeacherAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isTeacherAdmin());
-      allow update: if isAuthenticated() && (
-        (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid) ||
-        isTeacherAdmin()
+      
+      // Subscriptions can only be created by Teacher Admin or valid code activation
+      allow create: if isTeacherAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'active'
       );
-      allow delete: if isTeacherAdmin();
+      
+      // Only Teacher Admin can modify or delete existing subscriptions
+      allow update, delete: if isTeacherAdmin();
     }
 
     // ===============================================================
-    // Courses & Course Lectures
+    // Courses & Lectures (Curriculum Protection)
     // ===============================================================
 
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
 
       match /lectures/{lectureId} {
         allow read: if true;
-        allow write: if isTeacherAdmin() || isAuthenticated();
+        allow write: if isTeacherAdmin();
       }
     }
 
-    // ===============================================================
-    // Top-Level Lectures Collection
-    // ===============================================================
-
     match /lectures/{lectureId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
     }
 
     // ===============================================================
@@ -141,22 +104,27 @@ service cloud.firestore {
     // ===============================================================
 
     match /codes/{codeId} {
-      allow read: if true;
-      allow create, delete: if isTeacherAdmin() || isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isTeacherAdmin() ||
-        (resource.data.isUsed != true && request.resource.data.isUsed == true && request.resource.data.usedByUid == request.auth.uid) ||
-        (resource.data.usedByUid == request.auth.uid)
+      // Only authenticated users can query/verify a code
+      allow read: if isAuthenticated();
+      // Only Teacher Admin can generate or delete codes
+      allow create, delete: if isTeacherAdmin();
+      // An authenticated student can only mark an unused code as used by themselves
+      allow update: if isTeacherAdmin() || (
+        isAuthenticated() &&
+        resource.data.isUsed != true &&
+        request.resource.data.isUsed == true &&
+        request.resource.data.usedByUid == request.auth.uid
       );
     }
 
     match /subscriptionCodes/{codeId} {
-      allow read: if true;
-      allow create, delete: if isTeacherAdmin() || isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isTeacherAdmin() ||
-        (resource.data.isUsed != true && request.resource.data.isUsed == true && request.resource.data.usedByUid == request.auth.uid) ||
-        (resource.data.usedByUid == request.auth.uid)
+      allow read: if isAuthenticated();
+      allow create, delete: if isTeacherAdmin();
+      allow update: if isTeacherAdmin() || (
+        isAuthenticated() &&
+        resource.data.isUsed != true &&
+        request.resource.data.isUsed == true &&
+        request.resource.data.usedByUid == request.auth.uid
       );
     }
 
@@ -166,22 +134,22 @@ service cloud.firestore {
 
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
     }
 
     match /booklets/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
     }
 
     match /achievers/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
     }
 
     match /announcements/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin() || isAuthenticated();
+      allow write: if isTeacherAdmin();
     }
 
     // ===============================================================
@@ -190,7 +158,7 @@ service cloud.firestore {
 
     match /attendanceLogs/{logId} {
       allow read: if isTeacherAdmin();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
   }

@@ -145,3 +145,32 @@ export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
   }
 }
 
+/**
+ * Upload the dynamically generated branded App Icon to Cloudflare R2
+ * @param {Blob} iconBlob 
+ * @param {string} filename 
+ */
+export async function uploadAppIconToR2(iconBlob, filename = 'icon-512x512.png') {
+  try {
+    const arrayBuffer = await iconBlob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const key = `icons/${filename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: r2Config.bucketName,
+      Key: key,
+      Body: uint8Array,
+      ContentType: 'image/png',
+      CacheControl: 'no-cache, no-store, max-age=0, must-revalidate'
+    });
+
+    const client = getR2Client();
+    if (!client) return null;
+    await client.send(command);
+    return `${r2Config.publicDomain}/${key}`;
+  } catch (err) {
+    console.warn('Failed to upload app icon to R2:', err);
+    return null;
+  }
+}
+

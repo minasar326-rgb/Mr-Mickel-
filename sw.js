@@ -1,9 +1,15 @@
 // Service Worker for Mr. Michael Shehata LMS (The Master)
-const CACHE_NAME = 'ms-lms-v1.0.0';
+const CACHE_NAME = 'ms-lms-v2.0.0';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './favicon.png',
+  './apple-touch-icon.png',
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
+  './icons/icon-maskable-192x192.png',
+  './icons/icon-maskable-512x512.png',
   'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap'
 ];
 

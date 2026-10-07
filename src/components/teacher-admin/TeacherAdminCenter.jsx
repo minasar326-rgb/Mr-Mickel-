@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import CertificateModal from '../student/CertificateModal';
@@ -9,11 +9,12 @@ import {
   DollarSign, CreditCard, AlertCircle, Phone, Search, Filter, Printer, 
   QrCode, Lock, Unlock, ArrowUpRight, Check, X, Image, Film, FileUp,
   Award, ScanLine, ShieldCheck, ShieldAlert, Activity, Flame, Cloud,
-  Database, HardDrive, RefreshCw, KeyRound
+  Database, HardDrive, RefreshCw, KeyRound, Smartphone, Download
 } from 'lucide-react';
 import { uploadFileToFirebaseStorage } from '../../services/firestoreSync';
-import { uploadFileToR2, uploadTeacherAvatarToR2 } from '../../services/r2Storage';
+import { uploadFileToR2, uploadTeacherAvatarToR2, uploadAppIconToR2 } from '../../services/r2Storage';
 import { saveMediaFilePermanently, updateMediaCloudUrl } from '../../services/persistentStorage';
+import { generatePlatformIconsSuite, generateMasterIconCanvas, loadImage } from '../../services/iconGenerator';
 import ChangePasswordModal from './ChangePasswordModal';
 import TeacherAvatar3D from '../common/TeacherAvatar3D';
 
@@ -98,6 +99,25 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [profileWhatsapp, setProfileWhatsapp] = useState(teacherProfile.whatsappNumber || '');
   const [profileAvatar, setProfileAvatar] = useState(teacherProfile.avatar || '');
   const [profileStudents, setProfileStudents] = useState(teacherProfile.totalStudents || 18500);
+  const [appIconPreview, setAppIconPreview] = useState(null);
+  const [isGeneratingIcons, setIsGeneratingIcons] = useState(false);
+
+  // Automatically generate live App Icon preview whenever profileAvatar changes
+  useEffect(() => {
+    let active = true;
+    if (profileAvatar) {
+      loadImage(profileAvatar)
+        .then(img => {
+          if (!active) return;
+          const canvas = generateMasterIconCanvas(img, 192, false);
+          setAppIconPreview(canvas.toDataURL('image/png'));
+        })
+        .catch(err => {
+          console.warn('Icon preview generation error:', err);
+        });
+    }
+    return () => { active = false; };
+  }, [profileAvatar]);
 
   // Lecture Form State
   const [stageId, setStageId] = useState(stages[0]?.id || 'sec-3');
@@ -418,8 +438,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     let finalAvatar = profileAvatar;
+    setIsGeneratingIcons(true);
 
-    // Upload avatar to permanent Cloudflare URL so WhatsApp and social previews update automatically
+    // 1. Upload avatar to permanent Cloudflare URL so WhatsApp and social previews update automatically
     if (profileAvatar) {
       try {
         const publicUrl = await uploadTeacherAvatarToR2(profileAvatar);
@@ -430,7 +451,24 @@ export default function TeacherAdminCenter({ onNavigate }) {
       } catch (err) {
         console.warn('Social preview upload notice:', err);
       }
+
+      // 2. Automatically generate and publish branded mobile App Icons with safe-area
+      try {
+        const { standardBlob, maskableBlob } = await generatePlatformIconsSuite(profileAvatar);
+        if (standardBlob) {
+          await uploadAppIconToR2(standardBlob, 'icon-512x512.png');
+          await uploadAppIconToR2(standardBlob, 'icon-192x192.png');
+        }
+        if (maskableBlob) {
+          await uploadAppIconToR2(maskableBlob, 'icon-maskable-512x512.png');
+          await uploadAppIconToR2(maskableBlob, 'icon-maskable-192x192.png');
+        }
+        addToast('تم تحديث وتوليد أيقونة التطبيق الذكية للموبايل تلقائياً ✨📱', 'success', 3500);
+      } catch (err) {
+        console.warn('App icon auto-generation notice:', err);
+      }
     }
+    setIsGeneratingIcons(false);
 
     updateTeacherProfile({
       name: profileName,
@@ -441,6 +479,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
       avatar: finalAvatar,
       totalStudents: Number(profileStudents)
     });
+    addToast('تم حفظ وتحديث بيانات المعلم بنجاح ✅', 'success', 2500);
   };
 
   const handleUploadLecture = async (e) => {
@@ -1743,14 +1782,99 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 </p>
               </div>
 
+              {/* Official App Icon & Mobile Launcher Preview */}
+              <div style={{
+                gridColumn: 'span 2',
+                padding: '1.25rem',
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 27, 75, 0.6) 100%)',
+                border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                margin: '0.5rem 0',
+                color: '#fff'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Smartphone size={20} color="#F59E0B" />
+                    <strong style={{ fontSize: '0.95rem', color: '#F8FAFC' }}>
+                      معاينة أيقونة التطبيق الذكية لشاشات الموبايل (Safe Area & PWA) 📱👑
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.2)', color: '#FCD34D', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                    تتولّد تلقائياً من صورتك
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', flexWrap: 'wrap', margin: '1rem 0' }}>
+                  {/* Android Squircle */}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      width: '84px',
+                      height: '84px',
+                      borderRadius: '22px',
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      margin: '0 auto 6px',
+                      background: '#0B0F1D'
+                    }}>
+                      {appIconPreview ? (
+                        <img src={appIconPreview} alt="App Icon Squircle" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: '#94A3B8' }}>جاري التوليد...</div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#CBD5E1' }}>شكل المربع المنحني (Android/iOS)</span>
+                  </div>
+
+                  {/* Android Adaptive Circle */}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      width: '84px',
+                      height: '84px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      border: '2px solid rgba(245, 158, 11, 0.3)',
+                      margin: '0 auto 6px',
+                      background: '#0B0F1D'
+                    }}>
+                      {appIconPreview ? (
+                        <img src={appIconPreview} alt="App Icon Circle" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: '#94A3B8' }}>جاري التوليد...</div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#CBD5E1' }}>شكل الدائرة (Pixel / Samsung)</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: 0 }}>
+                    💡 تم ضبط منطقة الأمان (Safe Area 66%) بدقة لضمان عدم قص الوجه أو الشعار في أي نوع شاشة أندرويد أو آيفون.
+                  </p>
+                  {appIconPreview && (
+                    <a
+                      href={appIconPreview}
+                      download="master-app-icon-512x512.png"
+                      className="btn btn-secondary btn-sm"
+                      style={{ gap: '6px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.08)' }}
+                    >
+                      <Download size={14} />
+                      <span>تحميل نسخة الأيقونة (PNG)</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نبذة المستر:</label>
                 <textarea value={profileBio} onChange={e => setProfileBio(e.target.value)} className="input-control" style={{ height: '100px' }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', gap: '8px' }}>
+                <button type="submit" disabled={isGeneratingIcons} className="btn btn-primary btn-lg" style={{ width: '100%', gap: '8px' }}>
                   <CheckCircle2 size={18} />
-                  <span>حفظ التعديلات</span>
+                  <span>{isGeneratingIcons ? 'جاري توليد ونشر أيقونات المنصة الذكية...' : 'حفظ التعديلات وتحديث الأيقونة'}</span>
                 </button>
               </div>
             </form>

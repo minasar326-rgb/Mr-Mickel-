@@ -33,12 +33,13 @@ function AppContent() {
   const { role, switchRole } = useAuth();
   const { teacherProfile } = useTeacher();
 
-  // Parse current URL hash or fallback to sessionStorage
-  const parseRoute = () => {
+  // Parse current URL hash cleanly with no stale sessionStorage override on back
+  const parseRoute = (customHash = null) => {
     try {
-      const hash = window.location.hash.replace(/^#\/?/, '');
-      if (hash) {
-        const [path, queryString] = hash.split('?');
+      const rawHash = customHash !== null ? customHash : window.location.hash;
+      const cleanHash = (rawHash || '').replace(/^#\/?/, '').trim();
+      if (cleanHash) {
+        const [path, queryString] = cleanHash.split('?');
         const params = {};
         if (queryString) {
           new URLSearchParams(queryString).forEach((val, key) => {
@@ -46,11 +47,6 @@ function AppContent() {
           });
         }
         return { page: path || 'home', params };
-      }
-      const saved = sessionStorage.getItem('ms_active_route');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.page) return { page: parsed.page, params: parsed.params || {} };
       }
     } catch (e) {}
     return { page: 'home', params: {} };
@@ -60,52 +56,129 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
   const [pageParams, setPageParams] = useState(initialRoute.params);
 
-  // Modals - Teacher PIN Login & Code Redeem (No student login modal!)
+  // Modals - Teacher PIN Login & Code Redeem
   const [isTeacherLoginModalOpen, setIsTeacherLoginModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
 
-  // Sync with browser Back / Forward buttons & direct link hash changes
+  // Setup initial baseline entry in history stack & attach popstate handler
   useEffect(() => {
-    const handleHashChange = () => {
-      const { page, params } = parseRoute();
-      if (page === 'teacher-admin' && role !== 'teacher') {
+    // 1. Establish valid baseline history state
+    const currentHash = window.location.hash || '#/';
+    if (!window.location.hash) {
+      window.history.replaceState({ page: 'home', params: {}, scrollY: 0 }, '', '#/');
+    } else {
+      window.history.replaceState(
+        { page: initialRoute.page, params: initialRoute.params, scrollY: window.scrollY || 0 },
+        '',
+        currentHash
+      );
+    }
+
+    // 2. Handle Android Hardware & Browser Back / Forward buttons
+    const handlePopState = (event) => {
+      // If modal was open, close it cleanly
+      if (isCodeModalOpen) setIsCodeModalOpen(false);
+      if (isTeacherLoginModalOpen) setIsTeacherLoginModalOpen(false);
+
+      // Extract route from event state or fallback to current hash
+      let targetPage = event.state?.page;
+      let targetParams = event.state?.params;
+
+      if (!targetPage) {
+        const parsed = parseRoute();
+        targetPage = parsed.page;
+        targetParams = parsed.params;
+      }
+
+      if (targetPage === 'teacher-admin' && role !== 'teacher') {
         setIsTeacherLoginModalOpen(true);
         return;
       }
-      setCurrentPage(page);
-      setPageParams(params);
+
+      setCurrentPage(targetPage || 'home');
+      setPageParams(targetParams || {});
+
+      // Restore exact scroll position of that page
+      const savedScrollY = typeof event.state?.scrollY === 'number' ? event.state.scrollY : 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+      });
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [role]);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [role, isCodeModalOpen, isTeacherLoginModalOpen]);
 
   const handleNavigate = (page, params = {}) => {
     if (page === 'teacher-admin') {
       setIsTeacherLoginModalOpen(true);
       return;
     }
-    // When leaving teacher-admin, reset role to student so next entry requires password again
+    // When leaving teacher-admin, reset role to student
     if (currentPage === 'teacher-admin' && page !== 'teacher-admin') {
       switchRole('student');
     }
-    setCurrentPage(page);
-    setPageParams(params);
 
-    // Save to sessionStorage so refresh always resumes exact position
+    // Save scroll position into CURRENT history entry before pushing new one
+    const currentScrollY = window.scrollY || window.pageYOffset || 0;
     try {
-      sessionStorage.setItem('ms_active_route', JSON.stringify({ page, params }));
+      window.history.replaceState({
+        page: currentPage,
+        params: pageParams,
+        scrollY: currentScrollY
+      }, '', window.location.hash || '#/');
     } catch (e) {}
 
-    // Update browser URL hash cleanly
+    // Formulate target hash
     let newHash = page === 'home' ? '#/' : `#/${page}`;
     const qs = new URLSearchParams(params).toString();
     if (qs) newHash += `?${qs}`;
-    if (window.location.hash !== newHash) {
-      window.history.pushState(null, '', newHash);
-    }
 
+    // Push real forward navigation entry to browser history
+    window.history.pushState({
+      page,
+      params,
+      scrollY: 0
+    }, '', newHash);
+
+    setCurrentPage(page);
+    setPageParams(params);
+
+    // Scroll to top smoothly for the new view
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenCodeModal = () => {
+    setIsCodeModalOpen(true);
+    // Push modal state so Android back button closes the modal instead of exiting
+    try {
+      window.history.pushState({
+        page: currentPage,
+        params: pageParams,
+        modal: 'code',
+        scrollY: window.scrollY || 0
+      }, '', window.location.hash);
+    } catch (e) {}
+  };
+
+  const handleCloseCodeModal = () => {
+    setIsCodeModalOpen(false);
+  };
+
+  const handleOpenTeacherLogin = () => {
+    setIsTeacherLoginModalOpen(true);
+    try {
+      window.history.pushState({
+        page: currentPage,
+        params: pageParams,
+        modal: 'teacher-login',
+        scrollY: window.scrollY || 0
+      }, '', window.location.hash);
+    } catch (e) {}
+  };
+
+  const handleCloseTeacherLogin = () => {
+    setIsTeacherLoginModalOpen(false);
   };
 
   return (
@@ -115,8 +188,8 @@ function AppContent() {
         <TeacherNavbar
           onNavigate={handleNavigate}
           currentPage={currentPage}
-          onOpenCodeModal={() => setIsCodeModalOpen(true)}
-          onOpenTeacherLogin={() => setIsTeacherLoginModalOpen(true)}
+          onOpenCodeModal={handleOpenCodeModal}
+          onOpenTeacherLogin={handleOpenTeacherLogin}
         />
 
       {/* Main Routed Content */}
@@ -125,11 +198,11 @@ function AppContent() {
           <>
             <TeacherHero
               onNavigate={handleNavigate}
-              onOpenCodeModal={() => setIsCodeModalOpen(true)}
+              onOpenCodeModal={handleOpenCodeModal}
             />
             <StageSection
               onNavigate={handleNavigate}
-              onOpenCodeModal={() => setIsCodeModalOpen(true)}
+              onOpenCodeModal={handleOpenCodeModal}
             />
             <AchieversLeaderboard />
             <BookletShowcase />
@@ -140,7 +213,7 @@ function AppContent() {
           <div style={{ paddingTop: '1.5rem' }}>
             <StageSection
               onNavigate={handleNavigate}
-              onOpenCodeModal={() => setIsCodeModalOpen(true)}
+              onOpenCodeModal={handleOpenCodeModal}
             />
           </div>
         )}
@@ -149,7 +222,7 @@ function AppContent() {
           <StageLecturesPage
             stageId={pageParams.stageId || 'sec-3'}
             onNavigate={handleNavigate}
-            onOpenCodeModal={() => setIsCodeModalOpen(true)}
+            onOpenCodeModal={handleOpenCodeModal}
           />
         )}
 
@@ -157,14 +230,14 @@ function AppContent() {
           <LecturePlayerRoom
             lectureId={pageParams.lectureId || 'lec-s3-01'}
             onNavigate={handleNavigate}
-            onOpenCodeModal={() => setIsCodeModalOpen(true)}
+            onOpenCodeModal={handleOpenCodeModal}
           />
         )}
 
         {currentPage === 'student-portal' && (
           <StudentPortal
             onNavigate={handleNavigate}
-            onOpenCodeModal={() => setIsCodeModalOpen(true)}
+            onOpenCodeModal={handleOpenCodeModal}
           />
         )}
 
@@ -221,7 +294,7 @@ function AppContent() {
       {/* Global Modals */}
       <TeacherLoginModal
         isOpen={isTeacherLoginModalOpen}
-        onClose={() => setIsTeacherLoginModalOpen(false)}
+        onClose={handleCloseTeacherLogin}
         onSuccess={() => {
           setCurrentPage('teacher-admin');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -230,7 +303,7 @@ function AppContent() {
 
       <CodeRedeemModal
         isOpen={isCodeModalOpen}
-        onClose={() => setIsCodeModalOpen(false)}
+        onClose={handleCloseCodeModal}
         onNavigate={handleNavigate}
       />
 
@@ -265,20 +338,20 @@ function AppContent() {
                   MS
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'white' }}>
-                  {teacherProfile?.name || 'مستر مايكل شحاته'}
+                  {teacherProfile?.name || 'مستر مايكل شحاتة'}
                 </h3>
               </div>
               <p style={{ color: '#94A3B8', fontSize: '0.85rem', lineHeight: '1.6', margin: 0 }}>
-                {teacherProfile?.subtitle || 'صاحب أقوى سلسلة تعليمية للغة الإنجليزية ومعد أوائل الجمهورية'} • خبرة أكثر من 16 عاماً في تدريس اللغة الإنجليزية للثانوية العامة وصانع أوائل الجمهورية.
+                {teacherProfile?.subtitle || 'صاحب سلسلة The Master ومعد أوائل الطلاب'} • خبرة أكثر من 16 عاماً في تدريس وتبسيط اللغة الإنجليزية للمراحل الابتدائية والإعدادية والثانوية.
               </p>
             </div>
 
             <div>
               <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1rem', color: 'white' }}>المراحل الدراسية</h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: '#94A3B8' }}>
-                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'sec-3' })}>الصف الثالث الثانوي (Thanaweya Amma)</li>
-                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'sec-2' })}>الصف الثاني الثانوي</li>
-                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'sec-1' })}>الصف الأول الثانوي</li>
+                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'sec-3' })}>المرحلة الثانوية (صفوف 1، 2، 3 ثانوي)</li>
+                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'prep' })}>المرحلة الإعدادية (صفوف 1، 2، 3 إعدادي)</li>
+                <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'pri' })}>المرحلة الابتدائية (الصفوف الابتدائية)</li>
                 <li style={{ cursor: 'pointer' }} onClick={() => handleNavigate('stage-lectures', { stageId: 'foundation' })}>كورس التأسيس والمحادثة الشامل</li>
               </ul>
             </div>

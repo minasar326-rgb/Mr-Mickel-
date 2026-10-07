@@ -6,19 +6,29 @@ export const r2Config = {
   bucketName: 'educational-videos',
   publicDomain: 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
   endpoint: 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
-  accessKeyId: 'e2511c27de74bb1b59dff09039768fd4',
-  secretAccessKey: '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
+  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || '',
+  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || ''
 };
 
-// Initialize S3 Client targeting Cloudflare R2
-export const r2Client = new S3Client({
-  region: 'auto',
-  endpoint: r2Config.endpoint,
-  credentials: {
-    accessKeyId: r2Config.accessKeyId,
-    secretAccessKey: r2Config.secretAccessKey
+// Initialize S3 Client targeting Cloudflare R2 on demand
+export function getR2Client() {
+  const accessKeyId = r2Config.accessKeyId || localStorage.getItem('ms_r2_key') || '';
+  const secretAccessKey = r2Config.secretAccessKey || localStorage.getItem('ms_r2_secret') || '';
+
+  if (!accessKeyId || !secretAccessKey) {
+    console.warn('R2 Client: Upload credentials not configured. Please supply keys.');
+    return null;
   }
-});
+
+  return new S3Client({
+    region: 'auto',
+    endpoint: r2Config.endpoint,
+    credentials: {
+      accessKeyId,
+      secretAccessKey
+    }
+  });
+}
 
 /**
  * Upload any video or file directly to Cloudflare R2 with progress simulation & public CDN URL
@@ -56,7 +66,11 @@ export async function uploadFileToR2(file, folderPath = 'lectures/videos', onPro
       }
     });
 
-    await r2Client.send(command);
+    const client = getR2Client();
+    if (!client) {
+      throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة. يرجى تزويد مفاتيح الدخول أولاً.');
+    }
+    await client.send(command);
 
     if (onProgress) {
       onProgress({ percent: 100, transferredMB: totalMB, totalMB });
@@ -112,7 +126,12 @@ export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
       CacheControl: 'no-cache, no-store, max-age=0, must-revalidate'
     });
 
-    await r2Client.send(command);
+    const client = getR2Client();
+    if (!client) {
+      console.warn('R2 Client not initialized for avatar upload');
+      return null;
+    }
+    await client.send(command);
 
     // Automatically trigger Facebook & WhatsApp scrapers in background to purge cache instantly
     try {

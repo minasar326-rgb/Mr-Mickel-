@@ -41,7 +41,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               boxShadow: '0 2px 10px rgba(245, 158, 11, 0.15)'
             }}>
               <Trophy size={16} color="#D97706" />
-              <span>المنصة الرسمية الأولى لطلاب الثانوية العامة واللغات 2026 🇬🇧</span>
+              <span>المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧</span>
             </div>
 
             {/* Main Headline */}
@@ -56,7 +56,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
-              }}>{teacherProfile?.name || 'مستر مايكل شحاته'}</span>
+              }}>{teacherProfile?.name || 'مستر مايكل شحاتة'}</span>
               <br />
               الدرجة النهائية في الإنجليزي مضمونة 🎯
             </h1>
@@ -68,7 +68,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               marginBottom: '2rem',
               maxWidth: '580px'
             }}>
-              شرح مبسط، تفكيك لأصعب قواعد الـ Grammar والـ Vocabulary، تدريب مكثف على مهارات الترجمة والمقال والقطع، مع متابعة أسبوعية دقيقة وتقارير واتساب فورية لولي الأمر.
+              المنصة التعليمية الرسمية لمستر مايكل شحاتة لطلاب المرحلة الابتدائية والإعدادية والثانوية: شرح مبسط ومنظم، فيديوهات تعليمية، تدريبات مكثفة، بنوك أسئلة، اختبارات دورية ومتابعة شاملة للطلاب.
             </p>
 
             {/* Main CTAs */}

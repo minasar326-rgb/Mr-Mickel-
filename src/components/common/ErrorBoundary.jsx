@@ -77,32 +77,9 @@ export default class ErrorBoundary extends React.Component {
             <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>
               منصة مستر مايكل شحاته 🇬🇧
             </h2>
-            <p style={{ color: '#94A3B8', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
-              نظام الاستعادة التلقائي: تم رصد مشكلة بسيطة في تحميل الواجهة. تفاصيل المشكلة:
+            <p style={{ color: '#94A3B8', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+              حدث انقطاع مؤقت في الاتصال أو تحديث للنظام. يرجى الضغط على زر التحديث أو إعادة تشغيل المنصة للمتابعة بكل سلاسة.
             </p>
-
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              textAlign: 'left',
-              direction: 'ltr',
-              fontSize: '0.8rem',
-              color: '#FCA5A5',
-              fontFamily: 'monospace',
-              maxHeight: '140px',
-              overflowY: 'auto',
-              marginBottom: '1.75rem',
-              wordBreak: 'break-all'
-            }}>
-              <strong>Error:</strong> {errorMsg}
-              {errorStack && (
-                <div style={{ marginTop: '6px', color: '#94A3B8', fontSize: '0.72rem' }}>
-                  {errorStack.slice(0, 300)}...
-                </div>
-              )}
-            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button

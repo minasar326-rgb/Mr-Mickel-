@@ -5,82 +5,82 @@
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   <!-- Homepage -->
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/</loc>
-    <lastmod>2026-10-07</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
     <loc>https://minasar326-rgb.github.io/Mr-Mickel-/</loc>
-    <lastmod>2026-10-07</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Educational Stages -->
+  <!-- Educational Stages: Primary, Preparatory & Secondary -->
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/stages/sec-3</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/pri</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/stages/sec-2</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/prep</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/stages/sec-1</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/sec-3</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/sec-2</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/sec-1</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/stages/foundation</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
   </url>
 
   <!-- Booklets & Notes -->
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/booklets</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/booklets</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <!-- Achievers Leaderboard -->
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/achievers</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/#/achievers</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 
-  <!-- Legal & Support Pages (Required for Google Play & SEO) -->
+  <!-- Legal & Support Pages -->
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/privacy-policy</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/privacy-policy.html</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/terms</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/terms.html</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/about</loc>
-    <lastmod>2026-10-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/contact</loc>
-    <lastmod>2026-10-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/#/account-deletion</loc>
-    <lastmod>2026-10-07</lastmod>
+    <loc>https://minasar326-rgb.github.io/Mr-Mickel-/account-deletion.html</loc>
+    <lastmod>2026-10-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

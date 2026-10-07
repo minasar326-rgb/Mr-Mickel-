@@ -4,13 +4,25 @@ import path from 'path';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+// Try reading .env file if running locally
+try {
+  const envPath = path.resolve(__dirname, '../.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      const [k, ...v] = line.trim().split('=');
+      if (k && v.length) process.env[k.trim()] = v.join('=').trim();
+    });
+  }
+} catch (e) {}
+
 const r2Config = {
-  accountId: '13683452db95c0fd11352a54efc368b4',
-  bucketName: 'educational-videos',
-  publicDomain: 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
-  endpoint: 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
-  accessKeyId: 'e2511c27de74bb1b59dff09039768fd4',
-  secretAccessKey: '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
+  accountId: process.env.R2_ACCOUNT_ID || '13683452db95c0fd11352a54efc368b4',
+  bucketName: process.env.R2_BUCKET_NAME || 'educational-videos',
+  publicDomain: process.env.R2_PUBLIC_DOMAIN || 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
+  endpoint: process.env.R2_ENDPOINT || 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
+  accessKeyId: process.env.VITE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID || 'e2511c27de74bb1b59dff09039768fd4',
+  secretAccessKey: process.env.VITE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
 };
 
 const s3 = new S3Client({
@@ -76,7 +88,10 @@ async function deploy() {
       Key: relativePath,
       Body: body,
       ContentType: contentType,
-      CacheControl: ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable'
+      CacheControl: ext === '.html' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=31536000, immutable',
+      Metadata: {
+        'robots': 'noindex, nofollow, noarchive'
+      }
     }));
   }
 

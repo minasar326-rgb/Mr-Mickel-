@@ -59,6 +59,12 @@ export function normalizeStageId(targetId, stageName = '') {
   if (combined.includes('sec-1') || combined.includes('sec1') || combined.includes('أول') || combined.includes('اول') || combined.includes('senior 1')) {
     return 'sec-1';
   }
+  if (combined.includes('prep') || combined.includes('إعداد') || combined.includes('اعداد') || combined.includes('middle')) {
+    return 'prep';
+  }
+  if (combined.includes('pri') || combined.includes('ابتد') || combined.includes('primary') || combined.includes('أولاد')) {
+    return 'pri';
+  }
   if (combined.includes('foundation') || combined.includes('fnd') || combined.includes('تأسيس') || combined.includes('محادثة')) {
     return 'foundation';
   }
@@ -100,9 +106,9 @@ const initialBookletsList = [
 
 const initialTopAchievers = [
   { id: "ach-1", rank: 1, name: "سعد القحطاني", stageId: "sec-3", stageName: "الصف الثالث الثانوي", score: "50 / 50 (الدرجة النهائية)", school: "ثانوية المتفوقين", badge: "🥇 المركز الأول على مستوى الجمهورية", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80" },
-  { id: "ach-2", rank: 2, name: "سارة الزهراني", stageId: "sec-3", stageName: "الصف الثالث الثانوي", score: "49.5 / 50", school: "مدرسة اللغات التجريبية", badge: "🥈 المركز الثاني", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" },
-  { id: "ach-3", rank: 3, name: "عبدالله الشمري", stageId: "sec-2", stageName: "الصف الثاني الثانوي", score: "49 / 50", school: "مدرسة الأوائل الثانوية", badge: "🥉 المركز الثالث", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" },
-  { id: "ach-4", rank: 4, name: "نورهان إبراهيم", stageId: "sec-1", stageName: "الصف الأول الثانوي", score: "49 / 50", school: "مدرسة النيل الدولية", badge: "المستوى الذهبي", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80" }
+  { id: "ach-2", rank: 2, name: "سارة الزهراني", stageId: "prep", stageName: "الصف الثالث الإعدادي", score: "50 / 50 (الدرجة النهائية)", school: "مدرسة اللغات الرسمية", badge: "🥈 المركز الأول إعدادي", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" },
+  { id: "ach-3", rank: 3, name: "عبدالله الشمري", stageId: "sec-2", stageName: "الصف الثاني الثانوي", score: "49.5 / 50", school: "مدرسة الأوائل الثانوية", badge: "🥉 المركز الثالث", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" },
+  { id: "ach-4", rank: 4, name: "نورهان إبراهيم", stageId: "pri", stageName: "الصف السادس الابتدائي", score: "50 / 50 (الدرجة النهائية)", school: "مدرسة النيل الدولية", badge: "🌟 المركز الأول ابتدائي", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80" }
 ];
 
 const richInitialStudents = [

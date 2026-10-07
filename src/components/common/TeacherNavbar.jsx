@@ -51,7 +51,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <Sparkles size={14} color="#FBBF24" />
-        <span>أهلاً بكم في المنصة الرسمية لـ <strong>{teacherProfile?.name || 'مستر مايكل شحاته'}</strong> • الدفعة الذهبية 2026!</span>
+        <span>أهلاً بكم في المنصة التعليمية الرسمية لـ <strong>{teacherProfile?.name || 'مستر مايكل شحاتة'}</strong> • ابتدائي وإعدادي وثانوي!</span>
       </div>
 
       {/* Main Bar */}
@@ -85,14 +85,14 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '1.35rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-                  {teacherProfile?.name || 'مستر مايكل شحاته'}
+                  {teacherProfile?.name || 'مستر مايكل شحاتة'}
                 </span>
                 <span className="badge badge-gold" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem' }}>
                   The Master 🇬🇧
                 </span>
               </div>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '-2px' }}>
-                منصة اللغة الإنجليزية والثانوية العامة
+                ابتدائي • إعدادي • ثانوي
               </span>
             </div>
           </div>

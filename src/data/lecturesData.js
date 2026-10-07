@@ -191,5 +191,63 @@ export const lecturesData = [
       { word: "Fluency", ipa: "/ˈfluː.ən.si/", arabic: "الطلاقة والفصاحة في التحدث", example: "Practice is the key to English speaking fluency.", ukAudio: "#", usAudio: "#" },
       { word: "Pronunciation", ipa: "/prəˌnʌn.siˈeɪ.ʃən/", arabic: "النطق ومخارج الحروف", example: "Good pronunciation makes communication smooth.", ukAudio: "#", usAudio: "#" }
     ]
+  },
+
+  // ==========================================
+  // المرحلة الإعدادية (Preparatory Stage)
+  // ==========================================
+  {
+    id: "lec-prep-01",
+    stageId: "prep",
+    unitNumber: "Unit 1",
+    title: "المحاضرة 1: قواعد ومفردات الوحدة الأولى (Around Town) لطلاب المرحلة الإعدادية",
+    subtitle: "شرح زمن المضارع البسيط واستخدامه في جداول المواعيد مع حل كافة تدريبات كتاب المدرسة وكتاب The Master.",
+    duration: "1:10:00",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    thumbnail: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80",
+    isLocked: false,
+    order: 1,
+    viewsCount: 3800,
+    homeworkRequired: true,
+    examRequired: true,
+    pdfBooklet: {
+      title: "مذكرة الشرح والتدريبات - المرحلة الإعدادية (The Master).pdf",
+      size: "5.1 MB",
+      pages: 28
+    },
+    vocabList: [
+      { word: "Aquarium", ipa: "/əˈkweə.ri.əm/", arabic: "متحف الأحياء المائية", example: "We saw colourful fish at the aquarium.", ukAudio: "#", usAudio: "#" },
+      { word: "Botanical garden", ipa: "/bəˈtæn.ɪ.kəl/", arabic: "حديقة نباتية", example: "The botanical garden has rare trees.", ukAudio: "#", usAudio: "#" },
+      { word: "Monument", ipa: "/ˈmɒn.jə.mənt/", arabic: "أثر تاريخي / تمثال", example: "Cairo has many famous ancient monuments.", ukAudio: "#", usAudio: "#" }
+    ]
+  },
+
+  // ==========================================
+  // المرحلة الابتدائية (Primary Stage)
+  // ==========================================
+  {
+    id: "lec-pri-01",
+    stageId: "pri",
+    unitNumber: "Unit 1",
+    title: "المحاضرة 1: التأسيس الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
+    subtitle: "شرح تفاعلي بالرسوم والألوان، تأسيس الفونكس والقواعد الأساسية (Present Simple) بطريقة مبسطة وممتعة.",
+    duration: "0:50:00",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    thumbnail: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&q=80",
+    isLocked: false,
+    order: 1,
+    viewsCount: 2900,
+    homeworkRequired: true,
+    examRequired: true,
+    pdfBooklet: {
+      title: "كراسة التأسيس والتلوين لطلاب المرحلة الابتدائية.pdf",
+      size: "3.5 MB",
+      pages: 20
+    },
+    vocabList: [
+      { word: "Community garden", ipa: "/kəˈmjuː.nə.ti/", arabic: "حديقة المجتمع / حديقة الحي", example: "We plant fresh vegetables in the community garden.", ukAudio: "#", usAudio: "#" },
+      { word: "Harvest", ipa: "/ˈhɑː.vɪst/", arabic: "يحصد / محصول", example: "Farmers harvest crops in the autumn.", ukAudio: "#", usAudio: "#" },
+      { word: "Organic", ipa: "/ɔːˈɡæn.ɪk/", arabic: "عضوي / طبيعي بدون كيماويات", example: "Organic fruit is delicious and healthy.", ukAudio: "#", usAudio: "#" }
+    ]
   }
 ];

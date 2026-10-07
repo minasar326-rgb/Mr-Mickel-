@@ -244,10 +244,23 @@ function AppContent() {
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
             paddingTop: '1.25rem',
             textAlign: 'center',
-            fontSize: '0.8rem',
-            color: '#64748B'
+            fontSize: '0.82rem',
+            color: '#94A3B8',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            alignItems: 'center'
           }}>
-            جميع الحقوق محفوظة © 2026 • منصة {teacherProfile?.name || 'مستر مايكل شحاته'} التعليمية للغة الإنجليزية | The Master
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <a href="/privacy-policy.html" target="_blank" rel="noreferrer" style={{ color: '#38BDF8', textDecoration: 'none' }}>سياسة الخصوصية (Privacy Policy)</a>
+              <span>•</span>
+              <a href="/terms.html" target="_blank" rel="noreferrer" style={{ color: '#38BDF8', textDecoration: 'none' }}>الشروط والأحكام (Terms)</a>
+              <span>•</span>
+              <a href="/account-deletion.html" target="_blank" rel="noreferrer" style={{ color: '#F87171', textDecoration: 'none' }}>حذف الحساب والبيانات (Data Deletion)</a>
+            </div>
+            <div>
+              جميع الحقوق محفوظة © 2026 • منصة {teacherProfile?.name || 'مستر مايكل شحاته'} التعليمية للغة الإنجليزية | The Master
+            </div>
           </div>
         </div>
       </footer>

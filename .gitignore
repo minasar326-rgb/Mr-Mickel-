@@ -19,6 +19,11 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+*.keystore
+*.jks
+keystore.properties
+*.aab
+*.apk
 
 # Editor directories and files
 .vscode/*
@@ -30,4 +35,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-Thumbs.db
+# Android
+android/.gradle
+android/app/build
+.gradle
+local.properties

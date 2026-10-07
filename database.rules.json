@@ -1,0 +1,76 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "teacherProfile": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "stages": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "lectures": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "booklets": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "achievers": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "announcements": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "students": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'saryanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com' || auth.token.email === 'teacher@gmail.com')"
+      }
+    },
+
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'saryanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com' || auth.token.email === 'teacher@gmail.com')"
+      }
+    },
+
+    "subscriptions": {
+      ".read": "auth != null",
+      "$subId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "codes": {
+      ".read": "auth != null",
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "subscriptionCodes": {
+      ".read": "auth != null",
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

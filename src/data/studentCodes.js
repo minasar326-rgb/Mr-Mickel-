@@ -1,0 +1,80 @@
+export const initialAccessCodes = [
+  {
+    code: "MS-SEC3-9942",
+    type: "lecture",
+    targetId: "lec-s3-01",
+    targetTitle: "محاضرة 1 (3ث) - الماضي البسيط والتام",
+    stage: "الصف الثالث الثانوي",
+    price: "70 ج.م",
+    durationDays: 30,
+    durationLabel: "شهر (30 يوم)",
+    isUsed: true,
+    usedBy: "سعد القحطاني (01099887766)",
+    createdAt: "2026-08-10"
+  },
+  {
+    code: "MS-SEC3-8812",
+    type: "stage",
+    targetId: "sec-3",
+    targetTitle: "اشتراك مرحلة: الصف الثالث الثانوي",
+    stage: "الصف الثالث الثانوي",
+    price: "250 ج.م",
+    durationDays: 30,
+    durationLabel: "شهر (30 يوم)",
+    isUsed: false,
+    usedBy: null,
+    createdAt: "2026-08-14"
+  },
+  {
+    code: "MS-SEC3-2026",
+    type: "stage",
+    targetId: "sec-3",
+    targetTitle: "اشتراك مرحلة: الصف الثالث الثانوي",
+    stage: "الصف الثالث الثانوي",
+    price: "250 ج.م",
+    durationDays: 30,
+    durationLabel: "شهر (30 يوم)",
+    isUsed: false,
+    usedBy: null,
+    createdAt: "2026-08-16"
+  },
+  {
+    code: "MS-SEC2-2026",
+    type: "stage",
+    targetId: "sec-2",
+    targetTitle: "اشتراك مرحلة: الصف الثاني الثانوي",
+    stage: "الصف الثاني الثانوي",
+    price: "220 ج.م",
+    durationDays: 30,
+    durationLabel: "شهر (30 يوم)",
+    isUsed: false,
+    usedBy: null,
+    createdAt: "2026-08-16"
+  },
+  {
+    code: "MS-SEC1-2026",
+    type: "stage",
+    targetId: "sec-1",
+    targetTitle: "اشتراك مرحلة: الصف الأول الثانوي",
+    stage: "الصف الأول الثانوي",
+    price: "200 ج.م",
+    durationDays: 30,
+    durationLabel: "شهر (30 يوم)",
+    isUsed: false,
+    usedBy: null,
+    createdAt: "2026-08-16"
+  },
+  {
+    code: "MS-VIP-2026",
+    type: "bundle",
+    targetId: "all-access",
+    targetTitle: "كود VIP الشامل لجميع الصفوف والمراحل",
+    stage: "جميع المراحل",
+    price: "مجاني للمعاينة",
+    durationDays: 60,
+    durationLabel: "شهرين (60 يوم)",
+    isUsed: false,
+    usedBy: null,
+    createdAt: "2026-08-16"
+  }
+];

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <title>منصة مستر مايكل شحاته | The Master</title>
+    <script>
+      // Single Page App redirect for GitHub Pages
+      (function() {
+        var path = window.location.pathname;
+        var search = window.location.search || '';
+        var repo = '/Mr-Mickel-';
+        
+        var subpath = path;
+        if (path.indexOf(repo) === 0) {
+          subpath = path.slice(repo.length);
+        }
+        if (subpath.indexOf('/') === 0) {
+          subpath = subpath.slice(1);
+        }
+        
+        var newHash = subpath ? '#/' + subpath : '#/';
+        if (search) {
+          newHash += search;
+        }
+        
+        window.location.replace(repo + '/' + newHash);
+      })();
+    </script>
+  </head>
+  <body style="background: #0F172A; color: white; text-align: center; padding-top: 20vh; font-family: sans-serif;">
+    <p>جاري توجيهك إلى المنصة...</p>
+  </body>
+</html>

@@ -1,0 +1,79 @@
+name: Build Android App Bundle (.aab) & APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+
+jobs:
+  build-android:
+    name: Build Android Release (.aab & .apk)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NPM Dependencies
+        run: npm ci || npm install
+
+      - name: Build Web Production Assets
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Generate or Use Keystore for Release Signing
+        run: |
+          cd android/app
+          if [ ! -f "release-key.keystore" ]; then
+            echo "Generating production release keystore..."
+            keytool -genkey -v -keystore release-key.keystore -alias key0 -keyalg RSA -keysize 2048 -validity 10000 -storepass mrmichael2026 -keypass mrmichael2026 -dname "CN=Mr Michael Shehata, OU=Education, O=The Master LMS, L=Cairo, S=Cairo, C=EG"
+          fi
+
+      - name: Build Android App Bundle (.aab)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --stacktrace
+
+      - name: Build Release APK (.apk)
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Upload Android App Bundle (.aab) Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-play-app-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+
+      - name: Upload Release APK (.apk) Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 30

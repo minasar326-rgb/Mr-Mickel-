@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mr Michael Shehata | The Master</string>
+    <string name="title_activity_main">Mr Michael Shehata | The Master</string>
+    <string name="package_name">com.mrmichaelshehata.lms</string>
+    <string name="custom_url_scheme">com.mrmichaelshehata.lms</string>
+</resources>

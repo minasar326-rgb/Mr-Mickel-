@@ -1,0 +1,21 @@
+# Robots.txt for Mr. Michael Shehata LMS (The Master of English)
+# Platform: https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/
+
+User-agent: *
+Allow: /
+Allow: /#/*
+Allow: /sitemap.xml
+Allow: /privacy-policy
+Allow: /terms
+Allow: /about
+Allow: /contact
+Allow: /account-deletion
+
+# Disallow private user dashboards and teacher administration
+Disallow: /teacher-admin
+Disallow: /admin
+Disallow: /student-portal
+Disallow: /api/
+
+Sitemap: https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/sitemap.xml
+Sitemap: https://minasar326-rgb.github.io/Mr-Mickel-/sitemap.xml

@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/syncDev.js && vite",
+    "build": "node scripts/syncDev.js && vite build && node scripts/syncDistToRoot.js",
     "preview": "vite preview",
-    "deploy": "vite build && node scripts/deployToCloudflare.js"
+    "deploy": "npm run build && node scripts/deployToCloudflare.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1142.0",

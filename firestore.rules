@@ -153,13 +153,27 @@ service cloud.firestore {
     }
 
     // ===============================================================
-    // Attendance Logs
+    // Educational Months / Courses (Dynamic Sections)
     // ===============================================================
 
-    match /attendanceLogs/{logId} {
-      allow read: if isTeacherAdmin();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if isTeacherAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isTeacherAdmin();
+    }
+
+    // ===============================================================
+    // Treasury Transactions (Financial Records)
+    // ===============================================================
+
+    match /transactions/{transactionId} {
+      allow read: if isTeacherAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isTeacherAdmin());
+      allow update, delete: if isTeacherAdmin();
     }
   }
 }

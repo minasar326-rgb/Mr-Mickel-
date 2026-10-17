@@ -14,7 +14,6 @@ import {
   deleteLectureFromFirestore,
   syncTeacherProfile, 
   batchSyncStudents, 
-  recordAttendanceToFirestore,
   listenToLectures,
   listenToStudents,
   listenToRtdbNode,
@@ -228,6 +227,117 @@ const richInitialStudents = [
   }
 ];
 
+export const initialSections = [
+  {
+    id: "sec3-month-1",
+    stageId: "sec-3",
+    stageName: "الصف الثالث الثانوي",
+    title: "الشهر الأول: Grammar Units 1 & 2 + Advanced Translation",
+    type: "month",
+    monthNumber: 1,
+    description: "شرح شامل ومبسط لأزمنة الماضي والمضارع التام مع مهارات الترجمة المتقدمة وحل 200 سؤال وزاري.",
+    price: 180,
+    cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    order: 1,
+    createdAt: "2026-08-01"
+  },
+  {
+    id: "sec3-month-2",
+    stageId: "sec-3",
+    stageName: "الصف الثالث الثانوي",
+    title: "الشهر الثاني: Grammar Units 3 & 4 + Story Chapters 1-3",
+    type: "month",
+    monthNumber: 2,
+    description: "أزمنة المستقبل وصيغ المجهول مع دراسة تفصيلية وتحليل لأهم شخصيات قصة Great Expectations.",
+    price: 180,
+    cover: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    order: 2,
+    createdAt: "2026-09-01"
+  },
+  {
+    id: "sec3-course-fnd",
+    stageId: "sec-3",
+    stageName: "الصف الثالث الثانوي",
+    title: "كورس التأسيس الشامل (The Master Foundation Bootcamp)",
+    type: "course",
+    description: "تأسيس شامل من الصفر في القواعد وأساسيات تكوين الجملة الإنجليزية ومهارات المقال والترجمة.",
+    price: 250,
+    cover: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    order: 3,
+    createdAt: "2026-07-15"
+  },
+  {
+    id: "prep-month-1",
+    stageId: "prep",
+    stageName: "الصف الثالث الإعدادي",
+    title: "الشهر الأول: منهج New Hello Unit 1 & 2",
+    type: "month",
+    monthNumber: 1,
+    description: "شرح كامل للوحدتين الأولى والثانية مع تدريبات مكثفة على المحادثات وحل امتحانات المحافظات.",
+    price: 120,
+    cover: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    order: 1,
+    createdAt: "2026-08-15"
+  },
+  {
+    id: "pri-month-1",
+    stageId: "pri",
+    stageName: "المرحلة الابتدائية",
+    title: "الشهر الأول: Connect & Connect Plus Units 1 & 2",
+    type: "month",
+    monthNumber: 1,
+    description: "شرح النطق الصحيح وتأسيس الجرامر والقراءة التفاعلية للأطفال.",
+    price: 100,
+    cover: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    order: 1,
+    createdAt: "2026-08-15"
+  }
+];
+
+export const initialTransactions = [
+  {
+    id: "tx-101",
+    userId: "std-101",
+    studentName: "سعد القحطاني",
+    studentPhone: "01099887766",
+    stageId: "sec-3",
+    stageName: "الصف الثالث الثانوي",
+    targetType: "month",
+    targetId: "sec3-month-1",
+    targetTitle: "الشهر الأول: Grammar Units 1 & 2",
+    amount: 180,
+    paymentMethod: "vodafone",
+    paymentMethodLabel: "فودافون كاش",
+    status: "completed",
+    isGift: false,
+    codeUsed: null,
+    createdAt: "2026-08-10T14:20:00Z"
+  },
+  {
+    id: "tx-102",
+    userId: "std-102",
+    studentName: "سارة الزهراني",
+    studentPhone: "01011223344",
+    stageId: "sec-3",
+    stageName: "الصف الثالث الثانوي",
+    targetType: "course",
+    targetId: "sec3-course-fnd",
+    targetTitle: "كورس التأسيس الشامل",
+    amount: 250,
+    paymentMethod: "code",
+    paymentMethodLabel: "كود شحن مدفوع",
+    status: "completed",
+    isGift: false,
+    codeUsed: "MS-FND-8899",
+    createdAt: "2026-08-15T11:00:00Z"
+  }
+];
+
 export function TeacherProvider({ children }) {
   const { currentUser, role, addXP, addSubscriptionToUser, openAuthModal } = useAuth();
   const { addToast } = useToast();
@@ -353,6 +463,44 @@ export function TeacherProvider({ children }) {
     } catch (e) {}
     return [];
   });
+
+  // 8. Dynamic Sections (Months & Courses per stage)
+  const [sections, setSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_sections');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return initialSections;
+  });
+
+  // 9. Treasury & Financial Transactions Ledger (الخزنة وسجل المعاملات)
+  const [transactions, setTransactions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_transactions');
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return initialTransactions;
+  });
+
+  // Sync sections to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_sections', JSON.stringify(sections));
+    } catch (e) {}
+  }, [sections]);
+
+  // Sync transactions to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_transactions', JSON.stringify(transactions));
+    } catch (e) {}
+  }, [transactions]);
 
   // 8. Unlocked Lectures (With automatic duration expiration check strictly for active user)
   const [unlockedLectureIds, setUnlockedLectureIds] = useState(() => {
@@ -944,32 +1092,145 @@ export function TeacherProvider({ children }) {
     addToast('تم حذف الطالب من لوحة الشرف 🗑️', 'info');
   };
 
-  const generateNewCode = async (stageName, targetTitle, targetId, price, type = 'lecture', durationDays = 30) => {
+  const addSection = (sectionData) => {
+    const newSec = {
+      ...sectionData,
+      id: sectionData.id || `sec-${Date.now()}`,
+      order: sections.length + 1,
+      isVisible: sectionData.isVisible !== undefined ? sectionData.isVisible : true,
+      price: Number(sectionData.price) || 0,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...sections, newSec];
+    setSections(updated);
+    try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    addToast(`تمت إضافة ${newSec.type === 'course' ? 'الكورس' : 'الشهر'} (${newSec.title}) بنجاح 📁`, 'success');
+    return newSec;
+  };
+
+  const updateSection = (sectionId, updatedFields) => {
+    const updated = sections.map(s => s.id === sectionId ? { ...s, ...updatedFields } : s);
+    setSections(updated);
+    try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    addToast('تم تحديث بيانات القسم بنجاح ✓', 'success');
+  };
+
+  const deleteSection = (sectionId) => {
+    const updated = sections.filter(s => s.id !== sectionId);
+    setSections(updated);
+    try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    // Reassign any lectures in this section so they are never lost
+    setLectures(prev => prev.map(l => l.sectionId === sectionId ? { ...l, sectionId: '' } : l));
+    addToast('تم حذف القسم بنجاح (مع الحفاظ على المحاضرات) 🗑️', 'info');
+  };
+
+  const moveLectureToSection = (lectureId, targetSectionId) => {
+    const updated = lectures.map(l => l.id === lectureId ? { ...l, sectionId: targetSectionId } : l);
+    setLectures(updated);
+    try { localStorage.setItem('ms_lectures', JSON.stringify(updated)); } catch (e) {}
+    addToast('تم نقل المحاضرة إلى القسم الجديد بنجاح 🔄', 'success');
+  };
+
+  const recordTransaction = (txData) => {
+    if (!txData) return null;
+    const txId = txData.id || `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    if (transactions.some(t => t.id === txId || (txData.codeUsed && t.codeUsed === txData.codeUsed && t.userId === txData.userId))) {
+      return null;
+    }
+    const newTx = {
+      ...txData,
+      id: txId,
+      amount: Number(txData.amount) || 0,
+      isGift: Boolean(txData.isGift),
+      createdAt: txData.createdAt || new Date().toISOString(),
+      status: txData.status || 'completed'
+    };
+    const updated = [newTx, ...transactions];
+    setTransactions(updated);
+    try { localStorage.setItem('ms_transactions', JSON.stringify(updated)); } catch (e) {}
+    return newTx;
+  };
+
+  const toggleCodeStatus = async (codeStr) => {
+    const clean = codeStr.toUpperCase().trim();
+    let newStatus = true;
+    const updated = accessCodes.map(c => {
+      if (c.code.toUpperCase() === clean) {
+        newStatus = c.isActive === false ? true : false;
+        return { ...c, isActive: newStatus };
+      }
+      return c;
+    });
+    setAccessCodes(updated);
+    try { localStorage.setItem('ms_codes', JSON.stringify(updated)); } catch (e) {}
+    addToast(`تم ${newStatus ? 'تفعيل' : 'إيقاف'} الكود بنجاح 🔒`, 'info');
+  };
+
+  const generateNewCode = async (param1, param2, param3, param4, param5, param6) => {
+    let opts = {};
+    if (typeof param1 === 'object' && param1 !== null) {
+      opts = param1;
+    } else {
+      opts = {
+        stageName: param1 || 'الصف الثالث الثانوي',
+        targetTitle: param2 || 'اشتراك المحاضرة',
+        targetId: param3 || 'lec-s3-01',
+        price: param4 || '70 ج.م',
+        codeType: param5 || 'lecture',
+        durationDays: param6 || 30
+      };
+    }
+
+    const {
+      stageName = 'الصف الثالث الثانوي',
+      stageId = 'sec-3',
+      targetTitle = 'اشتراك المحتوى',
+      targetId = '',
+      codeType = 'month',
+      price = 180,
+      durationDays = 30,
+      expiryDate = '',
+      maxUses = 1,
+      isGift = false,
+      customCode = '',
+      bundleItems = []
+    } = opts;
+
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const stagePrefix = stageName.includes('ثالث') ? 'SEC3' : stageName.includes('ثان') ? 'SEC2' : stageName.includes('أول') ? 'SEC1' : 'FND';
-    const newCodeStr = `MS-${stagePrefix}-${randomSuffix}`;
+    const typePrefix = codeType === 'month' ? 'MTH' : codeType === 'course' ? 'CRS' : codeType === 'bundle' ? 'BDL' : 'LEC';
+    const stagePrefix = stageName.includes('ثالث') ? 'SEC3' : stageName.includes('ثان') ? 'SEC2' : stageName.includes('أول') ? 'SEC1' : 'GEN';
+    const newCodeStr = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : `MS-${stagePrefix}-${typePrefix}-${randomSuffix}`;
     const days = Number(durationDays) || 30;
 
     const newCodeObj = {
       code: newCodeStr,
-      type,
-      targetId: targetId || 'lec-s3-01',
-      targetTitle: targetTitle || 'اشتراك المحاضرة',
+      type: codeType,
+      codeType,
+      targetId: targetId || (codeType === 'month' ? 'sec3-month-1' : 'lec-s3-01'),
+      targetTitle: targetTitle || 'اشتراك المحتوى',
       stage: stageName,
-      price: price || '70 ج.م',
+      stageId: stageId || 'sec-3',
+      price: isGift ? 'مجاني / هدية' : (typeof price === 'number' ? `${price} ج.م` : price),
+      rawPrice: isGift ? 0 : (Number(String(price).replace(/[^0-9.]/g, '')) || 0),
       durationDays: days,
       durationLabel: days === 7 ? '7 أيام (أسبوع)' : days === 15 ? '15 يوم' : days === 30 ? 'شهر (30 يوم)' : days === 60 ? 'شهرين (60 يوم)' : days === 120 ? 'تيرم كامل (4 شهور)' : days === 365 ? 'سنة كاملة (365 يوم)' : `${days} يوم`,
-      isSingleUse: true,
+      isSingleUse: Number(maxUses) === 1,
+      maxUses: Number(maxUses) || 1,
+      usedCount: 0,
       isUsed: false,
+      isActive: true,
+      isGift: Boolean(isGift),
+      expiryDate: expiryDate || null,
+      bundleItems: Array.isArray(bundleItems) ? bundleItems : [],
       usedBy: null,
+      usedByList: [],
       usedAt: null,
-      createdAt: new Date().toISOString().split('T')[0],
-      expiresAt: null
+      createdAt: new Date().toISOString().split('T')[0]
     };
 
     setAccessCodes(prev => [newCodeObj, ...prev]);
     await syncCodeToCloud(newCodeObj);
-    addToast(`تم إنشاء كود الشحن الجديد: ${newCodeStr} (${newCodeObj.durationLabel}) بنجاح 📋`, 'success');
+    addToast(`تم إنشاء كود الشحن الجديد: ${newCodeStr} (${newCodeObj.targetTitle}) بنجاح 📋`, 'success');
     return newCodeObj;
   };
 
@@ -1058,15 +1319,19 @@ export function TeacherProvider({ children }) {
           }
         }
 
-        // If targetId is a lecture ID, check if its parent stage is subscribed
+        // If targetId is a lecture ID, check if its parent section or stage is subscribed
         if (!sub && (targetId.startsWith('lec-') || (lectures || []).some(l => l.id === targetId))) {
           const foundLec = (lectures || []).find(l => l.id === targetId);
-          if (foundLec && foundLec.stageId) {
-            const parentStageCanon = normalizeStageId(foundLec.stageId);
-            if (userSubs[foundLec.stageId] && (!userSubs[foundLec.stageId].userId || userSubs[foundLec.stageId].userId === currentUid)) {
-              sub = userSubs[foundLec.stageId];
-            } else if (userSubs[parentStageCanon] && (!userSubs[parentStageCanon].userId || userSubs[parentStageCanon].userId === currentUid)) {
-              sub = userSubs[parentStageCanon];
+          if (foundLec) {
+            if (foundLec.sectionId && userSubs[foundLec.sectionId] && (!userSubs[foundLec.sectionId].userId || userSubs[foundLec.sectionId].userId === currentUid)) {
+              sub = userSubs[foundLec.sectionId];
+            } else if (foundLec.stageId) {
+              const parentStageCanon = normalizeStageId(foundLec.stageId);
+              if (userSubs[foundLec.stageId] && (!userSubs[foundLec.stageId].userId || userSubs[foundLec.stageId].userId === currentUid)) {
+                sub = userSubs[foundLec.stageId];
+              } else if (userSubs[parentStageCanon] && (!userSubs[parentStageCanon].userId || userSubs[parentStageCanon].userId === currentUid)) {
+                sub = userSubs[parentStageCanon];
+              }
             }
           }
         }
@@ -1163,10 +1428,20 @@ export function TeacherProvider({ children }) {
       return false;
     }
 
+    // 4. Section subscription check (Month or Course)
+    if (lecture.sectionId) {
+      const secSub = getSubscriptionStatus(lecture.sectionId);
+      if (secSub.isSubscribed && !secSub.isExpired) return true;
+    }
+
+    // 5. Direct lecture subscription check
+    const lecSub = getSubscriptionStatus(lecture.id);
+    if (lecSub.isSubscribed && !lecSub.isExpired) return true;
+
+    // 6. Stage-level subscription check for THIS student UID
     const rawStageId = stageId || lecture.stageId;
     const targetStageId = normalizeStageId(rawStageId);
 
-    // 4. Stage-level subscription check for THIS student UID
     if (targetStageId) {
       const stageSub = getSubscriptionStatus(targetStageId);
       if (stageSub.isSubscribed && !stageSub.isExpired) return true;
@@ -1182,15 +1457,11 @@ export function TeacherProvider({ children }) {
       if (lecStageSub.isSubscribed && !lecStageSub.isExpired) return true;
     }
 
-    // 5. All-access bundle check for THIS student UID
+    // 7. All-access bundle check for THIS student UID
     const allSub = getSubscriptionStatus('all-access');
     if (allSub.isSubscribed && !allSub.isExpired) return true;
 
-    // 6. Direct lecture subscription check for THIS student UID
-    const lecSub = getSubscriptionStatus(lecture.id);
-    if (lecSub.isSubscribed && !lecSub.isExpired) return true;
-
-    // Otherwise: strictly locked! No blind unvalidated localStorage fallbacks.
+    // Otherwise: locked
     return false;
   };
 
@@ -1221,16 +1492,32 @@ export function TeacherProvider({ children }) {
       return { success: false, error: 'invalid_code' };
     }
 
-    // 3. Determine target course/stage first
-    const targetId = found.targetId || 'sec-3';
-    const isAllAccess = targetId === 'all-access' || found.type === 'bundle' || cleanCode.includes('VIP') || String(found.stage || '').includes('جميع');
-    const canonStageId = isAllAccess ? 'all-access' : normalizeStageId(targetId, found.stage || '');
+    // 3. Status checks: Is active?
+    if (found.isActive === false) {
+      addToast('عذراً، تم إيقاف هذا الكود مؤقتاً من قِبل إدارة المنصة 🔒', 'error');
+      return { success: false, error: 'code_disabled' };
+    }
 
-    // 4. Prevent duplicate subscription if student is already actively subscribed to this course
-    const currentSub = getSubscriptionStatus(canonStageId);
+    // 4. Expiration date check on the code itself (if code has a validity end date)
+    if (found.expiryDate) {
+      const codeExpiryTime = new Date(found.expiryDate).getTime();
+      if (!isNaN(codeExpiryTime) && codeExpiryTime < Date.now()) {
+        addToast('عذراً، انتهت صلاحية هذا الكود ولم يعد صالحاً للاستخدام ⏳', 'error');
+        return { success: false, error: 'code_expired' };
+      }
+    }
+
+    // 5. Code type and target identification
+    const codeType = found.codeType || found.type || 'month';
+    const targetId = found.targetId || 'sec3-month-1';
+    const isAllAccess = targetId === 'all-access' || cleanCode.includes('VIP') || String(found.stage || '').includes('جميع');
+    const canonStageId = isAllAccess ? 'all-access' : normalizeStageId(found.stageId || targetId, found.stage || '');
+
+    // 6. Prevent duplicate subscription if student is already actively subscribed to this exact target
+    const currentSub = getSubscriptionStatus(targetId);
     if (currentSub && currentSub.isSubscribed && !currentSub.isExpired) {
       const expiryFormatted = currentSub.expiresAtFormatted || (currentSub.expiresAt ? new Date(currentSub.expiresAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : 'سارٍ');
-      addToast(`أنت مشترك بالفعل في هذا الكورس (${currentSub.targetTitle || 'المرحلة الدراسية'}) واشتراكك سارٍ حتى ${expiryFormatted} ℹ️`, 'info', 7000);
+      addToast(`أنت مشترك بالفعل في (${currentSub.targetTitle || found.targetTitle || 'هذا المحتوى'}) واشتراكك سارٍ حتى ${expiryFormatted} ℹ️`, 'info', 7000);
       return {
         success: true,
         alreadyActive: true,
@@ -1240,17 +1527,15 @@ export function TeacherProvider({ children }) {
       };
     }
 
-    // 5. Single-use check with support for student re-activation and demo/testing stage codes
+    // 7. Max uses and student re-activation checks
     const isDefaultDemoCode = ['MS-SEC3-2026', 'MS-SEC2-2026', 'MS-SEC1-2026', 'MS-VIP-2026', 'MS-SEC3-8812'].includes(cleanCode);
     const studentEmail = (currentUser?.email || '').toLowerCase().trim();
     const studentName = (currentUser?.name || '').trim();
 
-    // Verify if this student already owns or previously redeemed this code:
-    const matchesUid = Boolean(studentUid && (found.usedByUid === studentUid || found.userId === studentUid));
+    const matchesUid = Boolean(studentUid && (found.usedByUid === studentUid || found.userId === studentUid || (Array.isArray(found.usedByList) && found.usedByList.includes(studentUid))));
     const matchesEmail = Boolean(studentEmail && found.usedByEmail && found.usedByEmail.toLowerCase().trim() === studentEmail);
     const matchesName = Boolean(studentName && found.usedBy && found.usedBy.trim() === studentName);
-    
-    // Check if the student currently holds an active or matching subscription with this code
+
     let activeUnlocks = {};
     try {
       activeUnlocks = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
@@ -1268,18 +1553,18 @@ export function TeacherProvider({ children }) {
 
     const isAlreadyRedeemedBySameStudent = matchesUid || matchesEmail || matchesName || matchesSubCode || isDefaultDemoCode;
 
-    if (found.isUsed || found.status === 'used') {
-      if (!isAlreadyRedeemedBySameStudent) {
-        addToast('عذراً، هذا الكود تم استخدامه بالفعل من قِبل طالب آخر ومقترن بحساب مختلف.', 'error');
-        return { success: false, error: 'already_used', usedByUid: found.usedByUid };
-      }
+    const maxUses = Number(found.maxUses) || 1;
+    const currentUsedCount = Number(found.usedCount) || (found.isUsed ? 1 : 0);
+
+    if (currentUsedCount >= maxUses && !isAlreadyRedeemedBySameStudent) {
+      addToast('عذراً، وصل هذا الكود إلى الحد الأقصى لعدد مرات الاستخدام المسموح بها.', 'error');
+      return { success: false, error: 'max_uses_reached' };
     }
 
-    // 6. Calculate subscription duration
+    // 8. Calculate subscription duration
     const startDate = (isAlreadyRedeemedBySameStudent && found.startDate) ? found.startDate : new Date().toISOString();
     const durationDays = Number(found.durationDays) || (found.durationMonths ? Number(found.durationMonths) * 30 : 30);
-    
-    // If student is refreshing or reactivating, preserve their existing future expiry or extend it
+
     const existingExpiry = (found.expirationDate || found.expiresAt);
     let expiresAt;
     if (isAlreadyRedeemedBySameStudent && existingExpiry && new Date(existingExpiry).getTime() > Date.now()) {
@@ -1288,12 +1573,18 @@ export function TeacherProvider({ children }) {
       expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    // 7. Mark code as used in Firestore & RTDB permanently
+    // 9. Update code usage counters
+    const newUsedCount = isAlreadyRedeemedBySameStudent ? currentUsedCount : currentUsedCount + 1;
+    const updatedUsedByList = Array.isArray(found.usedByList) ? Array.from(new Set([...found.usedByList, studentUid])) : [studentUid];
+    const isNowFullyUsed = newUsedCount >= maxUses;
+
     const updatedCode = {
       ...found,
       code: cleanCode,
-      isUsed: true,
-      status: 'used',
+      isUsed: isNowFullyUsed,
+      status: isNowFullyUsed ? 'used' : 'active',
+      usedCount: newUsedCount,
+      usedByList: updatedUsedByList,
       usedBy: currentUser?.name || 'طالب مسجل بالمنصة',
       usedByUid: studentUid,
       usedByEmail: currentUser?.email || '',
@@ -1306,105 +1597,118 @@ export function TeacherProvider({ children }) {
     setAccessCodes(prev => prev.map(c => c.code.toUpperCase() === cleanCode ? updatedCode : c));
     await markCodeAsUsedInCloud(cleanCode, updatedCode);
 
-    let newlyUnlockedIds = [];
-    try {
-      activeUnlocks = { ...activeUnlocks, ...JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}') };
-    } catch (e) {}
+    // 10. Record Treasury Transaction (Only if this is the first redemption by this student)
+    if (!isAlreadyRedeemedBySameStudent) {
+      recordTransaction({
+        userId: studentUid,
+        studentName: currentUser?.name || 'طالب مسجل بالمنصة',
+        studentPhone: currentUser?.phone || '01000000000',
+        stageId: found.stageId || canonStageId,
+        stageName: found.stage || 'الصف الثالث الثانوي',
+        targetType: codeType,
+        targetId: targetId,
+        targetTitle: found.targetTitle || 'تفعيل محتوى',
+        amount: found.isGift ? 0 : (found.rawPrice !== undefined ? found.rawPrice : (Number(String(found.price || 0).replace(/[^0-9.]/g, '')) || 0)),
+        paymentMethod: 'code',
+        paymentMethodLabel: found.isGift ? 'كود مجاني / هدية 🎁' : 'كود شحن مسبق الدفع 🎟️',
+        isGift: Boolean(found.isGift),
+        codeUsed: cleanCode,
+        status: 'completed',
+        createdAt: new Date().toISOString()
+      });
+    }
 
-    let targetStageName = '';
-    let primarySubscription = null;
+    // 11. Selective content unlocking according to Code Type
+    let newlyUnlockedIds = [];
+    let targetDisplayTitle = found.targetTitle || 'المحتوى التعليمي';
+    let primarySubscription = {
+      userId: studentUid,
+      courseId: targetId,
+      stageId: found.stageId || canonStageId,
+      targetId: targetId,
+      targetType: codeType,
+      targetTitle: targetDisplayTitle,
+      status: 'active',
+      subscribed: true,
+      startDate: startDate,
+      activatedAt: startDate,
+      expirationDate: expiresAt,
+      expiresAt: expiresAt,
+      durationDays: durationDays,
+      activationCode: cleanCode,
+      codeUsed: cleanCode
+    };
 
     if (isAllAccess) {
+      // All-access VIP
       const allStageIds = stages.map(s => s.id);
       const allLecIds = lectures.map(l => l.id);
-      newlyUnlockedIds = ['all-access', ...allStageIds, ...allLecIds];
-      targetStageName = 'الاشتراك الشامل لكافة المراحل';
-
-      primarySubscription = {
-        userId: studentUid,
-        courseId: 'all-access',
-        stageId: 'all-access',
-        targetId: 'all-access',
-        targetTitle: found.targetTitle || 'اشتراك المنصة الشامل',
-        status: 'active',
-        subscribed: true,
-        startDate: startDate,
-        activatedAt: startDate,
-        expirationDate: expiresAt,
-        expiresAt: expiresAt,
-        durationDays: durationDays,
-        activationCode: cleanCode,
-        codeUsed: cleanCode
-      };
-
+      const allSecIds = sections.map(s => s.id);
+      newlyUnlockedIds = ['all-access', ...allStageIds, ...allLecIds, ...allSecIds];
+      targetDisplayTitle = 'الاشتراك الشامل لكافة المراحل والشهور';
+      primarySubscription.targetTitle = targetDisplayTitle;
       activeUnlocks['all-access'] = primarySubscription;
 
       for (const sId of allStageIds) {
-        const subRec = {
-          ...primarySubscription,
-          courseId: sId,
-          stageId: sId,
-          targetId: sId,
-          targetTitle: 'اشتراك شامل لكافة المراحل'
-        };
-        activeUnlocks[sId] = subRec;
-        if (addSubscriptionToUser) {
-          await addSubscriptionToUser(sId, subRec);
-        }
+        activeUnlocks[sId] = { ...primarySubscription, courseId: sId, stageId: sId, targetId: sId };
+        if (addSubscriptionToUser) await addSubscriptionToUser(sId, activeUnlocks[sId]);
       }
+      if (addSubscriptionToUser) await addSubscriptionToUser('all-access', primarySubscription);
+    } else if (codeType === 'month' || codeType === 'course') {
+      // Month or Course: Unlocks this specific section and all lectures inside it
+      const secLectures = lectures.filter(l => l.sectionId === targetId);
+      const secLecIds = secLectures.map(l => l.id);
+      newlyUnlockedIds = [targetId, ...secLecIds];
 
-      allLecIds.forEach(lId => {
+      activeUnlocks[targetId] = primarySubscription;
+      secLecIds.forEach(lId => {
         activeUnlocks[lId] = {
           ...primarySubscription,
           targetId: lId,
-          targetTitle: 'اشتراك شامل'
+          fromSection: targetId
         };
       });
 
       if (addSubscriptionToUser) {
-        await addSubscriptionToUser('all-access', primarySubscription);
+        await addSubscriptionToUser(targetId, primarySubscription);
       }
+    } else if (codeType === 'lecture') {
+      // Single Lecture: Unlocks only this specific lecture
+      newlyUnlockedIds = [targetId];
+      activeUnlocks[targetId] = primarySubscription;
+      if (addSubscriptionToUser) {
+        await addSubscriptionToUser(targetId, primarySubscription);
+      }
+    } else if (codeType === 'bundle') {
+      // Custom Bundle: Unlocks all items specified in bundleItems
+      const bItems = Array.isArray(found.bundleItems) && found.bundleItems.length > 0 ? found.bundleItems : [targetId];
+      newlyUnlockedIds = [...bItems];
+      activeUnlocks[targetId] = primarySubscription;
+
+      for (const itemId of bItems) {
+        activeUnlocks[itemId] = { ...primarySubscription, targetId: itemId };
+        const subSecLecs = lectures.filter(l => l.sectionId === itemId);
+        subSecLecs.forEach(sl => {
+          newlyUnlockedIds.push(sl.id);
+          activeUnlocks[sl.id] = { ...primarySubscription, targetId: sl.id, fromSection: itemId };
+        });
+        if (addSubscriptionToUser) await addSubscriptionToUser(itemId, activeUnlocks[itemId]);
+      }
+      if (addSubscriptionToUser) await addSubscriptionToUser(targetId, primarySubscription);
     } else {
-      // Stage subscription: automatically unlocks all present and future lectures of this stage
+      // Legacy Stage subscription
       const stageObj = stages.find(s => s.id === canonStageId || s.id === targetId || normalizeStageId(s.id) === canonStageId) || { id: canonStageId, name: found.stage || 'المرحلة الدراسية' };
       const resolvedStageId = stageObj.id || canonStageId;
-      targetStageName = stageObj.name || found.targetTitle || 'المرحلة الدراسية';
-
+      targetDisplayTitle = stageObj.name || found.targetTitle || 'المرحلة الدراسية';
       const stageLectures = lectures.filter(l => l.stageId === resolvedStageId || normalizeStageId(l.stageId) === canonStageId);
       const stageLecIds = stageLectures.map(l => l.id);
 
       newlyUnlockedIds = [resolvedStageId, canonStageId, targetId, ...stageLecIds];
-
-      primarySubscription = {
-        userId: studentUid,
-        courseId: resolvedStageId,
-        stageId: resolvedStageId,
-        targetId: resolvedStageId,
-        targetTitle: found.targetTitle || `اشتراك مرحلة: ${stageObj.name}`,
-        status: 'active',
-        subscribed: true,
-        startDate: startDate,
-        activatedAt: startDate,
-        expirationDate: expiresAt,
-        expiresAt: expiresAt,
-        durationDays: durationDays,
-        activationCode: cleanCode,
-        codeUsed: cleanCode
-      };
-
       activeUnlocks[resolvedStageId] = primarySubscription;
       activeUnlocks[canonStageId] = primarySubscription;
-      if (targetId && targetId !== resolvedStageId) {
-        activeUnlocks[targetId] = primarySubscription;
-      }
 
       stageLecIds.forEach(lId => {
-        activeUnlocks[lId] = {
-          ...primarySubscription,
-          targetId: lId,
-          targetTitle: found.targetTitle,
-          fromStage: resolvedStageId
-        };
+        activeUnlocks[lId] = { ...primarySubscription, targetId: lId, fromStage: resolvedStageId };
       });
 
       if (addSubscriptionToUser) {
@@ -1420,15 +1724,15 @@ export function TeacherProvider({ children }) {
       localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(activeUnlocks));
     } catch (e) {}
 
-    // Update students list in teacher admin so subscription is visible immediately
+    // Update students list in teacher admin
     setStudents(prev => {
       const existingIdx = prev.findIndex(s => s.id === studentUid || s.email === currentUser?.email);
       if (existingIdx >= 0) {
         const existing = prev[existingIdx];
         const updated = {
           ...existing,
-          stageId: isAllAccess ? 'all-access' : (primarySubscription.stageId || 'sec-3'),
-          stageName: targetStageName,
+          stageId: primarySubscription.stageId || existing.stageId || 'sec-3',
+          stageName: found.stage || existing.stageName || 'الصف الثالث الثانوي',
           startDate: startDate,
           expiresAt: expiresAt,
           expirationDate: expiresAt,
@@ -1436,7 +1740,7 @@ export function TeacherProvider({ children }) {
           isActive: true,
           subscriptions: {
             ...(existing.subscriptions || {}),
-            [(primarySubscription.stageId || targetId)]: primarySubscription
+            [targetId]: primarySubscription
           },
           subscription: primarySubscription
         };
@@ -1452,8 +1756,8 @@ export function TeacherProvider({ children }) {
           phone: currentUser.phone || '01000000000',
           avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
           code: `STD-${cleanCode.slice(-4)}`,
-          stageId: isAllAccess ? 'all-access' : (primarySubscription.stageId || 'sec-3'),
-          stageName: targetStageName,
+          stageId: primarySubscription.stageId || 'sec-3',
+          stageName: found.stage || 'الصف الثالث الثانوي',
           groupType: 'online',
           centerName: 'أونلاين VIP',
           startDate: startDate,
@@ -1462,11 +1766,11 @@ export function TeacherProvider({ children }) {
           subscriptionStatus: 'active',
           isActive: true,
           subscriptions: {
-            [(primarySubscription.stageId || targetId)]: primarySubscription
+            [targetId]: primarySubscription
           },
           subscription: primarySubscription,
-          attendanceRate: '100%',
-          finance: { paidAmount: 250, dueAmount: 0, paymentStatus: 'paid' },
+          progress: '100%',
+          finance: { paidAmount: found.rawPrice || 0, dueAmount: 0, paymentStatus: 'paid' },
           createdAt: startDate
         };
         const copy = [newStudent, ...prev];
@@ -1498,15 +1802,15 @@ export function TeacherProvider({ children }) {
     });
 
     if (isAlreadyRedeemedBySameStudent) {
-      addToast(`🎉 مرحباً بك مجدداً! تم التحقق من ملكيتك للكود وتنشيط اشتراكك في (${targetStageName}) بنجاح حتى ${expiryFormatted} 🚀`, 'success', 7000);
+      addToast(`🎉 مرحباً بك مجدداً! تم التحقق من ملكيتك للكود وتنشيط اشتراكك في (${targetDisplayTitle}) بنجاح حتى ${expiryFormatted} 🚀`, 'success', 7000);
     } else {
-      addToast(`🎉 تم الاشتراك بنجاح في (${targetStageName})! اشتراكك نشط بحسابك حتى ${expiryFormatted} 🚀`, 'success', 7000);
+      addToast(`🎉 تم الاشتراك بنجاح في (${targetDisplayTitle})! اشتراكك نشط بحسابك حتى ${expiryFormatted} 🚀`, 'success', 7000);
     }
 
     return {
       success: true,
       subscription: primarySubscription,
-      stageName: targetStageName,
+      stageName: targetDisplayTitle,
       startDate: startFormatted,
       expirationDate: expiryFormatted,
       expiresAtFormatted: expiryFormatted,
@@ -1559,7 +1863,7 @@ export function TeacherProvider({ children }) {
     const hwStatus = student.homeworkStatus?.['lec-s3-01']?.status === 'submitted' ? 'تم تسليم واجب الكشكول بنجاح ✓' : 'لم يسلم الواجب بعد ⚠️';
     const payStatus = student.finance?.paymentStatus === 'paid' ? 'تم سداد المصاريف بالكامل ✓' : `متبقي عليه (${student.finance?.dueAmount || 0} ج.م) ⚠️`;
 
-    return `السلام عليكم ورحمة الله وبركاته،\nتقرير متابعة أداء الطالب: *${student.name}*\nفي مادة اللغة الإنجليزية مع *${teacherProfile.name} (The Master)*:\n━━━━━━━━━━━━━\n📌 كود الطالب: ${student.code}\n📌 المرحلة: ${student.stageName}\n📌 السنتر / المجموعة: ${student.centerName || 'أونلاين'}\n📌 نسبة الحضور والمشاهدة: ${student.attendanceRate}\n📌 درجة الامتحان الأخير: ${studentExam.grade || '20/20'}\n📌 حالة الواجب المنزلي: ${hwStatus}\n📌 حالة المصاريف: ${payStatus}\n📌 التقييم العام: متفوق ومتميز جداً ✨\n━━━━━━━━━━━━━\nنرجو الاستمرار في تشجيعه لتحقيق الدرجة النهائية في الثانوية العامة بإذن الله!`;
+    return `السلام عليكم ورحمة الله وبركاته،\nتقرير متابعة أداء الطالب: *${student.name}*\nفي مادة اللغة الإنجليزية مع *${teacherProfile.name} (The Master)*:\n━━━━━━━━━━━━━\n📌 كود الطالب: ${student.code}\n📌 المرحلة: ${student.stageName}\n📌 السنتر / المجموعة: ${student.centerName || 'أونلاين'}\n📌 نسبة مشاهدة وإتمام المحاضرات: ${student.progress || '100%'}\n📌 درجة الامتحان الأخير: ${studentExam.grade || '20/20'}\n📌 حالة الواجب المنزلي: ${hwStatus}\n📌 حالة المصاريف: ${payStatus}\n📌 التقييم العام: متفوق ومتميز جداً ✨\n━━━━━━━━━━━━━\nنرجو الاستمرار في تشجيعه لتحقيق الدرجة النهائية في الثانوية العامة بإذن الله!`;
   };
 
   const resolveVideoSource = async (lecture) => {
@@ -1668,6 +1972,14 @@ export function TeacherProvider({ children }) {
         deleteAchiever,
         generateNewCode,
         deleteCode,
+        toggleCodeStatus,
+        sections,
+        addSection,
+        updateSection,
+        deleteSection,
+        moveLectureToSection,
+        transactions,
+        recordTransaction,
         postAnnouncement,
         deleteAnnouncement,
         resetToFactoryDefaults,

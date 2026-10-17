@@ -69,6 +69,12 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
           sessionStorage.setItem('ms_code_lock_until', lockTime.toString());
           setLockoutRemaining(600);
           setErrorMsg('⚠️ تم تجميد إدخال الأكواد لمدة 10 دقائق بسبب محاولات متكررة خاطئة لحماية النظام من التخمين.');
+        } else if (res.error === 'code_disabled') {
+          setErrorMsg('⚠️ تم إيقاف كود التفعيل هذا مؤقتًا من قِبل الإدارة. يرجى مراجعة المستر.');
+        } else if (res.error === 'code_expired') {
+          setErrorMsg('⚠️ هذا الكود منتهي الصلاحية ولا يمكن استخدامه.');
+        } else if (res.error === 'max_uses_reached') {
+          setErrorMsg('⚠️ تم استنفاد الحد الأقصى لعدد مرات استخدام هذا الكود.');
         } else if (res.error === 'already_used') {
           setErrorMsg('هذا الكود تم استخدامه بالفعل من قِبل حساب آخر ولا يمكن استخدامه مرة أخرى.');
         } else if (res.error === 'invalid_code') {

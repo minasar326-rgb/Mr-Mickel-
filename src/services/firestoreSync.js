@@ -375,22 +375,6 @@ export function listenToStages(callback) {
   }
 }
 
-/**
- * Record student attendance log in Firestore
- */
-export async function recordAttendanceToFirestore(attendanceRecord) {
-  try {
-    const colRef = collection(db, 'attendanceLogs');
-    const docRes = await addDoc(colRef, {
-      ...attendanceRecord,
-      timestamp: serverTimestamp()
-    });
-    return { success: true, id: docRes.id };
-  } catch (error) {
-    console.warn('Firebase sync warning (Attendance):', error.message);
-    return { success: false, error: error.message };
-  }
-}
 
 /**
  * Upload file directly to Firebase Storage with detailed progress tracking

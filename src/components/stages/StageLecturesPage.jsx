@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
 import { 
   BookOpen, Play, Lock, CheckCircle2, Clock, 
-  HelpCircle, Upload, ArrowRight, Key, Sparkles, Award, MessageCircle, Calendar, ShieldCheck
+  HelpCircle, Upload, ArrowRight, Key, Sparkles, Award, MessageCircle, Calendar, ShieldCheck,
+  ChevronDown, ChevronUp, Folder, FolderOpen, Layers, Check, ExternalLink
 } from 'lucide-react';
 
 export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal }) {
@@ -16,14 +17,33 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     examResults,
     getSubscriptionStatus,
     isLectureUnlocked,
-    unlockedLectureIds
+    unlockedLectureIds,
+    sections
   } = useTeacher();
   const { currentUser, role } = useAuth();
+
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'month' | 'course'
+  const [collapsedSections, setCollapsedSections] = useState({});
+
+  const toggleSectionCollapse = (secId) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [secId]: !prev[secId]
+    }));
+  };
 
   const canonStageId = normalizeStageId(stageId);
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
   const stage = currentStages.find(s => s.id === stageId || s.id === canonStageId || normalizeStageId(s.id) === canonStageId) || currentStages[0] || { id: stageId, name: 'المرحلة الدراسية', badge: 'دفعة 2026', description: 'منهج تدريبي متكامل لشرح المنهج وحل التدريبات.' };
   const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => l.stageId === stage.id || normalizeStageId(l.stageId) === canonStageId);
+
+  // Dynamic sections (Months & Courses) belonging to this stage
+  const stageSections = (Array.isArray(sections) ? sections : [])
+    .filter(sec => {
+      const secStageCanon = normalizeStageId(sec.stageId);
+      return (sec.stageId === stage.id || secStageCanon === canonStageId || sec.stageId === stageId) && sec.isVisible !== false;
+    })
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // Check stage-level subscription status across all aliases
   const stageSub1 = getSubscriptionStatus(stage.id);
@@ -36,6 +56,185 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     : ((stageSub4?.isSubscribed && !stageSub4?.isExpired) ? stageSub4 : stageSub1)));
   const isStageSubscribed = stageSub.isSubscribed && !stageSub.isExpired;
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
+
+  // Filter sections by selected tab
+  const displayedSections = stageSections.filter(sec => {
+    if (filterType === 'all') return true;
+    return sec.type === filterType;
+  });
+
+  // Identify lectures not assigned to any existing visible section
+  const unassignedLectures = stageLectures.filter(l => !l.sectionId || !stageSections.some(s => s.id === l.sectionId));
+
+  // Render a lecture card
+  const renderLectureCard = (lec) => {
+    const isUnlocked = isStageSubscribed || isLectureUnlocked(lec, stage.id);
+    const lecSub = getSubscriptionStatus(lec.id);
+    const isCompleted = completedLectureIds.includes(lec.id);
+    const hw = homeworkSubmissions[lec.id];
+    const exam = examResults[lec.id];
+
+    return (
+      <div
+        key={lec.id}
+        className="card"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 'var(--radius-xl)',
+          overflow: 'hidden',
+          background: 'var(--bg-surface)',
+          border: isUnlocked 
+            ? '2px solid #10B981' 
+            : '1px solid rgba(239, 68, 68, 0.3)',
+          boxShadow: isUnlocked 
+            ? '0 8px 25px rgba(16, 185, 129, 0.15)' 
+            : 'var(--shadow-sm)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+        }}
+      >
+        {/* Thumbnail */}
+        <div style={{ position: 'relative', height: '180px' }}>
+          <img
+            src={lec.thumbnail}
+            alt={lec.title}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <span className="badge badge-primary" style={{ position: 'absolute', top: '12px', right: '12px' }}>
+            {lec.unitNumber}
+          </span>
+
+          {isUnlocked ? (
+            <span style={{ 
+              position: 'absolute', top: '12px', left: '12px', 
+              background: '#10B981', color: 'white', padding: '4px 10px', 
+              borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+            }}>
+              {lec.isFree ? '🟢 محاضرة مجانية' : '✓ متاح ضمن اشتراكك 🟢'}
+            </span>
+          ) : (
+            <span style={{ 
+              position: 'absolute', top: '12px', left: '12px', 
+              background: 'rgba(15, 23, 42, 0.85)', color: '#FCD34D', padding: '4px 10px', 
+              borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800, border: '1px solid rgba(252, 211, 77, 0.4)' 
+            }}>
+              🔒 باشتراك ({lec.price || '70 ج.م'})
+            </span>
+          )}
+
+          {!isUnlocked && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(2px)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              gap: '6px',
+              padding: '1rem',
+              textAlign: 'center'
+            }}>
+              <Lock size={30} color="#F87171" />
+              <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>المحاضرة مقفلة</span>
+              <span style={{ fontSize: '0.76rem', color: '#CBD5E1' }}>اشحن كود تفعيل المحاضرة أو الشهر لفتحها فوراً</span>
+            </div>
+          )}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between', gap: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 6px', lineHeight: '1.4' }}>
+              {lec.title}
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+              {lec.subtitle}
+            </p>
+          </div>
+
+          {/* Status Badges Row */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px',
+            fontSize: '0.75rem',
+            borderTop: '1px solid var(--border-subtle)',
+            paddingTop: '0.75rem'
+          }}>
+            <span className="badge badge-subtle">⏱️ {lec.duration}</span>
+            {isUnlocked && !lec.isFree && (
+              <span className="badge badge-success" style={{ fontWeight: 700 }}>
+                ⏳ ساري (متبقي {stageSub.daysRemaining || lecSub.daysRemaining || 30} يوم)
+              </span>
+            )}
+            {lec.isFree && <span className="badge badge-success">✓ مجانية للجميع</span>}
+            {isCompleted && <span className="badge badge-success">✓ تمت المشاهدة</span>}
+            {hw?.status === 'submitted' && <span className="badge badge-primary">📝 تم تسليم الواجب</span>}
+            {exam && <span className="badge badge-gold">🏆 الامتحان: {exam.score}/{exam.total}</span>}
+          </div>
+
+          {/* Action */}
+          <div>
+            {isUnlocked ? (
+              <button
+                onClick={() => onNavigate('lecture-room', { lectureId: lec.id })}
+                className="btn btn-primary"
+                style={{ 
+                  width: '100%', 
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                  fontWeight: 800
+                }}
+              >
+                <Play size={16} fill="currentColor" />
+                <span>مشاهدة المحاضرة والواجبات الآن ▶️</span>
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <a
+                  href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`مرحباً مستر مايكل، أريد الاشتراك في محاضرة: "${lec.title}" (${stage?.name || 'المرحلة الدراسية'}).`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary"
+                  style={{
+                    width: '100%',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    color: 'white',
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '9px 14px',
+                    borderRadius: 'var(--radius-md)'
+                  }}
+                >
+                  <MessageCircle size={17} />
+                  <span>الاشتراك عبر واتساب المستر 💬</span>
+                </a>
+
+                <button
+                  onClick={onOpenCodeModal}
+                  className="btn btn-secondary btn-sm"
+                  style={{ width: '100%', gap: '6px', color: 'var(--primary-600)', fontWeight: 700 }}
+                >
+                  <Key size={14} />
+                  <span>معي كود تفعيل المحاضرة 🔑</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="page-container" style={{ background: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '4rem' }}>
@@ -63,7 +262,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               <span className="badge badge-gold">{stage.badge}</span>
               {isStageSubscribed && (
                 <span className="badge badge-success" style={{ background: '#10B981', color: 'white', fontWeight: 800 }}>
-                  ✓ اشتراك VIP نشط
+                  ✓ اشتراك VIP للمرحلة نشط
                 </span>
               )}
             </div>
@@ -114,14 +313,14 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                     background: '#10B981', color: 'white', padding: '3px 10px', 
                     borderRadius: '20px', fontSize: '0.78rem', fontWeight: 900 
                   }}>
-                    🟢 الحالة: مشترك (Active)
+                    🟢 الحالة: مشترك بالمرحلة (VIP)
                   </span>
                   <span style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 800 }}>
-                    مفعل ومربوط بحساب Google ✅
+                    مفعل ومربوط بحسابك ✅
                   </span>
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'var(--text-main)' }}>
-                  جميع محاضرات {stage.name} مفتوحة لك وجاهزة للمشاهدة فوراً
+                  جميع شهور وكورسات {stage.name} مفتوحة لك وجاهزة للمشاهدة فوراً
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                   {stageSub.startDateFormatted && (
@@ -130,7 +329,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                   {stageSub.startDateFormatted && <span>•</span>}
                   <span>📅 تاريخ الانتهاء: <strong>{stageSub.expiresAtFormatted}</strong></span>
                   <span>•</span>
-                  <span>⏳ متبقي في الاشتراك: <strong style={{ color: '#059669' }}>{stageSub.daysRemaining} يوم</strong></span>
+                  <span>⏳ متبقي في اشتراك المرحلة: <strong style={{ color: '#059669' }}>{stageSub.daysRemaining} يوم</strong></span>
                 </div>
               </div>
             </div>
@@ -191,7 +390,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                   انتهى اشتراكك في هذه المرحلة ({stage.name})
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-                  انتهت صلاحية الاشتراك بتاريخ <strong>{stageSub.expiresAtFormatted}</strong>. يرجى تجديد الاشتراك أو شحن كود جديد لمواصلة المشاهدة.
+                  انتهت صلاحية الاشتراك بتاريخ <strong>{stageSub.expiresAtFormatted}</strong>. يرجى تجديد الاشتراك أو شحن كود شهر جديد لمواصلة المشاهدة.
                 </p>
               </div>
             </div>
@@ -246,17 +445,17 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               </div>
               <div>
                 <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 2px', color: 'var(--text-main)' }}>
-                  المرحلة مقفلة - تتطلب اشتراكاً أو كود تفعيل 🔒
+                  المرحلة مقفلة - يمكنك الاشتراك في شهر محدد أو كورس أو شحن كود تفعيل 🔒
                 </h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                  اشحن كود التفعيل المستلم أو تواصل مع المستر عبر واتساب لتفعيل اشتراكك وفتح كافة المحاضرات فوراً
+                  اختر الشهر الدراسي أو الكورس المطلوب بالأسفل لشحنه وفتحه مباشرة بحسابك
                 </p>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <a
-                href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`السلام عليكم يا مستر مايكل، أريد الاشتراك في محاضرات: ${stage.name}.`)}`}
+                href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`السلام عليكم مستر مايكل، أريد الاشتراك في محاضرات: ${stage.name}.`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-primary btn-sm"
@@ -284,199 +483,372 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
           </div>
         )}
 
-        {/* Lectures List Header */}
-        <div className="flex-between" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        {/* Section Filters & Header */}
+        <div className="flex-between" style={{ marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0 }}>المحاضرات والوحدات المتاحة</h3>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FolderOpen size={24} color="var(--primary-600)" />
+              <span>الشهور الدراسية والكورسات المتاحة</span>
+            </h3>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              إجمالي المحاضرات: {stageLectures.length} محاضرة معتمدة
+              إجمالي المحاضرات: {stageLectures.length} محاضرة معتمدة • {stageSections.length} أقسام دراسية
             </span>
           </div>
 
-          {!isStageSubscribed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Filter Pills */}
+            <div style={{
+              display: 'flex',
+              background: 'var(--bg-surface)',
+              padding: '4px',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-subtle)',
+              gap: '4px'
+            }}>
+              <button
+                onClick={() => setFilterType('all')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: filterType === 'all' ? 'var(--primary-gradient)' : 'transparent',
+                  color: filterType === 'all' ? 'white' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                الكل ({stageSections.length})
+              </button>
+              <button
+                onClick={() => setFilterType('month')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: filterType === 'month' ? 'var(--primary-gradient)' : 'transparent',
+                  color: filterType === 'month' ? 'white' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📅 الشهور الدراسية ({stageSections.filter(s => s.type === 'month').length})
+              </button>
+              <button
+                onClick={() => setFilterType('course')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: filterType === 'course' ? 'var(--primary-gradient)' : 'transparent',
+                  color: filterType === 'course' ? 'white' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📁 الكورسات والمراجعات ({stageSections.filter(s => s.type === 'course').length})
+              </button>
+            </div>
+
             <button
               onClick={onOpenCodeModal}
               className="btn btn-primary"
               style={{ gap: '8px' }}
             >
-              <Key size={18} />
-              <span>شحن وتفعيل كود مرحلة</span>
+              <Key size={17} />
+              <span>شحن وتفعيل كود 🔑</span>
             </button>
-          )}
+          </div>
         </div>
 
-        {/* Lectures Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.75rem' }}>
-          {stageLectures.map((lec) => {
-            const isUnlocked = isStageSubscribed || isLectureUnlocked(lec, stage.id);
-            const lecSub = getSubscriptionStatus(lec.id);
-            const isCompleted = completedLectureIds.includes(lec.id);
-            const hw = homeworkSubmissions[lec.id];
-            const exam = examResults[lec.id];
+        {/* Dynamic Sections List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {displayedSections.map(sec => {
+            const secLectures = stageLectures.filter(l => l.sectionId === sec.id);
+            const secSub = getSubscriptionStatus(sec.id);
+            const isSecSubscribed = isStageSubscribed || (secSub.isSubscribed && !secSub.isExpired);
+            const isCollapsed = Boolean(collapsedSections[sec.id]);
 
             return (
-              <div
-                key={lec.id}
+              <div 
+                key={sec.id}
                 className="card"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
+                  padding: 0,
                   borderRadius: 'var(--radius-xl)',
                   overflow: 'hidden',
                   background: 'var(--bg-surface)',
-                  border: isUnlocked 
-                    ? '2px solid #10B981' 
-                    : '1px solid rgba(239, 68, 68, 0.3)',
-                  boxShadow: isUnlocked 
-                    ? '0 8px 25px rgba(16, 185, 129, 0.18)' 
-                    : 'var(--shadow-sm)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  border: isSecSubscribed ? '2px solid #10B981' : '1px solid var(--border-subtle)',
+                  boxShadow: isSecSubscribed ? '0 10px 30px rgba(16, 185, 129, 0.12)' : 'var(--shadow-md)',
+                  transition: 'all 0.3s ease'
                 }}
               >
-                {/* Thumbnail */}
-                <div style={{ position: 'relative', height: '190px' }}>
-                  <img
-                    src={lec.thumbnail}
-                    alt={lec.title}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                  <span className="badge badge-primary" style={{ position: 'absolute', top: '12px', right: '12px' }}>
-                    {lec.unitNumber}
-                  </span>
-
-                  {isUnlocked ? (
-                    <span style={{ 
-                      position: 'absolute', top: '12px', left: '12px', 
-                      background: '#10B981', color: 'white', padding: '4px 10px', 
-                      borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
-                    }}>
-                      {lec.isFree ? '🟢 محاضرة مجانية' : '✓ متاح ضمن اشتراكك 🟢'}
-                    </span>
-                  ) : (
-                    <span style={{ 
-                      position: 'absolute', top: '12px', left: '12px', 
-                      background: 'rgba(15, 23, 42, 0.85)', color: '#FCD34D', padding: '4px 10px', 
-                      borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800, border: '1px solid rgba(252, 211, 77, 0.4)' 
-                    }}>
-                      🔒 باشتراك ({lec.price || '70 ج.م'})
-                    </span>
-                  )}
-
-                  {!isUnlocked && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'rgba(0, 0, 0, 0.68)',
-                      backdropFilter: 'blur(2px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      gap: '8px',
-                      padding: '1rem',
-                      textAlign: 'center'
-                    }}>
-                      <Lock size={32} color="#F87171" />
-                      <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>المحاضرة مقفلة (تتطلب اشتراك)</span>
-                      <span style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>اشحن كود التفعيل أو تواصل عبر واتساب</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Body */}
-                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 6px', lineHeight: '1.4' }}>
-                      {lec.title}
-                    </h3>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-                      {lec.subtitle}
-                    </p>
-                  </div>
-
-                  {/* Status Badges Row */}
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '6px',
-                    fontSize: '0.75rem',
-                    borderTop: '1px solid var(--border-subtle)',
-                    paddingTop: '0.75rem'
-                  }}>
-                    <span className="badge badge-subtle">⏱️ {lec.duration}</span>
-                    {isUnlocked && !lec.isFree && (
-                      <span className="badge badge-success" style={{ fontWeight: 700 }}>
-                        ⏳ ساري (متبقي {stageSub.daysRemaining || lecSub.daysRemaining || 30} يوم)
-                      </span>
-                    )}
-                    {lec.isFree && <span className="badge badge-success">✓ مجانية للجميع</span>}
-                    {isCompleted && <span className="badge badge-success">✓ تمت المشاهدة</span>}
-                    {hw?.status === 'submitted' && <span className="badge badge-primary">📝 تم تسليم الواجب</span>}
-                    {exam && <span className="badge badge-gold">🏆 الامتحان: {exam.score}/{exam.total}</span>}
-                  </div>
-
-                  {/* Action */}
-                  <div>
-                    {isUnlocked ? (
-                      <button
-                        onClick={() => onNavigate('lecture-room', { lectureId: lec.id })}
-                        className="btn btn-primary"
-                        style={{ 
-                          width: '100%', 
-                          gap: '8px',
-                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                          boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
-                          fontWeight: 800
-                        }}
-                      >
-                        <Play size={16} fill="currentColor" />
-                        <span>مشاهدة المحاضرة والواجبات الآن ▶️</span>
-                      </button>
+                {/* Section Header Card */}
+                <div style={{
+                  padding: '1.5rem 1.75rem',
+                  background: isSecSubscribed 
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)' 
+                    : 'var(--bg-subtle)',
+                  borderBottom: isCollapsed ? 'none' : '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '260px' }}>
+                    {sec.cover ? (
+                      <img 
+                        src={sec.cover} 
+                        alt={sec.title} 
+                        style={{ width: '64px', height: '64px', borderRadius: '14px', objectFit: 'cover', flexShrink: 0, boxShadow: 'var(--shadow-sm)' }} 
+                      />
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <a
-                          href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`مرحباً ${teacherProfile?.name || 'مستر مايكل شحاته'}، أريد الاشتراك في محاضرة: "${lec.title}" (${stage?.name || 'المرحلة الدراسية'}).`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-primary"
-                          style={{
-                            width: '100%',
-                            gap: '8px',
-                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                            color: 'white',
+                      <div style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '14px',
+                        background: sec.type === 'course' 
+                          ? 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' 
+                          : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }}>
+                        {sec.type === 'course' ? <Layers size={28} /> : <Calendar size={28} />}
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          padding: '3px 10px',
+                          borderRadius: '20px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          background: sec.type === 'course' ? '#8B5CF6' : '#3B82F6',
+                          color: 'white'
+                        }}>
+                          {sec.type === 'course' ? '📁 كورس تعليمي' : '📅 شهر دراسي'}
+                        </span>
+
+                        {isSecSubscribed ? (
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
                             fontWeight: 800,
-                            textDecoration: 'none',
-                            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                            background: '#10B981',
+                            color: 'white',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '10px 16px',
-                            borderRadius: 'var(--radius-md)'
+                            gap: '4px'
+                          }}>
+                            <Check size={13} />
+                            <span>مفتوح ضمن اشتراكك</span>
+                            {secSub.daysRemaining ? ` (متبقي ${secSub.daysRemaining} يوم)` : ''}
+                          </span>
+                        ) : secSub.isExpired ? (
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: '#EF4444',
+                            color: 'white'
+                          }}>
+                            ⚠️ اشتراك منتهي
+                          </span>
+                        ) : (
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            color: '#DC2626',
+                            border: '1px solid rgba(239, 68, 68, 0.3)'
+                          }}>
+                            🔒 يتطلب اشتراك ({sec.price || 250} ج.م)
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: '0 0 4px', color: 'var(--text-main)' }}>
+                        {sec.title}
+                      </h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        {sec.description || 'شرح تفصيلي مع تدريبات مكثفة ومتابعة أسبوعية'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    {!isSecSubscribed && (
+                      <>
+                        <a
+                          href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`السلام عليكم مستر مايكل، أريد الاشتراك في: "${sec.title}" (${stage.name}) - السعر: ${sec.price || 250} ج.م.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary btn-sm"
+                          style={{
+                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                            color: 'white',
+                            gap: '6px',
+                            textDecoration: 'none',
+                            fontWeight: 800
                           }}
                         >
-                          <MessageCircle size={18} />
-                          <span>الاشتراك عبر واتساب المستر 💬</span>
+                          <MessageCircle size={15} />
+                          <span>اشتراك عبر واتساب ({sec.price || 250} ج.م)</span>
                         </a>
 
                         <button
                           onClick={onOpenCodeModal}
                           className="btn btn-secondary btn-sm"
-                          style={{ width: '100%', gap: '6px', color: 'var(--primary-600)', fontWeight: 700 }}
+                          style={{ gap: '6px', fontWeight: 700 }}
                         >
-                          <Key size={15} />
-                          <span>معي كود شحن بالفعل 🔑</span>
+                          <Key size={14} />
+                          <span>شحن كود 🔑</span>
                         </button>
+                      </>
+                    )}
+
+                    {/* Toggle Collapse Button */}
+                    <button
+                      onClick={() => toggleSectionCollapse(sec.id)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ gap: '6px', padding: '7px 12px' }}
+                      title={isCollapsed ? 'عرض المحاضرات' : 'طي المحاضرات'}
+                    >
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                        {secLectures.length} محاضرة
+                      </span>
+                      {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section Lectures Grid */}
+                {!isCollapsed && (
+                  <div style={{ padding: '1.75rem' }}>
+                    {secLectures.length === 0 ? (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '2.5rem 1rem',
+                        background: 'var(--bg-subtle)',
+                        borderRadius: 'var(--radius-lg)',
+                        color: 'var(--text-muted)'
+                      }}>
+                        <Folder size={40} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem' }}>
+                          لم يتم إدراج محاضرات في هذا القسم بعد. سيتم رفع المحاضرات قريباً!
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                        gap: '1.5rem'
+                      }}>
+                        {secLectures.map(lec => renderLectureCard(lec))}
                       </div>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
+
+          {/* Fallback / General Lectures not assigned to any specific section */}
+          {unassignedLectures.length > 0 && (
+            <div 
+              className="card"
+              style={{
+                padding: 0,
+                borderRadius: 'var(--radius-xl)',
+                overflow: 'hidden',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-md)'
+              }}
+            >
+              <div style={{
+                padding: '1.25rem 1.75rem',
+                background: 'var(--bg-subtle)',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    background: 'var(--primary-gradient)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <BookOpen size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 900, margin: '0 0 2px' }}>
+                      محاضرات عامة وتدريبات إضافية 📚
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      محاضرات ومراجعات إضافية داعمة للمرحلة
+                    </p>
+                  </div>
+                </div>
+
+                <span className="badge badge-subtle" style={{ fontWeight: 800 }}>
+                  {unassignedLectures.length} محاضرة
+                </span>
+              </div>
+
+              <div style={{ padding: '1.75rem' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '1.5rem'
+                }}>
+                  {unassignedLectures.map(lec => renderLectureCard(lec))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Empty Stage State */}
+          {stageLectures.length === 0 && (
+            <div className="card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+              <BookOpen size={52} color="var(--primary-400)" style={{ margin: '0 auto 1rem' }} />
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 900, marginBottom: '0.5rem' }}>
+                لم يتم نشر محاضرات لهذه المرحلة حتى الآن
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 1.5rem' }}>
+                يقوم المستر حالياً بإعداد المحاضرات وتصويرها بجودة عالية، تابع التنبيهات لمعرفة موعد النشر فوراً.
+              </p>
+              <button onClick={() => onNavigate('stages')} className="btn btn-secondary">
+                العودة لقائمة المراحل
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

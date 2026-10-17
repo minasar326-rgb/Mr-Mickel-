@@ -21,6 +21,8 @@ import TeacherAvatar3D from '../common/TeacherAvatar3D';
 export default function TeacherAdminCenter({ onNavigate }) {
   const { 
     teacherProfile, stages, lectures, booklets, topAchievers, accessCodes, students, announcements,
+    sections, addSection, updateSection, deleteSection, moveLectureToSection,
+    transactions, recordTransaction, toggleCodeStatus,
     addStudent, updateStudent, deleteStudent, toggleStudentStatus, recordPayment,
     generatePaymentReminderWhatsApp, generateStudentReceiptWhatsApp, generateParentWhatsAppReport,
     updateTeacherProfile, uploadNewLecture, deleteLecture,
@@ -38,7 +40,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('lectures'); 
-  // 'attendance' | 'security' | 'students' | 'finance' | 'lectures' | 'profile' | 'stages' | 'booklets' | 'achievers' | 'codes' | 'broadcast'
+  // 'sections' | 'lectures' | 'security' | 'students' | 'finance' | 'profile' | 'stages' | 'booklets' | 'achievers' | 'codes' | 'broadcast'
 
   // Student Search & Filter
   const [studentSearch, setStudentSearch] = useState('');
@@ -69,13 +71,24 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [activeReminderStudent, setActiveReminderStudent] = useState(null);
   const [activeCertificateStudent, setActiveCertificateStudent] = useState(null);
 
-  // Attendance QR / Barcode Scanner State
-  const [scannerInput, setScannerInput] = useState('');
-  const [scannedStudentResult, setScannedStudentResult] = useState(null);
-  const [attendanceLog, setAttendanceLog] = useState([
-    { time: '04:15 م', name: 'سعد القحطاني', code: 'MS-SEC3-101', stage: 'الصف الثالث الثانوي', status: 'مسدد بالكامل ✓' },
-    { time: '04:18 م', name: 'سارة الزهراني', code: 'MS-SEC3-102', stage: 'الصف الثالث الثانوي', status: 'مسدد بالكامل ✓' }
-  ]);
+  // Sections (Months & Courses) Form State
+  const [newSecStageId, setNewSecStageId] = useState(stages[0]?.id || 'sec-3');
+  const [newSecType, setNewSecType] = useState('month'); // 'month' | 'course'
+  const [newSecTitle, setNewSecTitle] = useState('');
+  const [newSecMonthNumber, setNewSecMonthNumber] = useState('1');
+  const [newSecPrice, setNewSecPrice] = useState('180');
+  const [newSecDesc, setNewSecDesc] = useState('');
+  const [newSecCover, setNewSecCover] = useState('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80');
+  const [newSecIsVisible, setNewSecIsVisible] = useState(true);
+  const [selectedSectionStageFilter, setSelectedSectionStageFilter] = useState('all');
+  const [editingSectionId, setEditingSectionId] = useState(null);
+  const sectionCoverInputRef = useRef(null);
+
+  // Lecture Section Assignment State
+  const [lectureSectionId, setLectureSectionId] = useState('');
+
+  // Treasury Filter State
+  const [txFilterMethod, setTxFilterMethod] = useState('all');
 
   // Security Suite State
   const [securitySettings, setSecuritySettings] = useState({
@@ -173,13 +186,18 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [lectureStageFilter, setLectureStageFilter] = useState('all');
   const [achieverStageFilter, setAchieverStageFilter] = useState('all');
 
-  // Code Generator State
-  const [genStage, setGenStage] = useState(stages[0]?.name || 'الصف الثالث الثانوي');
-  const [genTitle, setGenTitle] = useState('محاضرة لغة إنجليزية جديدة');
-  const [genPrice, setGenPrice] = useState('70 ج.م');
-  const [genCodeDuration, setGenCodeDuration] = useState('30'); // '7' | '15' | '30' | '60' | '120' | '365'
-  const [genCodeTargetType, setGenCodeTargetType] = useState('lecture'); // 'lecture' | 'stage' | 'all'
+  // Code Generator State (4 types: Month, Lecture, Course, Bundle)
+  const [genCodeStageId, setGenCodeStageId] = useState(stages[0]?.id || 'sec-3');
+  const [genCodeType, setGenCodeType] = useState('month'); // 'month' | 'lecture' | 'course' | 'bundle'
   const [genCodeTargetId, setGenCodeTargetId] = useState('');
+  const [genCodePrice, setGenCodePrice] = useState('180');
+  const [genCodeDuration, setGenCodeDuration] = useState('30'); // '7' | '15' | '30' | '60' | '120' | '365'
+  const [genCodeExpiryDate, setGenCodeExpiryDate] = useState('');
+  const [genCodeMaxUses, setGenCodeMaxUses] = useState(1);
+  const [genCodeIsGift, setGenCodeIsGift] = useState(false);
+  const [genCodeCustomCode, setGenCodeCustomCode] = useState('');
+  const [genCodeBundleItems, setGenCodeBundleItems] = useState([]);
+  const [codeFilterType, setCodeFilterType] = useState('all');
 
   // Broadcast State
   const [annTitle, setAnnTitle] = useState('');
@@ -343,42 +361,53 @@ export default function TeacherAdminCenter({ onNavigate }) {
   };
 
   // -------------------------------------------------------------
-  // QR Attendance Scanner Logic
+  // Section (Months & Courses) Handlers
   // -------------------------------------------------------------
-  const handleScanAttendance = (codeToScan) => {
-    const query = (codeToScan || scannerInput).trim().toUpperCase();
-    if (!query) return;
-
-    const matched = students.find(s => 
-      s.code?.toUpperCase() === query || 
-      s.phone?.includes(query) || 
-      s.name?.includes(query)
-    );
-
-    if (matched) {
-      setScannedStudentResult(matched);
-      const currentTime = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-      setAttendanceLog(prev => [
-        {
-          time: currentTime,
-          name: matched.name,
-          code: matched.code,
-          stage: matched.stageName,
-          status: matched.finance?.paymentStatus === 'paid' ? 'مسدد بالكامل ✓' : `متبقي ${matched.finance?.dueAmount || 0} ج.م ⚠️`
-        },
-        ...prev
-      ]);
-      addToast(`✅ تم رصد الطالب (${matched.name}) وتسجيل حضوره بنجاح!`, 'success');
-      setScannerInput('');
-    } else {
-      addToast('❌ لم يتم العثور على طالب بهذا الكود، تأكد من كود الطالب أو الباركود', 'error');
+  const handleSaveSection = (e) => {
+    e.preventDefault();
+    if (!newSecTitle.trim()) {
+      addToast('يرجى كتابة عنوان الشهر أو الكورس', 'error');
+      return;
     }
+    const stageObj = stages.find(s => s.id === newSecStageId) || stages[0];
+    if (editingSectionId) {
+      updateSection(editingSectionId, {
+        stageId: newSecStageId,
+        stageName: stageObj?.name || 'المرحلة الدراسية',
+        type: newSecType,
+        monthNumber: newSecType === 'month' ? Number(newSecMonthNumber) : undefined,
+        title: newSecTitle,
+        description: newSecDesc,
+        price: Number(newSecPrice) || 0,
+        cover: newSecCover,
+        isVisible: newSecIsVisible
+      });
+      setEditingSectionId(null);
+    } else {
+      addSection({
+        stageId: newSecStageId,
+        stageName: stageObj?.name || 'المرحلة الدراسية',
+        type: newSecType,
+        monthNumber: newSecType === 'month' ? Number(newSecMonthNumber) : undefined,
+        title: newSecTitle,
+        description: newSecDesc,
+        price: Number(newSecPrice) || 0,
+        cover: newSecCover,
+        isVisible: newSecIsVisible
+      });
+    }
+    setNewSecTitle('');
+    setNewSecDesc('');
   };
 
   // -------------------------------------------------------------
-  // Financial Computations
+  // Treasury & Financial Computations (Real Ledger & Distinct Sources)
   // -------------------------------------------------------------
-  const totalCollectedRevenue = students.reduce((sum, s) => sum + (Number(s.finance?.paidAmount) || 0), 0);
+  const realCashTransactions = transactions.filter(t => !t.isGift && t.status === 'completed');
+  const totalCollectedRevenue = realCashTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const codesRevenue = transactions.filter(t => t.paymentMethod === 'code' && !t.isGift && t.status === 'completed').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const onlineRevenue = transactions.filter(t => ['vodafone', 'fawry', 'card'].includes(t.paymentMethod) && t.status === 'completed').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const giftCodesCount = transactions.filter(t => t.isGift).length;
   const totalPendingDues = students.reduce((sum, s) => sum + (Number(s.finance?.dueAmount) || 0), 0);
   const totalExpectedRevenue = totalCollectedRevenue + totalPendingDues;
   const collectionRate = totalExpectedRevenue > 0 ? Math.round((totalCollectedRevenue / totalExpectedRevenue) * 100) : 100;
@@ -500,6 +529,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
     await uploadNewLecture({
       stageId: targetStage?.id || stageId,
       stageName: targetStage?.name || 'المرحلة الدراسية',
+      sectionId: lectureSectionId || '',
       unitNumber,
       title,
       subtitle: subtitle || 'شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.',
@@ -520,6 +550,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
     setTitle('');
     setSubtitle('');
+    setLectureSectionId('');
     setVideoPreviewUrl('');
     setVideoFileName('');
     setVideoFileSize('');
@@ -576,34 +607,46 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setNewAchName('');
   };
 
-  const handleGenerateCode = (e) => {
+  const handleGenerateCode = async (e) => {
     e.preventDefault();
-    const targetStageObj = stages.find(s => s.name === genStage) || stages[0];
-    const targetLectureObj = lectures.find(l => l.id === genCodeTargetId) || lectures[0];
-    
-    let targetTitle = genTitle;
-    let targetId = genCodeTargetId || targetLectureObj?.id || 'lec-s3-01';
+    const stageObj = stages.find(s => s.id === genCodeStageId) || stages[0];
 
-    if (genCodeTargetType === 'stage') {
-      targetTitle = `اشتراك مرحلة: ${targetStageObj?.name || genStage}`;
-      targetId = targetStageObj?.id || 'sec-3';
-    } else if (genCodeTargetType === 'all') {
-      targetTitle = 'اشتراك المنصة الشامل (كافة المراحل)';
-      targetId = 'all-access';
-    } else {
-      targetTitle = targetLectureObj ? targetLectureObj.title : genTitle;
+    let targetTitle = 'اشتراك المحتوى';
+    let targetId = '';
+
+    if (genCodeType === 'month') {
+      const sec = sections.find(s => s.id === genCodeTargetId && s.type === 'month') || sections.find(s => s.stageId === genCodeStageId && s.type === 'month') || sections[0];
+      targetId = sec?.id || 'sec3-month-1';
+      targetTitle = sec ? `اشتراك: ${sec.title}` : 'اشتراك شهر كامل';
+    } else if (genCodeType === 'course') {
+      const sec = sections.find(s => s.id === genCodeTargetId && s.type === 'course') || sections.find(s => s.stageId === genCodeStageId && s.type === 'course') || sections[0];
+      targetId = sec?.id || 'sec3-course-fnd';
+      targetTitle = sec ? `كورس: ${sec.title}` : 'اشتراك كورس كامل';
+    } else if (genCodeType === 'lecture') {
+      const lec = lectures.find(l => l.id === genCodeTargetId) || lectures[0];
+      targetId = lec?.id || 'lec-s3-01';
+      targetTitle = lec ? `محاضرة: ${lec.title}` : 'اشتراك محاضرة واحدة';
+    } else if (genCodeType === 'bundle') {
+      targetId = `bundle-${Date.now()}`;
+      targetTitle = `باقة مخصصة (${genCodeBundleItems.length > 0 ? `${genCodeBundleItems.length} عناصر` : 'مجموعة شهور ومحاضرات'})`;
     }
 
-    generateNewCode(
-      targetStageObj?.name || genStage,
+    await generateNewCode({
+      stageName: stageObj?.name || 'الصف الثالث الثانوي',
+      stageId: stageObj?.id || 'sec-3',
       targetTitle,
       targetId,
-      genPrice,
-      genCodeTargetType,
-      Number(genCodeDuration) || 30
-    );
+      codeType: genCodeType,
+      price: genCodePrice,
+      durationDays: Number(genCodeDuration) || 30,
+      expiryDate: genCodeExpiryDate,
+      maxUses: Number(genCodeMaxUses) || 1,
+      isGift: Boolean(genCodeIsGift),
+      customCode: genCodeCustomCode,
+      bundleItems: genCodeBundleItems
+    });
 
-    setGenTitle('');
+    setGenCodeCustomCode('');
   };
 
   const handleBroadcastSubmit = (e) => {
@@ -639,7 +682,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
               استوديو إدارة منصة {teacherProfile.name}
             </h1>
             <p style={{ color: '#C7D2FE', fontSize: '0.92rem', margin: 0 }}>
-              رفع الفيديوهات من جهازك، ماسح حضور السنتر QR، درع حماية المحتوى، إدارة الخزينة والمصروفات
+              رفع الفيديوهات من جهازك، إدارة الشهور والكورسات، درع حماية المحتوى، الخزينة المتطورة وأكواد الشحن
             </p>
           </div>
 
@@ -730,7 +773,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
         }}>
           {[
             { id: 'lectures', label: `🎥 رفع المحاضرات (${lectures.length})`, icon: Video },
-            { id: 'attendance', label: '📷 ماسح حضور السنتر (QR Scanner)', icon: QrCode },
+            { id: 'sections', label: `📅 الشهور والكورسات (${sections.length})`, icon: BookOpen },
             { id: 'security', label: '🛡️ درع الحماية والأمان (Anti-Piracy)', icon: ShieldCheck },
             { id: 'students', label: `👥 سجل ومتابعة الطلاب (${students.length})`, icon: Users },
             { id: 'finance', label: `💰 الخزينة (${totalCollectedRevenue.toLocaleString()} ج.م)`, icon: DollarSign },
@@ -792,14 +835,17 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
               <form onSubmit={handleUploadLecture} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
-                        المرحلة المستهدفة (أين ستضاف هذه المحاضرة؟):
+                        المرحلة المستهدفة:
                       </label>
                       <select 
                         value={stageId} 
-                        onChange={e => setStageId(e.target.value)} 
+                        onChange={e => {
+                          setStageId(e.target.value);
+                          setLectureSectionId('');
+                        }} 
                         className="input-control"
                         style={{ fontWeight: 800, borderColor: 'var(--primary-400)', background: 'var(--bg-subtle)' }}
                       >
@@ -807,9 +853,27 @@ export default function TeacherAdminCenter({ onNavigate }) {
                           <option key={s.id} value={s.id}>🎓 {s.name} ({s.badge || 'دفعة 2026'})</option>
                         ))}
                       </select>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--primary-600)', display: 'block', marginTop: '4px', fontWeight: 700 }}>
-                        📌 ستنشر هذه المحاضرة مباشرة داخل قسم: <strong>{stages.find(s => s.id === stageId)?.name || 'المرحلة المختارة'}</strong>
-                      </span>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                        📅 الشهر أو الكورس التابع له:
+                      </label>
+                      <select 
+                        value={lectureSectionId} 
+                        onChange={e => setLectureSectionId(e.target.value)} 
+                        className="input-control"
+                        style={{ fontWeight: 800, borderColor: 'var(--primary-400)' }}
+                      >
+                        <option value="">بدون شهر محدد (محاضرة مستقلة / عامة)</option>
+                        {sections
+                          .filter(sec => sec.stageId === stageId)
+                          .map(sec => (
+                            <option key={sec.id} value={sec.id}>
+                              {sec.type === 'course' ? '📁 كورس: ' : '📅 شهر: '}{sec.title}
+                            </option>
+                          ))}
+                      </select>
                     </div>
 
                     <div>
@@ -1177,13 +1241,40 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <img src={lec.thumbnail} alt={lec.title} style={{ width: '70px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
                           <span className="badge badge-primary">{lec.unitNumber}</span>
                           <strong style={{ fontSize: '0.95rem' }}>{lec.title}</strong>
+                          {(() => {
+                            const sec = sections.find(s => s.id === lec.sectionId);
+                            if (sec) {
+                              return (
+                                <span className={sec.type === 'course' ? 'badge badge-gold' : 'badge badge-success'} style={{ fontSize: '0.72rem' }}>
+                                  {sec.type === 'course' ? '📁 كورس: ' : '📅 شهر: '}{sec.title}
+                                </span>
+                              );
+                            }
+                            return <span className="badge" style={{ background: '#E2E8F0', color: '#475569', fontSize: '0.72rem' }}>محاضرة عامة</span>;
+                          })()}
                         </div>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                          المرحلة: {stages.find(s => s.id === lec.stageId)?.name || lec.stageId} • ⏱️ {lec.duration}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          <span>المرحلة: {stages.find(s => s.id === lec.stageId)?.name || lec.stageId}</span>
+                          <span>•</span>
+                          <span>⏱️ {lec.duration}</span>
+                          <span>•</span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontWeight: 700 }}>نقل للقسم:</span>
+                            <select
+                              value={lec.sectionId || ''}
+                              onChange={e => moveLectureToSection(lec.id, e.target.value)}
+                              style={{ fontSize: '0.75rem', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}
+                            >
+                              <option value="">(بدون قسم)</option>
+                              {sections.filter(s => s.stageId === lec.stageId).map(s => (
+                                <option key={s.id} value={s.id}>{s.type === 'course' ? 'كورس: ' : 'شهر: '}{s.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -1217,150 +1308,262 @@ export default function TeacherAdminCenter({ onNavigate }) {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2: QR & BARCODE ATTENDANCE SCANNER FOR CENTERS */}
+        {/* TAB 2: MONTHS & COURSES DYNAMIC MANAGEMENT (SECTIONS) */}
         {/* ========================================================= */}
-        {activeTab === 'attendance' && (
+        {activeTab === 'sections' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)', border: '2px solid var(--primary-500)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--primary-gradient)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <QrCode size={26} />
+                  <BookOpen size={26} />
                 </div>
                 <div>
                   <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0 }}>
-                    ماسح حضور الطلاب بالسنتر (QR & Barcode Attendance Scanner) 📷
+                    إدارة الشهور والكورسات الدراسية (Months & Courses Manager) 📅
                   </h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
-                    مرر جهاز قارئ الباركود أو اكتب كود الطالب للتحقق الفوري من حالة الاشتراك وتسجيل الحضور بالسنتر!
+                    لكل مرحلة تعليمية إمكانية إنشاء شهور دراسية أو كورسات كاملة، تحديد أسعارها وأغلفتها، والتحكم في ظهورها للطلاب.
                   </p>
                 </div>
               </div>
 
-              {/* Barcode/QR Input Bar */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <ScanLine size={20} color="var(--primary-600)" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    type="text"
-                    placeholder="امسح الباركود أو اكتب كود الطالب (مثال: MS-SEC3-101)..."
-                    value={scannerInput}
-                    onChange={e => setScannerInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleScanAttendance(); }}
+              {/* Add / Edit Section Form */}
+              <form onSubmit={handleSaveSection} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'flex-end', background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '2rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>المرحلة التعليمية:</label>
+                  <select 
+                    value={newSecStageId} 
+                    onChange={e => setNewSecStageId(e.target.value)} 
                     className="input-control"
-                    style={{ paddingRight: '44px', fontSize: '1.1rem', fontWeight: 700, fontFamily: 'monospace' }}
-                    autoFocus
+                    style={{ fontWeight: 800 }}
+                  >
+                    {stages.map(s => <option key={s.id} value={s.id}>🎓 {s.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نوع القسم:</label>
+                  <select 
+                    value={newSecType} 
+                    onChange={e => setNewSecType(e.target.value)} 
+                    className="input-control"
+                    style={{ fontWeight: 800 }}
+                  >
+                    <option value="month">📅 شهر دراسي (Month)</option>
+                    <option value="course">📁 كورس كامل / تأسيس (Course)</option>
+                  </select>
+                </div>
+
+                {newSecType === 'month' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>رقم الشهر:</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="12" 
+                      value={newSecMonthNumber} 
+                      onChange={e => setNewSecMonthNumber(e.target.value)} 
+                      className="input-control" 
+                      placeholder="1, 2, 3..." 
+                      required 
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>سعر الاشتراك (ج.م):</label>
+                  <input 
+                    type="number" 
+                    value={newSecPrice} 
+                    onChange={e => setNewSecPrice(e.target.value)} 
+                    className="input-control" 
+                    placeholder="مثال: 180" 
+                    required 
                   />
                 </div>
-                <button
-                  onClick={() => handleScanAttendance()}
-                  className="btn btn-primary btn-lg"
-                  style={{ gap: '8px', minWidth: '160px' }}
-                >
-                  <ScanLine size={20} />
-                  <span>تسجيل الحضور</span>
-                </button>
-              </div>
 
-              {/* Preset Quick Scan Pills */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2rem' }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700 }}>أكواد طلاب سريعة للتجربة:</span>
-                {students.slice(0, 4).map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => handleScanAttendance(s.code)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ border: '1px dashed var(--primary-400)', color: 'var(--primary-700)', fontSize: '0.78rem' }}
-                  >
-                    📷 {s.name} ({s.code})
-                  </button>
-                ))}
-              </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عنوان الشهر أو الكورس:</label>
+                  <input 
+                    type="text" 
+                    value={newSecTitle} 
+                    onChange={e => setNewSecTitle(e.target.value)} 
+                    className="input-control" 
+                    placeholder="مثال: الشهر الأول: شرح Units 1 & 2 أو كورس التأسيس الشامل" 
+                    required 
+                  />
+                </div>
 
-              {/* Scanned Student Visual Card */}
-              {scannedStudentResult && (
-                <div style={{
-                  padding: '1.5rem',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
-                  border: '2px solid #6366F1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1.5rem',
-                  marginBottom: '2rem'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <img
-                      src={scannedStudentResult.avatar}
-                      alt={scannedStudentResult.name}
-                      style={{ width: '70px', height: '70px', borderRadius: '50%', border: '3px solid #4F46E5', objectFit: 'cover' }}
-                    />
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <h4 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#1E1B4B', margin: 0 }}>
-                          {scannedStudentResult.name}
-                        </h4>
-                        <span className="badge badge-primary">{scannedStudentResult.stageName}</span>
-                      </div>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#4F46E5', fontSize: '0.95rem' }}>
-                        كود: {scannedStudentResult.code} • 📱 {scannedStudentResult.phone}
-                      </span>
-                      <span style={{ display: 'block', fontSize: '0.82rem', color: '#64748B', marginTop: '2px' }}>
-                        السنتر: {scannedStudentResult.centerName || 'سنتر النخبة'} • طوارئ: {scannedStudentResult.parentPhone}
-                      </span>
-                    </div>
-                  </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>وصف محتوى الشهر / الكورس:</label>
+                  <input 
+                    type="text" 
+                    value={newSecDesc} 
+                    onChange={e => setNewSecDesc(e.target.value)} 
+                    className="input-control" 
+                    placeholder="تفاصيل ما يحتويه هذا الشهر من قواعد وكلمات ومهارات..." 
+                  />
+                </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                    {scannedStudentResult.finance?.paymentStatus === 'paid' ? (
-                      <span className="badge badge-success" style={{ fontSize: '0.95rem', padding: '6px 14px' }}>
-                        ✓ مصاريف الشهر مسددة بالكامل
-                      </span>
-                    ) : (
-                      <span className="badge badge-error" style={{ fontSize: '0.95rem', padding: '6px 14px' }}>
-                        ⚠️ متبقي عليه: {scannedStudentResult.finance?.dueAmount} ج.م
-                      </span>
-                    )}
-                    <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700 }}>
-                      ✅ تم تدوين الدخول في سجل الحضور الآن
-                    </span>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>صورة غلاف القسم:</label>
+                  <input 
+                    ref={sectionCoverInputRef} 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: 'none' }} 
+                    onChange={e => handleImageFileChange(e, setNewSecCover, 'غلاف القسم')} 
+                  />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <img src={newSecCover} alt="Cover" style={{ width: '45px', height: '45px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+                    <button type="button" onClick={() => sectionCoverInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{ flex: 1, gap: '6px' }}>
+                      <Image size={15} /> <span>رفع غلاف 🖼️</span>
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Attendance Log Table */}
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer', marginBottom: '12px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={newSecIsVisible} 
+                      onChange={e => setNewSecIsVisible(e.target.checked)} 
+                    />
+                    <span>ظاهر ومتاح للطلاب بالمنصة ✓</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {editingSectionId && (
+                      <button 
+                        type="button" 
+                        onClick={() => { setEditingSectionId(null); setNewSecTitle(''); setNewSecDesc(''); }} 
+                        className="btn btn-secondary btn-sm"
+                      >
+                        إلغاء
+                      </button>
+                    )}
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '44px', fontWeight: 800 }}>
+                      {editingSectionId ? '💾 حفظ التعديلات' : '➕ إضافة الشهر / الكورس'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Sections Listing */}
               <div>
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 1rem' }}>
-                  📋 سجل الطلاب الحاضرين في السنتر اليوم ({attendanceLog.length})
-                </h4>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.88rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '0.75rem' }}>وقت التسجيل</th>
-                        <th style={{ padding: '0.75rem' }}>اسم الطالب</th>
-                        <th style={{ padding: '0.75rem' }}>كود الطالب</th>
-                        <th style={{ padding: '0.75rem' }}>المرحلة</th>
-                        <th style={{ padding: '0.75rem' }}>حالة المصاريف</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendanceLog.map((log, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '0.75rem', fontWeight: 700 }}>{log.time}</td>
-                          <td style={{ padding: '0.75rem', fontWeight: 800, color: 'var(--primary-700)' }}>{log.name}</td>
-                          <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{log.code}</td>
-                          <td style={{ padding: '0.75rem' }}>{log.stage}</td>
-                          <td style={{ padding: '0.75rem' }}>
-                            <span className={log.status.includes('✓') ? 'badge badge-success' : 'badge badge-error'}>
-                              {log.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
+                    قائمة الشهور والكورسات المسجلة ({sections.length})
+                  </h4>
+                  {/* Stage filter pills */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedSectionStageFilter('all')} 
+                      className={`btn btn-sm ${selectedSectionStageFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                    >
+                      🌟 الكل ({sections.length})
+                    </button>
+                    {stages.map(s => {
+                      const count = sections.filter(sec => sec.stageId === s.id).length;
+                      return (
+                        <button 
+                          key={s.id} 
+                          type="button" 
+                          onClick={() => setSelectedSectionStageFilter(s.id)} 
+                          className={`btn btn-sm ${selectedSectionStageFilter === s.id ? 'btn-primary' : 'btn-secondary'}`}
+                        >
+                          🎓 {s.name} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {sections
+                    .filter(sec => selectedSectionStageFilter === 'all' || sec.stageId === selectedSectionStageFilter)
+                    .map(sec => {
+                      const secLecs = lectures.filter(l => l.sectionId === sec.id);
+                      return (
+                        <div key={sec.id} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between', 
+                          padding: '1.1rem 1.4rem', 
+                          background: 'var(--bg-subtle)', 
+                          borderRadius: '12px', 
+                          border: sec.isVisible !== false ? '1px solid var(--border-subtle)' : '1px dashed #EF4444',
+                          flexWrap: 'wrap', 
+                          gap: '1rem' 
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <img src={sec.cover} alt={sec.title} style={{ width: '80px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                <span className={sec.type === 'course' ? 'badge badge-gold' : 'badge badge-primary'}>
+                                  {sec.type === 'course' ? '📁 كورس كامل' : `📅 الشهر ${sec.monthNumber || 1}`}
+                                </span>
+                                <strong style={{ fontSize: '1.05rem' }}>{sec.title}</strong>
+                                <span className="badge badge-success" style={{ fontSize: '0.8rem', fontWeight: 800 }}>
+                                  {sec.price} ج.م
+                                </span>
+                                {sec.isVisible !== false ? (
+                                  <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>ظاهر للطلاب ✓</span>
+                                ) : (
+                                  <span className="badge badge-error" style={{ fontSize: '0.72rem' }}>🔒 مخفي مؤقتاً</span>
+                                )}
+                              </div>
+                              <p style={{ margin: '0 0 4px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{sec.description}</p>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                                المرحلة: <strong>{sec.stageName}</strong> • عدد المحاضرات المندرجة داخله: <strong style={{ color: 'var(--primary-600)' }}>{secLecs.length} محاضرة</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => updateSection(sec.id, { isVisible: sec.isVisible === false ? true : false })}
+                              className={`btn btn-sm ${sec.isVisible !== false ? 'btn-secondary' : 'btn-warning'}`}
+                              title="تبديل حالة الظهور"
+                            >
+                              {sec.isVisible !== false ? 'إخفاء 🔒' : 'إظهار 👁️'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSectionId(sec.id);
+                                setNewSecStageId(sec.stageId);
+                                setNewSecType(sec.type || 'month');
+                                setNewSecTitle(sec.title);
+                                setNewSecDesc(sec.description || '');
+                                setNewSecPrice(String(sec.price || 180));
+                                setNewSecCover(sec.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80');
+                                setNewSecIsVisible(sec.isVisible !== false);
+                                window.scrollTo({ top: 350, behavior: 'smooth' });
+                              }}
+                              className="btn btn-secondary btn-sm"
+                            >
+                              <Edit size={14} /> <span>تعديل</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`هل أنت متأكد من حذف قسم "${sec.title}"؟ (المحاضرات المندرجة لن تُحذف وستبقى محفوظة)`)) {
+                                  deleteSection(sec.id);
+                                }
+                              }}
+                              className="btn btn-ghost btn-sm"
+                              style={{ color: '#EF4444' }}
+                            >
+                              <Trash2 size={14} /> <span>حذف</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             </div>
@@ -1555,7 +1758,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       <th style={{ padding: '0.75rem' }}>بيانات الطالب</th>
                       <th style={{ padding: '0.75rem' }}>المرحلة والمجموعة</th>
                       <th style={{ padding: '0.75rem' }}>المصاريف والفلوس</th>
-                      <th style={{ padding: '0.75rem' }}>الحضور والواجب</th>
+                      <th style={{ padding: '0.75rem' }}>التقدم والواجب</th>
                       <th style={{ padding: '0.75rem' }}>الحالة</th>
                       <th style={{ padding: '0.75rem', textAlign: 'center' }}>إجراءات المتابعة والشهادة</th>
                     </tr>
@@ -1626,7 +1829,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                             </button>
                           </td>
                           <td style={{ padding: '0.85rem' }}>
-                            <span style={{ fontSize: '0.8rem', display: 'block' }}>حضور: <strong>{std.attendanceRate}</strong></span>
+                            <span style={{ fontSize: '0.8rem', display: 'block' }}>إتمام: <strong>{std.progress || '100%'}</strong></span>
                             <span style={{ fontSize: '0.75rem', color: hw?.status === 'submitted' ? 'var(--success)' : 'var(--error)' }}>{hw?.status === 'submitted' ? '✓ تم الواجب' : '⚠️ لم يسلم'}</span>
                           </td>
                           <td style={{ padding: '0.85rem' }}>
@@ -1657,32 +1860,207 @@ export default function TeacherAdminCenter({ onNavigate }) {
         {/* ========================================================= */}
         {/* TAB 5: FINANCE & DUES DASHBOARD */}
         {/* ========================================================= */}
+        {/* ========================================================= */}
+        {/* TAB 5: ADVANCED TREASURY & FINANCIAL LEDGER */}
+        {/* ========================================================= */}
         {activeTab === 'finance' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '4px solid var(--success)' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>إجمالي المحصل</span>
-                <strong style={{ fontSize: '2rem', color: 'var(--success)', display: 'block' }}>{totalCollectedRevenue.toLocaleString()} ج.م</strong>
+            {/* Top Stat Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1.25rem' }}>
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid var(--success)', boxShadow: 'var(--shadow-sm)' }}>
+                <div className="flex-between" style={{ marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>💵 إجمالي الإيرادات الفعلية</span>
+                  <span className="badge badge-success">نقدي محصل</span>
+                </div>
+                <strong style={{ fontSize: '2.1rem', color: 'var(--success)', display: 'block' }}>{totalCollectedRevenue.toLocaleString()} ج.م</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>من العمليات الناجحة (دفع إلكتروني + كروت مدفوعة)</span>
               </div>
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '4px solid #EF4444' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>إجمالي المتأخرات</span>
-                <strong style={{ fontSize: '2rem', color: '#EF4444', display: 'block' }}>{totalPendingDues.toLocaleString()} ج.م</strong>
+
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #4F46E5', boxShadow: 'var(--shadow-sm)' }}>
+                <div className="flex-between" style={{ marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎟️ مبيعات كروت الشحن</span>
+                  <span className="badge badge-primary">أكواد تفعيل</span>
+                </div>
+                <strong style={{ fontSize: '2.1rem', color: '#4F46E5', display: 'block' }}>{codesRevenue.toLocaleString()} ج.م</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>إجمالي مبيعات أكواد الشحن المسبقة الدفع</span>
               </div>
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '4px solid var(--primary-600)' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>الإيراد المتوقع</span>
-                <strong style={{ fontSize: '2rem', color: 'var(--primary-600)', display: 'block' }}>{totalExpectedRevenue.toLocaleString()} ج.م</strong>
+
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #0EA5E9', boxShadow: 'var(--shadow-sm)' }}>
+                <div className="flex-between" style={{ marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>📱 الدفع الإلكتروني المباشر</span>
+                  <span className="badge" style={{ background: '#E0F2FE', color: '#0369A1' }}>فودافون / فوري</span>
+                </div>
+                <strong style={{ fontSize: '2.1rem', color: '#0EA5E9', display: 'block' }}>{onlineRevenue.toLocaleString()} ج.م</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>تحصيلات المحافظ والبطاقات البنكية</span>
               </div>
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '4px solid #F59E0B' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>نسبة التحصيل</span>
-                <strong style={{ fontSize: '2rem', color: '#F59E0B', display: 'block' }}>{collectionRate}%</strong>
+
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #F59E0B', boxShadow: 'var(--shadow-sm)' }}>
+                <div className="flex-between" style={{ marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎁 الأكواد المجانية / الهدايا</span>
+                  <span className="badge badge-gold">معفاة</span>
+                </div>
+                <strong style={{ fontSize: '2.1rem', color: '#D97706', display: 'block' }}>{giftCodesCount} كود</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>مستبعدة تماماً من حساب الإيرادات الفعلية لمنع الوهم</span>
               </div>
             </div>
 
+            {/* Revenue by Month & Course Grid */}
+            <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>📊 إيرادات المنصة مفصلة حسب الشهور والكورسات</h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>توزيع دخل المنصة على كل شهر وكورس بشكل منفصل ودقيق</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                {sections.map(sec => {
+                  const secTx = transactions.filter(t => t.targetId === sec.id && !t.isGift && t.status === 'completed');
+                  const secRev = secTx.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+                  const secStudentsCount = new Set(secTx.map(t => t.userId)).size;
+
+                  return (
+                    <div key={sec.id} style={{ 
+                      padding: '1.1rem', 
+                      borderRadius: '12px', 
+                      background: 'var(--bg-subtle)', 
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span className={sec.type === 'course' ? 'badge badge-gold' : 'badge badge-primary'} style={{ fontSize: '0.72rem' }}>
+                            {sec.type === 'course' ? '📁 كورس' : '📅 شهر'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{sec.stageName}</span>
+                        </div>
+                        <strong style={{ fontSize: '0.95rem', display: 'block', marginBottom: '8px' }}>{sec.title}</strong>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px', marginTop: '6px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>الطلاب المشتركون</span>
+                          <strong style={{ fontSize: '0.95rem' }}>{secStudentsCount} طالب</strong>
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>إجمالي الإيراد</span>
+                          <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>{secRev.toLocaleString()} ج.م</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Detailed Transaction Ledger Table */}
+            <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>📜 سجل المعاملات المالية والخزينة (Transaction Ledger)</h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>إجمالي الحركات المسجلة: {transactions.length} معاملة (مع منع الاحتساب المزدوج)</span>
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: `الكل (${transactions.length})` },
+                    { id: 'code', label: `كروت شحن (${transactions.filter(t => t.paymentMethod === 'code').length})` },
+                    { id: 'online', label: `دفع إلكتروني (${transactions.filter(t => ['vodafone', 'fawry', 'card'].includes(t.paymentMethod)).length})` },
+                    { id: 'gift', label: `أكواد هدايا (${transactions.filter(t => t.isGift).length})` }
+                  ].map(flt => (
+                    <button
+                      key={flt.id}
+                      type="button"
+                      onClick={() => setTxFilterMethod(flt.id)}
+                      className={`btn btn-sm ${txFilterMethod === flt.id ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '0.78rem' }}
+                    >
+                      {flt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.75rem' }}>تاريخ وتوقيت العملية</th>
+                      <th style={{ padding: '0.75rem' }}>اسم الطالب والهاتف</th>
+                      <th style={{ padding: '0.75rem' }}>المحتوى المشترى</th>
+                      <th style={{ padding: '0.75rem' }}>طريقة الدفع</th>
+                      <th style={{ padding: '0.75rem' }}>المبلغ</th>
+                      <th style={{ padding: '0.75rem' }}>رمز الكود</th>
+                      <th style={{ padding: '0.75rem' }}>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions
+                      .filter(t => {
+                        if (txFilterMethod === 'code') return t.paymentMethod === 'code' && !t.isGift;
+                        if (txFilterMethod === 'online') return ['vodafone', 'fawry', 'card'].includes(t.paymentMethod);
+                        if (txFilterMethod === 'gift') return t.isGift;
+                        return true;
+                      })
+                      .map((tx, idx) => {
+                        const dateFormatted = tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('ar-EG', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : 'الآن';
+
+                        return (
+                          <tr key={tx.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <td style={{ padding: '0.85rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                              {dateFormatted}
+                            </td>
+                            <td style={{ padding: '0.85rem' }}>
+                              <strong style={{ display: 'block', fontSize: '0.92rem' }}>{tx.studentName || 'طالب مسجل'}</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tx.studentPhone || 'أونلاين'}</span>
+                            </td>
+                            <td style={{ padding: '0.85rem' }}>
+                              <span style={{ fontWeight: 800, display: 'block' }}>{tx.targetTitle}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--primary-600)' }}>{tx.stageName}</span>
+                            </td>
+                            <td style={{ padding: '0.85rem' }}>
+                              <span className={tx.isGift ? 'badge badge-gold' : tx.paymentMethod === 'code' ? 'badge badge-primary' : 'badge badge-success'}>
+                                {tx.paymentMethodLabel || tx.paymentMethod}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.85rem', fontWeight: 900, color: tx.isGift ? '#D97706' : 'var(--success)' }}>
+                              {tx.isGift ? '0 ج.م (هدية)' : `${Number(tx.amount || 0).toLocaleString()} ج.م`}
+                            </td>
+                            <td style={{ padding: '0.85rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                              {tx.codeUsed ? (
+                                <span style={{ background: 'var(--bg-subtle)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                                  {tx.codeUsed}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>دفع إلكتروني مباشر</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.85rem' }}>
+                              <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>✓ مكتملة</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Students with Pending Dues Reminder */}
             <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 1rem', color: '#EF4444' }}>⚠️ الطلاب المتأخرين عن سداد المصاريف</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 {students.filter(s => (s.finance?.dueAmount || 0) > 0).map(std => (
-                  <div key={std.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-subtle)', borderRadius: '8px' }}>
+                  <div key={std.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--bg-subtle)', borderRadius: '8px', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
                       <strong>{std.name}</strong> - <span style={{ color: '#EF4444', fontWeight: 700 }}>متبقي: {std.finance?.dueAmount} ج.م</span>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>المرحلة: {std.stageName} • هاتف ولي الأمر: {std.parentPhone}</span>
@@ -2164,53 +2542,96 @@ export default function TeacherAdminCenter({ onNavigate }) {
           </div>
         )}
 
+        {/* ========================================================= */}
+        {/* TAB 8: ADVANCED MULTI-TYPE ACTIVATION CODES */}
+        {/* ========================================================= */}
         {activeTab === 'codes' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)', border: '2px solid var(--primary-400)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--primary-gradient)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Key size={22} />
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--primary-gradient)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Key size={24} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0 }}>توليد كود شحن ذكي بمحددات زمنية 🎟️</h3>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0 }}>توليد وإصدار كروت الشحن الذكية (4 أنواع تفعيل) 🎟️</h3>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                    كود مشفر وصالح للاستخدام <strong>مرة واحدة فقط</strong> لطالب واحد، ويفتح المحتوى للمدة التي تحددها ثم يقفل تلقائياً!
+                    أنشئ كود شهر كامل، كود محاضرة واحدة، كود كورس تأسيس، أو باقة مخصصة مع تحديد السعر والصلاحية وعدد الاستخدامات.
                   </p>
                 </div>
               </div>
 
-              <form onSubmit={handleGenerateCode} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+              <form onSubmit={handleGenerateCode} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1.25rem', alignItems: 'flex-end', background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>المرحلة الدراسية:</label>
                   <select 
-                    value={genStage} 
+                    value={genCodeStageId} 
                     onChange={e => {
-                      setGenStage(e.target.value);
-                      const stg = stages.find(s => s.name === e.target.value);
-                      const lecs = lectures.filter(l => l.stageId === stg?.id);
-                      if (lecs.length > 0) setGenCodeTargetId(lecs[0].id);
+                      setGenCodeStageId(e.target.value);
+                      setGenCodeTargetId('');
                     }} 
                     className="input-control"
+                    style={{ fontWeight: 800 }}
                   >
-                    {stages.map(s => <option key={s.id} value={s.name}>🎓 {s.name}</option>)}
+                    {stages.map(s => <option key={s.id} value={s.id}>🎓 {s.name}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نوع المحتوى المفتوح:</label>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نوع الكود المطلوب:</label>
                   <select 
-                    value={genCodeTargetType} 
-                    onChange={e => setGenCodeTargetType(e.target.value)} 
+                    value={genCodeType} 
+                    onChange={e => {
+                      setGenCodeType(e.target.value);
+                      setGenCodeTargetId('');
+                    }} 
                     className="input-control"
-                    style={{ fontWeight: 800 }}
+                    style={{ fontWeight: 800, borderColor: 'var(--primary-500)', background: 'var(--bg-surface)' }}
                   >
-                    <option value="lecture">محاضرة واحدة محددة 🎬</option>
-                    <option value="stage">اشتراك المرحلة بالكامل 🎓</option>
-                    <option value="all">اشتراك المنصة الشامل VIP ⭐</option>
+                    <option value="month">📅 1. كود شهر كامل (Month)</option>
+                    <option value="lecture">🎬 2. كود محاضرة واحدة (Lecture)</option>
+                    <option value="course">📁 3. كود كورس كامل / تأسيس (Course)</option>
+                    <option value="bundle">📦 4. كود باقة مخصصة (Custom Bundle)</option>
                   </select>
                 </div>
 
-                {genCodeTargetType === 'lecture' && (
+                {/* Target selector according to type */}
+                {genCodeType === 'month' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>الشهر الدراسي المستهدف:</label>
+                    <select 
+                      value={genCodeTargetId} 
+                      onChange={e => setGenCodeTargetId(e.target.value)} 
+                      className="input-control"
+                    >
+                      <option value="">(اختر الشهر الدراسي)</option>
+                      {sections
+                        .filter(s => s.stageId === genCodeStageId && s.type === 'month')
+                        .map(s => (
+                          <option key={s.id} value={s.id}>📅 {s.title} ({s.price} ج.م)</option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                {genCodeType === 'course' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>الكورس المستهدف:</label>
+                    <select 
+                      value={genCodeTargetId} 
+                      onChange={e => setGenCodeTargetId(e.target.value)} 
+                      className="input-control"
+                    >
+                      <option value="">(اختر الكورس)</option>
+                      {sections
+                        .filter(s => s.stageId === genCodeStageId && s.type === 'course')
+                        .map(s => (
+                          <option key={s.id} value={s.id}>📁 {s.title} ({s.price} ج.م)</option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                {genCodeType === 'lecture' && (
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>المحاضرة المستهدفة:</label>
                     <select 
@@ -2218,31 +2639,54 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       onChange={e => setGenCodeTargetId(e.target.value)} 
                       className="input-control"
                     >
+                      <option value="">(اختر المحاضرة)</option>
                       {lectures
-                        .filter(l => {
-                          const stg = stages.find(s => s.name === genStage);
-                          return !stg || l.stageId === stg.id;
-                        })
+                        .filter(l => l.stageId === genCodeStageId)
                         .map(l => (
-                          <option key={l.id} value={l.id}>{l.unitNumber}: {l.title.slice(0, 30)}...</option>
+                          <option key={l.id} value={l.id}>🎬 {l.unitNumber}: {l.title.slice(0, 32)}...</option>
                         ))}
                     </select>
                   </div>
                 )}
 
+                {genCodeType === 'bundle' && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      اختر الشهور والكورسات التي تفتحها هذه الباقة:
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxHeight: '100px', overflowY: 'auto', background: 'var(--bg-surface)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                      {sections
+                        .filter(s => s.stageId === genCodeStageId)
+                        .map(sec => (
+                          <label key={sec.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '4px 8px', background: 'var(--bg-subtle)', borderRadius: '6px', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={genCodeBundleItems.includes(sec.id)} 
+                              onChange={e => {
+                                if (e.target.checked) setGenCodeBundleItems(prev => [...prev, sec.id]);
+                                else setGenCodeBundleItems(prev => prev.filter(id => id !== sec.id));
+                              }} 
+                            />
+                            <span>{sec.type === 'course' ? '📁' : '📅'} {sec.title.slice(0, 24)}...</span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
-                    ⏳ مدة فتح الاشتراك (صلاحية الكود):
+                    ⏳ مدة وصول الطالب للمحتوى:
                   </label>
                   <select 
                     value={genCodeDuration} 
                     onChange={e => setGenCodeDuration(e.target.value)} 
                     className="input-control"
-                    style={{ fontWeight: 800, borderColor: 'var(--primary-500)', background: 'var(--bg-subtle)' }}
+                    style={{ fontWeight: 800 }}
                   >
-                    <option value="7">⚡ 7 أيام (أسبوع مكثف)</option>
-                    <option value="15">📅 15 يوم (نصف شهر)</option>
-                    <option value="30">🌟 شهر كامل (30 يوم) - الموصى به</option>
+                    <option value="7">⚡ 7 أيام (أسبوع)</option>
+                    <option value="15">📅 15 يوم</option>
+                    <option value="30">🌟 شهر كامل (30 يوم) - قياسي</option>
                     <option value="60">🔥 شهرين (60 يوم)</option>
                     <option value="120">📚 تيرم دراسي كامل (4 شهور)</option>
                     <option value="365">🎓 سنة دراسية كاملة (365 يوم)</option>
@@ -2250,103 +2694,226 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>سعر الكود:</label>
-                  <input type="text" value={genPrice} onChange={e => setGenPrice(e.target.value)} placeholder="مثال: 70 ج.م" className="input-control" />
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                    سعر الكود (ج.م):
+                  </label>
+                  <input 
+                    type="number" 
+                    value={genCodePrice} 
+                    onChange={e => setGenCodePrice(e.target.value)} 
+                    disabled={genCodeIsGift}
+                    placeholder="180" 
+                    className="input-control" 
+                    required={!genCodeIsGift}
+                  />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ height: '44px', fontWeight: 800, gap: '6px' }}>
-                  <Plus size={18} />
-                  <span>توليد كود الشحن</span>
-                </button>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                    عدد مرات الاستخدام:
+                  </label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="100" 
+                    value={genCodeMaxUses} 
+                    onChange={e => setGenCodeMaxUses(e.target.value)} 
+                    className="input-control" 
+                    required 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                    تاريخ انتهاء صلاحية الكود (اختياري):
+                  </label>
+                  <input 
+                    type="date" 
+                    value={genCodeExpiryDate} 
+                    onChange={e => setGenCodeExpiryDate(e.target.value)} 
+                    className="input-control" 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                    كود مخصص (اختياري):
+                  </label>
+                  <input 
+                    type="text" 
+                    value={genCodeCustomCode} 
+                    onChange={e => setGenCodeCustomCode(e.target.value)} 
+                    placeholder="مثال: MS-VIP-2026" 
+                    className="input-control" 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer', marginBottom: '12px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={genCodeIsGift} 
+                      onChange={e => setGenCodeIsGift(e.target.checked)} 
+                    />
+                    <span>🎁 كود مجاني / هدية (لا يُحتسب كإيراد)</span>
+                  </label>
+
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '44px', fontWeight: 800, gap: '6px' }}>
+                    <Plus size={18} />
+                    <span>توليد كود الشحن الآن</span>
+                  </button>
+                </div>
               </form>
             </div>
 
+            {/* Access Codes Listing */}
             <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
               <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
-                  سجل أكواد الشحن الصادرة ({accessCodes.length} كود)
-                </h3>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  🔒 جميع الأكواد مشفرة وتعمل لمرة واحدة فقط
-                </span>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
+                    سجل كروت الشحن وأكواد التفعيل ({accessCodes.length} كود)
+                  </h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    تحكم فوري في تفعيل أو إيقاف الأكواد، ومتابعة عدد مرات الاستخدام
+                  </span>
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: `الكل (${accessCodes.length})` },
+                    { id: 'month', label: `شهور كاملة (${accessCodes.filter(c => c.codeType === 'month' || c.type === 'month').length})` },
+                    { id: 'course', label: `كورسات (${accessCodes.filter(c => c.codeType === 'course' || c.type === 'course').length})` },
+                    { id: 'lecture', label: `محاضرات (${accessCodes.filter(c => c.codeType === 'lecture' || c.type === 'lecture').length})` },
+                    { id: 'bundle', label: `باقات (${accessCodes.filter(c => c.codeType === 'bundle' || c.type === 'bundle').length})` }
+                  ].map(flt => (
+                    <button
+                      key={flt.id}
+                      type="button"
+                      onClick={() => setCodeFilterType(flt.id)}
+                      className={`btn btn-sm ${codeFilterType === flt.id ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '0.78rem' }}
+                    >
+                      {flt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {accessCodes.map((codeObj, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    padding: '1rem 1.25rem', 
-                    background: codeObj.isUsed ? 'rgba(0,0,0,0.02)' : 'var(--bg-subtle)', 
-                    borderRadius: '12px',
-                    border: codeObj.isUsed ? '1px solid var(--border-subtle)' : '1px solid var(--primary-300)',
-                    flexWrap: 'wrap',
-                    gap: '1rem'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        padding: '6px 12px',
-                        background: codeObj.isUsed ? '#E2E8F0' : 'var(--primary-50)',
-                        color: codeObj.isUsed ? '#64748B' : 'var(--primary-700)',
-                        borderRadius: '8px',
-                        fontFamily: 'monospace',
-                        fontWeight: 900,
-                        fontSize: '1rem',
-                        letterSpacing: '1px'
-                      }}>
-                        {codeObj.code}
-                      </div>
+                {accessCodes
+                  .filter(c => {
+                    if (codeFilterType === 'all') return true;
+                    return (c.codeType || c.type) === codeFilterType;
+                  })
+                  .map((codeObj, idx) => {
+                    const isFullyUsed = codeObj.isUsed || (codeObj.usedCount >= (codeObj.maxUses || 1));
+                    const isCodeDisabled = codeObj.isActive === false;
 
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.95rem' }}>{codeObj.targetTitle}</strong>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          <span>المرحلة: {codeObj.stage}</span>
-                          <span>•</span>
-                          <span>المدة: <strong style={{ color: 'var(--primary-600)' }}>{codeObj.durationLabel || `${codeObj.durationDays || 30} يوم`}</strong></span>
-                          <span>•</span>
-                          <span>السعر: {codeObj.price}</span>
+                    return (
+                      <div key={idx} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between', 
+                        padding: '1rem 1.25rem', 
+                        background: isCodeDisabled ? '#FEF2F2' : isFullyUsed ? 'rgba(0,0,0,0.02)' : 'var(--bg-subtle)', 
+                        borderRadius: '12px',
+                        border: isCodeDisabled ? '1px dashed #EF4444' : isFullyUsed ? '1px solid var(--border-subtle)' : '1px solid var(--primary-300)',
+                        flexWrap: 'wrap',
+                        gap: '1rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{
+                            padding: '6px 12px',
+                            background: isCodeDisabled ? '#FEE2E2' : isFullyUsed ? '#E2E8F0' : 'var(--primary-50)',
+                            color: isCodeDisabled ? '#991B1B' : isFullyUsed ? '#64748B' : 'var(--primary-700)',
+                            borderRadius: '8px',
+                            fontFamily: 'monospace',
+                            fontWeight: 900,
+                            fontSize: '1rem',
+                            letterSpacing: '1px'
+                          }}>
+                            {codeObj.code}
+                          </div>
+
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+                              <strong style={{ fontSize: '0.95rem' }}>{codeObj.targetTitle}</strong>
+                              <span className={codeObj.codeType === 'course' ? 'badge badge-gold' : codeObj.codeType === 'bundle' ? 'badge badge-primary' : 'badge badge-success'} style={{ fontSize: '0.72rem' }}>
+                                {codeObj.codeType === 'month' ? '📅 كود شهر' : codeObj.codeType === 'course' ? '📁 كود كورس' : codeObj.codeType === 'bundle' ? '📦 باقة مخصصة' : '🎬 كود محاضرة'}
+                              </span>
+                              {codeObj.isGift && (
+                                <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>🎁 كود هدية</span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              <span>المرحلة: {codeObj.stage}</span>
+                              <span>•</span>
+                              <span>المدة: <strong style={{ color: 'var(--primary-600)' }}>{codeObj.durationLabel || `${codeObj.durationDays || 30} يوم`}</strong></span>
+                              <span>•</span>
+                              <span>السعر: <strong>{codeObj.isGift ? 'مجاني / هدية' : codeObj.price}</strong></span>
+                              <span>•</span>
+                              <span>الاستخدام: <strong>{codeObj.usedCount || (codeObj.isUsed ? 1 : 0)} / {codeObj.maxUses || 1}</strong></span>
+                              {codeObj.expiryDate && <span>• ينتهي الكود: {codeObj.expiryDate}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {isCodeDisabled ? (
+                            <span style={{ padding: '4px 10px', background: '#FEE2E2', color: '#991B1B', borderRadius: '20px', fontSize: '0.76rem', fontWeight: 800 }}>
+                              🔒 موقوف
+                            </span>
+                          ) : isFullyUsed ? (
+                            <span style={{ padding: '4px 10px', background: '#E2E8F0', color: '#475569', borderRadius: '20px', fontSize: '0.76rem', fontWeight: 800 }}>
+                              ✓ اكتمل الاستخدام ({codeObj.usedBy || 'طالب'})
+                            </span>
+                          ) : (
+                            <span style={{ padding: '4px 10px', background: '#DCFCE7', color: '#166534', borderRadius: '20px', fontSize: '0.76rem', fontWeight: 800 }}>
+                              🟢 متاح للتفعيل
+                            </span>
+                          )}
+
+                          <button 
+                            type="button"
+                            onClick={() => toggleCodeStatus(codeObj.code)} 
+                            className={`btn btn-sm ${codeObj.isActive === false ? 'btn-success' : 'btn-secondary'}`}
+                            style={{ fontSize: '0.75rem', gap: '4px' }}
+                            title={codeObj.isActive === false ? 'تفعيل الكود' : 'إيقاف الكود مؤقتاً'}
+                          >
+                            {codeObj.isActive === false ? 'تفعيل 🟢' : 'إيقاف 🔒'}
+                          </button>
+
+                          <button 
+                            type="button"
+                            onClick={() => { 
+                              navigator.clipboard.writeText(codeObj.code); 
+                              addToast(`تم نسخ الكود: ${codeObj.code}`, 'success'); 
+                            }} 
+                            className="btn btn-secondary btn-sm" 
+                            title="نسخ الكود"
+                          >
+                            <Copy size={14} />
+                            <span>نسخ</span>
+                          </button>
+
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`حذف كود الشحن (${codeObj.code})؟`)) {
+                                deleteCode(codeObj.code);
+                              }
+                            }} 
+                            className="btn btn-ghost btn-sm" 
+                            style={{ color: '#EF4444' }} 
+                            title="حذف الكود"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {codeObj.isUsed ? (
-                        <span style={{ 
-                          padding: '4px 10px', 
-                          background: '#FEE2E2', 
-                          color: '#991B1B', 
-                          borderRadius: '20px', 
-                          fontSize: '0.78rem', 
-                          fontWeight: 800 
-                        }}>
-                          🔒 تم الاستخدام ({codeObj.usedBy || 'طالب'})
-                          {codeObj.expiresAt && ` • ينتهي: ${new Date(codeObj.expiresAt).toLocaleDateString('ar-EG')}`}
-                        </span>
-                      ) : (
-                        <span style={{ 
-                          padding: '4px 10px', 
-                          background: '#DCFCE7', 
-                          color: '#166534', 
-                          borderRadius: '20px', 
-                          fontSize: '0.78rem', 
-                          fontWeight: 800 
-                        }}>
-                          🟢 متاح وصالح لمرة واحدة
-                        </span>
-                      )}
-
-                      <button onClick={() => { navigator.clipboard.writeText(codeObj.code); addToast(`تم نسخ الكود: ${codeObj.code}`, 'success'); }} className="btn btn-secondary btn-sm" title="نسخ الكود">
-                        <Copy size={14} />
-                        <span>نسخ</span>
-                      </button>
-
-                      <button onClick={() => deleteCode(codeObj.code)} className="btn btn-ghost btn-sm" style={{ color: '#EF4444' }} title="حذف الكود">
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             </div>
           </div>

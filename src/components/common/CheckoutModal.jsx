@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useCourses } from '../../context/CourseContext';
 import { useToast } from '../../context/ToastContext';
+import { useTeacher } from '../../context/TeacherContext';
+import { useAuth } from '../../context/AuthContext';
 import { X, ShieldCheck, CreditCard, Smartphone, CheckCircle, Lock, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutModal({ isOpen, onClose, checkoutData, onCompleteSuccess }) {
   const { enrollInCourse, clearCart } = useCourses();
   const { addToast } = useToast();
+  const teacherContext = useTeacher();
+  const recordTransaction = teacherContext?.recordTransaction;
+  const { currentUser } = useAuth();
 
   const [paymentMethod, setPaymentMethod] = useState('mada'); // 'mada' | 'card' | 'apple' | 'stc'
   const [cardNumber, setCardNumber] = useState('4111 2222 3333 4444');
@@ -34,6 +39,20 @@ export default function CheckoutModal({ isOpen, onClose, checkoutData, onComplet
         enrollInCourse(item.courseId);
       });
       clearCart();
+
+      // Record to Treasury ledger
+      if (typeof recordTransaction === 'function') {
+        recordTransaction({
+          amount: total,
+          userId: currentUser?.uid || currentUser?.id || 'std-online',
+          studentName: currentUser?.name || cardHolder || 'طالب منصة',
+          stageName: checkoutData.stageName || 'المرحلة الدراسية',
+          targetTitle: items.map(i => i.title).join(' + ') || 'شراء كورسات تعليمية',
+          paymentMethod: paymentMethod === 'mada' ? 'مدى mada' : paymentMethod === 'apple' ? 'Apple Pay' : paymentMethod === 'stc' ? 'STC Pay / محفظة' : 'بطاقة ائتمان',
+          status: 'completed',
+          isGift: false
+        });
+      }
 
       try {
         confetti({

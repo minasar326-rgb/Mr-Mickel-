@@ -98,8 +98,8 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
           padding: '2.5rem 2rem',
           position: 'relative',
           borderRadius: '24px',
-          background: 'linear-gradient(135deg, #0A192F 0%, #060B14 100%)',
-          border: '1px solid rgba(56, 158, 255, 0.3)',
+          background: 'linear-gradient(135deg, #18181D 0%, #0C0C0F 100%)',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7)',
           color: 'white',
           textAlign: 'center'
@@ -135,12 +135,12 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
           width: '64px',
           height: '64px',
           borderRadius: '20px',
-          background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
+          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 1.25rem',
-          boxShadow: '0 10px 25px rgba(0, 82, 204, 0.4)',
+          boxShadow: '0 10px 25px rgba(245, 158, 11, 0.45)',
           border: '2px solid rgba(255, 255, 255, 0.2)'
         }}>
           <Lock size={30} color="white" />
@@ -233,13 +233,13 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
             style={{
               padding: '14px',
               borderRadius: '14px',
-              background: lockoutRemaining > 0 ? '#475569' : 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
+              background: lockoutRemaining > 0 ? '#475569' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
               color: 'white',
               border: 'none',
               fontWeight: 800,
               fontSize: '1rem',
               cursor: lockoutRemaining > 0 ? 'not-allowed' : 'pointer',
-              boxShadow: lockoutRemaining > 0 ? 'none' : '0 8px 25px rgba(0, 82, 204, 0.4)',
+              boxShadow: lockoutRemaining > 0 ? 'none' : '0 8px 25px rgba(245, 158, 11, 0.45)',
               transition: 'transform 0.2s, box-shadow 0.2s',
               display: 'flex',
               alignItems: 'center',

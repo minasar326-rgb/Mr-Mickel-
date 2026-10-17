@@ -241,14 +241,14 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
       <div className="container">
         {/* Stage Header Banner */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           padding: '2.5rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
           position: 'relative',
           overflow: 'hidden',
-          border: '1px solid rgba(0, 82, 204, 0.35)'
+          border: '1px solid rgba(245, 158, 11, 0.35)'
         }}>
           <div style={{ position: 'relative', zIndex: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
@@ -615,8 +615,8 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                         height: '56px',
                         borderRadius: '14px',
                         background: sec.type === 'course' 
-                          ? 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' 
-                          : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                          ? 'linear-gradient(135deg, #D97706 0%, #B45309 100%)' 
+                          : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                         color: 'white',
                         display: 'flex',
                         alignItems: 'center',
@@ -635,7 +635,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                           borderRadius: '20px',
                           fontSize: '0.75rem',
                           fontWeight: 800,
-                          background: sec.type === 'course' ? '#8B5CF6' : '#3B82F6',
+                          background: sec.type === 'course' ? '#B45309' : '#D97706',
                           color: 'white'
                         }}>
                           {sec.type === 'course' ? '📁 كورس تعليمي' : '📅 شهر دراسي'}

@@ -145,7 +145,7 @@ export const coursesData = [
         onChange={(e) => setAmount(Number(e.target.value))}
         style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
       />
-      <p style={{ marginTop: '12px', fontSize: '18px', fontWeight: 'bold', color: '#4F46E5' }}>
+      <p style={{ marginTop: '12px', fontSize: '18px', fontWeight: 'bold', color: '#D97706' }}>
         المبلغ بالريال السعودي: {amount * rate} ر.س
       </p>
     </div>
@@ -167,8 +167,8 @@ export const coursesData = [
           style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
         />
       </div>
-      <div style={{ marginTop: '16px', padding: '12px', background: '#EEF2FF', borderRadius: '8px' }}>
-        <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#4F46E5' }}>
+      <div style={{ marginTop: '16px', padding: '12px', background: '#FEF3C7', borderRadius: '8px' }}>
+        <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#B45309' }}>
           الإجمالي بالريال السعودي: {(amount * rate).toLocaleString()} ر.س
         </p>
       </div>

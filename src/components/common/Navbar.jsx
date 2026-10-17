@@ -376,7 +376,7 @@ export default function Navbar({ onNavigate, currentPage, onOpenCart, onOpenVeri
             title={isDark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الليلي'}
             style={{ borderRadius: 'var(--radius-full)' }}
           >
-            {isDark ? <Sun size={19} color="#FBBF24" /> : <Moon size={19} color="#6366F1" />}
+            {isDark ? <Sun size={19} color="#FBBF24" /> : <Moon size={19} color="#D97706" />}
           </button>
 
           {/* Verify Certificate Link Button */}

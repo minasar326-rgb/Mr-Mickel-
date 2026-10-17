@@ -11,14 +11,14 @@ export default function LiveWebinarsBanner({ onNavigate }) {
     <section style={{ padding: '3.5rem 0', background: 'var(--bg-main)' }}>
       <div className="container">
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           borderRadius: 'var(--radius-xl)',
           padding: '2.5rem',
           boxShadow: 'var(--shadow-xl)',
           position: 'relative',
           overflow: 'hidden',
-          border: '1px solid rgba(0, 82, 204, 0.35)'
+          border: '1px solid rgba(245, 158, 11, 0.35)'
         }}>
           {/* Background Decorative Glow */}
           <div style={{
@@ -74,12 +74,12 @@ export default function LiveWebinarsBanner({ onNavigate }) {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', color: '#E0E7FF' }}>
-                  <Calendar size={16} color="#A5B4FC" />
+                  <Calendar size={16} color="#FDE68A" />
                   <span>{currentLive.date}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', color: '#E0E7FF' }}>
-                  <Users size={16} color="#A5B4FC" />
+                  <Users size={16} color="#FDE68A" />
                   <span>{currentLive.attendeesCount} مسجل متواجد</span>
                 </div>
               </div>
@@ -87,7 +87,7 @@ export default function LiveWebinarsBanner({ onNavigate }) {
               <button
                 onClick={() => onNavigate('live')}
                 className="btn btn-primary btn-lg"
-                style={{ background: '#FFFFFF', color: '#0052CC', fontWeight: 800, gap: '8px' }}
+                style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', color: '#FFFFFF', fontWeight: 800, gap: '8px' }}
               >
                 <Video size={18} />
                 <span>انضم إلى قاعة البث الحي الآن</span>

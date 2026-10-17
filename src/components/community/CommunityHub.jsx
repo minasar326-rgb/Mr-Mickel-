@@ -75,12 +75,12 @@ export default function CommunityHub() {
       <div className="container">
         {/* Header */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           padding: '2rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
-          border: '1px solid rgba(0, 82, 204, 0.35)'
+          border: '1px solid rgba(245, 158, 11, 0.35)'
         }}>
           <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -100,7 +100,7 @@ export default function CommunityHub() {
                 <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0, color: 'white' }}>
                   مجتمع ونقاشات مَدَارِك التقنية
                 </h1>
-                <p style={{ color: '#BAE0FF', fontSize: '0.9rem', margin: '4px 0 0' }}>
+                <p style={{ color: '#FDE68A', fontSize: '0.9rem', margin: '4px 0 0' }}>
                   اطرح استفساراتك، تبادل الخبرات البرمجية، وتفاعل مع زملائك والمدربين المعتمدين.
                 </p>
               </div>
@@ -109,7 +109,7 @@ export default function CommunityHub() {
             <button
               onClick={() => setIsNewPostOpen(true)}
               className="btn btn-primary"
-              style={{ background: '#FFFFFF', color: '#0052CC', fontWeight: 700, gap: '8px' }}
+              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', color: '#FFFFFF', fontWeight: 700, gap: '8px' }}
             >
               <PlusCircle size={18} />
               <span>طرح سؤال جديد</span>

@@ -29,14 +29,14 @@ export default function StudentDashboard({ initialTab, onNavigate }) {
       <div className="container">
         {/* Welcome Header Banner with Gamification Pill */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           padding: '2rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
           position: 'relative',
           overflow: 'hidden',
-          border: '1px solid rgba(0, 82, 204, 0.35)'
+          border: '1px solid rgba(245, 158, 11, 0.35)'
         }}>
           <div style={{
             display: 'flex',
@@ -52,7 +52,7 @@ export default function StudentDashboard({ initialTab, onNavigate }) {
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
                 alt={currentUser?.name}
-                style={{ width: '72px', height: '72px', borderRadius: '50%', border: '3px solid #818CF8', objectFit: 'cover' }}
+                style={{ width: '72px', height: '72px', borderRadius: '50%', border: '3px solid #F59E0B', objectFit: 'cover' }}
               />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

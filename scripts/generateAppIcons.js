@@ -62,17 +62,17 @@ async function buildIcons() {
       <defs>
         <!-- Luxury Royal Background Gradient -->
         <radialGradient id="bgGradient" cx="50%" cy="46%" r="65%">
-          <stop offset="0%" stop-color="#1B223C"/>
-          <stop offset="45%" stop-color="#101526"/>
-          <stop offset="85%" stop-color="#080B14"/>
-          <stop offset="100%" stop-color="#05070D"/>
+          <stop offset="0%" stop-color="#18181D"/>
+          <stop offset="45%" stop-color="#111116"/>
+          <stop offset="85%" stop-color="#0A0A0D"/>
+          <stop offset="100%" stop-color="#050507"/>
         </radialGradient>
 
         <!-- Ambient Core Glow -->
         <radialGradient id="centerGlow" cx="50%" cy="44%" r="48%">
-          <stop offset="0%" stop-color="#6366F1" stop-opacity="0.32"/>
-          <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.18"/>
-          <stop offset="100%" stop-color="#101526" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.35"/>
+          <stop offset="50%" stop-color="#D97706" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#0A0A0D" stop-opacity="0"/>
         </radialGradient>
 
         <!-- Gold Luxury Rings Gradient -->
@@ -108,7 +108,7 @@ async function buildIcons() {
 
       <!-- Outer Decorative Tech Ring (Inside Adaptive Safe Zone) -->
       <circle cx="512" cy="460" r="366" fill="none" stroke="url(#goldGradient)" stroke-width="3" stroke-dasharray="14 10" opacity="0.45"/>
-      <circle cx="512" cy="460" r="356" fill="none" stroke="#6366F1" stroke-width="2" opacity="0.3"/>
+      <circle cx="512" cy="460" r="356" fill="none" stroke="#D97706" stroke-width="2" opacity="0.3"/>
 
       <!-- Inner Gold Frame Ring -->
       <circle cx="512" cy="460" r="348" fill="#111827" stroke="url(#goldGradient)" stroke-width="12" filter="url(#shadow)"/>
@@ -116,7 +116,7 @@ async function buildIcons() {
 
       <!-- Bottom Badge Backdrop in Safe Area (y ~ 730 to 810) -->
       <g filter="url(#shadow)">
-        <rect x="302" y="738" width="420" height="74" rx="37" fill="#0B0F1D" stroke="url(#goldGradient)" stroke-width="3.5"/>
+        <rect x="302" y="738" width="420" height="74" rx="37" fill="#0A0A0D" stroke="url(#goldGradient)" stroke-width="3.5"/>
         
         <!-- Left & Right Gold Star/Diamonds -->
         <polygon points="340,775 348,767 356,775 348,783" fill="#F59E0B"/>

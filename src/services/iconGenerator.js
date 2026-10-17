@@ -52,22 +52,22 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 1. Deep Royal Navy Luxury Gradient Background
+  // 1. Deep Obsidian Luxury Gradient Background
   const bgGrad = ctx.createLinearGradient(0, 0, size, size);
-  bgGrad.addColorStop(0, '#0B0F1D');
-  bgGrad.addColorStop(0.5, '#11162B');
-  bgGrad.addColorStop(1, '#1A213D');
+  bgGrad.addColorStop(0, '#0B0B0E');
+  bgGrad.addColorStop(0.5, '#141419');
+  bgGrad.addColorStop(1, '#1A1813');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, size, size);
 
-  // 2. Subtle Radial Light Spotlight
+  // 2. Subtle Radial Light Spotlight (Golden Warmth)
   const spotGrad = ctx.createRadialGradient(
     size * 0.5, size * 0.38, size * 0.05,
     size * 0.5, size * 0.38, size * 0.48
   );
-  spotGrad.addColorStop(0, 'rgba(99, 102, 241, 0.28)');
-  spotGrad.addColorStop(0.6, 'rgba(79, 70, 229, 0.12)');
-  spotGrad.addColorStop(1, 'rgba(11, 15, 29, 0)');
+  spotGrad.addColorStop(0, 'rgba(245, 158, 11, 0.28)');
+  spotGrad.addColorStop(0.6, 'rgba(217, 119, 6, 0.12)');
+  spotGrad.addColorStop(1, 'rgba(11, 11, 14, 0)');
   ctx.fillStyle = spotGrad;
   ctx.fillRect(0, 0, size, size);
 
@@ -84,7 +84,7 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarCenterX, avatarCenterY, avatarRadius + (size * 0.02), 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
   ctx.fill();
   ctx.restore();
 
@@ -96,7 +96,7 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
   ctx.clip();
 
   // Fill dark background inside circle before image
-  ctx.fillStyle = '#0F172A';
+  ctx.fillStyle = '#141419';
   ctx.fill();
 
   if (sourceImg && sourceImg.width && sourceImg.height) {
@@ -119,7 +119,7 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
   }
   ctx.restore();
 
-  // 6. Luxury Metallic Gold & Indigo Outer Border Ring
+  // 6. Luxury Metallic Gold Outer Border Ring
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarCenterX, avatarCenterY, avatarRadius, 0, Math.PI * 2);
@@ -129,8 +129,8 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
   );
   ringGrad.addColorStop(0, '#F59E0B');   // Amber Gold
   ringGrad.addColorStop(0.35, '#FDE68A'); // Light Shimmer Gold
-  ringGrad.addColorStop(0.7, '#6366F1');  // Indigo Violet
-  ringGrad.addColorStop(1, '#F59E0B');    // Amber Gold
+  ringGrad.addColorStop(0.7, '#D97706');  // Deep Gold
+  ringGrad.addColorStop(1, '#B45309');    // Bronze Gold
   ctx.strokeStyle = ringGrad;
   ctx.lineWidth = Math.max(2, size * 0.024);
   ctx.stroke();
@@ -154,8 +154,8 @@ export function generateMasterIconCanvas(sourceImg, size = 512, isMaskable = fal
     ctx.beginPath();
     ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeR);
     const badgeBg = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeH);
-    badgeBg.addColorStop(0, '#1E1B4B');
-    badgeBg.addColorStop(1, '#0B0F1D');
+    badgeBg.addColorStop(0, '#1C1917');
+    badgeBg.addColorStop(1, '#0C0C0E');
     ctx.fillStyle = badgeBg;
     ctx.fill();
 

@@ -88,7 +88,7 @@ export default class ErrorBoundary extends React.Component {
                   width: '100%',
                   padding: '13px 20px',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
                   color: 'white',
                   border: 'none',
                   fontWeight: 800,
@@ -98,7 +98,7 @@ export default class ErrorBoundary extends React.Component {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 20px rgba(0, 82, 204, 0.4)'
+                  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.45)'
                 }}
               >
                 <RefreshCw size={18} />

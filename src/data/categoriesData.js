@@ -4,8 +4,8 @@ export const categoriesData = [
     name: "تطوير الويب والبرمجة",
     icon: "Code2",
     coursesCount: 24,
-    color: "#6366F1",
-    bgColor: "rgba(99, 102, 241, 0.1)",
+    color: "#D97706",
+    bgColor: "rgba(217, 119, 6, 0.1)",
     description: "تعلم React, Next.js, Node.js, وبناء تطبيقات الويب الحديثة من الصفر حتى الاحتراف."
   },
   {
@@ -13,8 +13,8 @@ export const categoriesData = [
     name: "الذكاء الاصطناعي والـ AI",
     icon: "Sparkles",
     coursesCount: 18,
-    color: "#8B5CF6",
-    bgColor: "rgba(139, 92, 246, 0.1)",
+    color: "#F59E0B",
+    bgColor: "rgba(245, 158, 11, 0.1)",
     description: "هندسة الأوامر (Prompt Engineering)، النماذج اللغوية الكبيرة LLMs، وتعلم الآلة باستخدام Python."
   },
   {

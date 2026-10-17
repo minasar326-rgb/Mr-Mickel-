@@ -3,8 +3,8 @@ import { Users, BookOpen, Award, Star, Video, CheckCircle2 } from 'lucide-react'
 
 export default function StatsCounter() {
   const stats = [
-    { value: "+64,000", label: "متعلم نشط وخريج", icon: Users, color: "#6366F1" },
-    { value: "+120", label: "مسار ودورة تدريبية", icon: BookOpen, color: "#8B5CF6" },
+    { value: "+64,000", label: "متعلم نشط وخريج", icon: Users, color: "#D97706" },
+    { value: "+120", label: "مسار ودورة تدريبية", icon: BookOpen, color: "#B45309" },
     { value: "+45,000", label: "شهادة معتمدة تم إصدارها", icon: Award, color: "#F59E0B" },
     { value: "4.92 / 5", label: "متوسط تقييم الدورات", icon: Star, color: "#10B981" }
   ];

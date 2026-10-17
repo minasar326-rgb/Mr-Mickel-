@@ -268,14 +268,14 @@ export default function LiveWebinarRoom({ onNavigate }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {messages.map(msg => (
               <div key={msg.id} style={{
-                background: msg.isMe ? 'rgba(99, 102, 241, 0.25)' : '#1E293B',
-                border: msg.isMe ? '1px solid #6366F1' : '1px solid #334155',
+                background: msg.isMe ? 'rgba(245, 158, 11, 0.2)' : '#1E293B',
+                border: msg.isMe ? '1px solid #F59E0B' : '1px solid #334155',
                 padding: '8px 12px',
                 borderRadius: '10px',
                 fontSize: '0.85rem'
               }}>
                 <div className="flex-between" style={{ marginBottom: '2px' }}>
-                  <strong style={{ color: msg.isMe ? '#A5B4FC' : '#F8FAFC', fontSize: '0.82rem' }}>
+                  <strong style={{ color: msg.isMe ? '#FDE68A' : '#F8FAFC', fontSize: '0.82rem' }}>
                     {msg.user}
                   </strong>
                   <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{msg.time}</span>

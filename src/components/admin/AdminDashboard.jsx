@@ -107,7 +107,7 @@ export default function AdminDashboard({ onNavigate }) {
 
           <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-surface)' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>إجمالي الدورات والمسارات:</span>
-            <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#8B5CF6', margin: '4px 0' }}>{courses.length + 115} مسار</h3>
+            <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#D97706', margin: '4px 0' }}>{courses.length + 115} مسار</h3>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>موزعة على 8 مجالات</span>
           </div>
 

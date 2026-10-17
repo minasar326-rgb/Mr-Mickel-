@@ -89,19 +89,19 @@ export default function InstructorDashboard({ initialTab, onNavigate }) {
       <div className="container">
         {/* Header with Instructor Overview */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           padding: '2rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
-          border: '1px solid rgba(0, 82, 204, 0.35)'
+          border: '1px solid rgba(245, 158, 11, 0.35)'
         }}>
           <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
               <img
                 src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                 alt={currentUser?.name}
-                style={{ width: '70px', height: '70px', borderRadius: '50%', border: '3px solid #389EFF', objectFit: 'cover' }}
+                style={{ width: '70px', height: '70px', borderRadius: '50%', border: '3px solid #F59E0B', objectFit: 'cover' }}
               />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -110,7 +110,7 @@ export default function InstructorDashboard({ initialTab, onNavigate }) {
                   </h1>
                   <span className="badge badge-success">مدرب معتمد</span>
                 </div>
-                <p style={{ color: '#BAE0FF', fontSize: '0.9rem', margin: '4px 0 0' }}>
+                <p style={{ color: '#FDE68A', fontSize: '0.9rem', margin: '4px 0 0' }}>
                   لوحة إدارة ونشر المسارات التعليمية ومتابعة أداء ومبيعات الطلاب.
                 </p>
               </div>
@@ -119,7 +119,7 @@ export default function InstructorDashboard({ initialTab, onNavigate }) {
             <button
               onClick={() => setActiveTab('new-course')}
               className="btn btn-primary"
-              style={{ background: '#FFFFFF', color: '#0052CC', fontWeight: 700, gap: '8px' }}
+              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', color: '#FFFFFF', fontWeight: 700, gap: '8px' }}
             >
               <PlusCircle size={18} />
               <span>إنشاء دورة جديدة</span>

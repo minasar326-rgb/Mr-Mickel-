@@ -393,7 +393,7 @@ export default function SecurityShield({ children }) {
 
             <p style={{ color: '#CBD5E1', fontSize: '0.98rem', lineHeight: '1.7', margin: '0 0 1.8rem' }}>
               لحماية المحتوى التعليمي، الفيديوهات، وبنك الأسئلة الخاص بـ
-              <strong style={{ color: '#60A5FA', margin: '0 4px' }}>منصة مستر مايكل شحاته 🇬🇧</strong>
+              <strong style={{ color: '#FBBF24', margin: '0 4px' }}>منصة مستر مايكل شحاته 🇬🇧</strong>
               ، تم إيقاف وتجميد تفاعل الصفحة تلقائياً.
               <br />
               <span style={{ color: '#94A3B8', fontSize: '0.88rem', display: 'block', marginTop: '8px' }}>
@@ -404,7 +404,7 @@ export default function SecurityShield({ children }) {
             <button
               onClick={handleReload}
               style={{
-                background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '50px',
@@ -416,7 +416,7 @@ export default function SecurityShield({ children }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                boxShadow: '0 10px 25px rgba(0, 82, 204, 0.45)',
+                boxShadow: '0 10px 25px rgba(245, 158, 11, 0.45)',
                 width: '100%',
                 maxWidth: '300px'
               }}
@@ -472,7 +472,7 @@ export default function SecurityShield({ children }) {
           textAlign: 'center',
           padding: '2rem'
         }}>
-          <ShieldCheck size={56} color="#60A5FA" style={{ marginBottom: '1rem' }} />
+          <ShieldCheck size={56} color="#F59E0B" style={{ marginBottom: '1rem' }} />
           <h3 style={{ fontSize: '1.4rem', fontWeight: 900, margin: '0 0 0.5rem' }}>
             🔒 تم حجب الشاشة وإيقاف الفيديو مؤقتاً
           </h3>

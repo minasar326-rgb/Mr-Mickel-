@@ -307,7 +307,7 @@ export default function TeacherAvatar3D({
         .avatar-3d-btn-gesture {
           background: rgba(255, 255, 255, 0.85);
           backdrop-filter: blur(8px);
-          border: 1px solid rgba(0, 82, 204, 0.25);
+          border: 1px solid rgba(245, 158, 11, 0.3);
           color: var(--text-primary);
           padding: 6px 12px;
           border-radius: 9999px;
@@ -325,13 +325,13 @@ export default function TeacherAvatar3D({
           color: #FFFFFF;
           border-color: var(--primary-600);
           transform: translateY(-2px);
-          box-shadow: 0 4px 14px rgba(0, 82, 204, 0.35);
+          box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
         }
         .avatar-3d-btn-gesture.active {
-          background: linear-gradient(135deg, #002B66 0%, #0052CC 100%);
+          background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
           color: #FFFFFF;
-          border-color: #0052CC;
-          box-shadow: 0 4px 16px rgba(0, 82, 204, 0.4);
+          border-color: #F59E0B;
+          box-shadow: 0 4px 16px rgba(245, 158, 11, 0.45);
         }
       `}</style>
 
@@ -340,7 +340,7 @@ export default function TeacherAvatar3D({
         style={{
           position: 'absolute',
           inset: '-20px',
-          background: 'radial-gradient(ellipse at center, rgba(0, 82, 204, 0.4) 0%, rgba(220, 38, 38, 0.15) 40%, transparent 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(245, 158, 11, 0.45) 0%, rgba(217, 119, 6, 0.2) 40%, transparent 70%)',
           borderRadius: '40px',
           filter: 'blur(28px)',
           pointerEvents: 'none',
@@ -413,11 +413,11 @@ export default function TeacherAvatar3D({
             overflow: 'hidden',
             border: activeGesture === 'shield'
               ? '4px solid #F59E0B'
-              : '4px solid rgba(0, 82, 204, 0.45)',
+              : '4px solid rgba(245, 158, 11, 0.45)',
             boxShadow: isHovered
-              ? '0 30px 70px -15px rgba(0, 82, 204, 0.5), 0 0 35px rgba(220, 38, 38, 0.3)'
-              : '0 25px 60px -15px rgba(0, 82, 204, 0.35)',
-            background: 'linear-gradient(180deg, #0A192F 0%, #060B14 100%)',
+              ? '0 30px 70px -15px rgba(245, 158, 11, 0.5), 0 0 35px rgba(217, 119, 6, 0.3)'
+              : '0 25px 60px -15px rgba(245, 158, 11, 0.35)',
+            background: 'linear-gradient(180deg, #1C1917 0%, #0C0C0E 100%)',
             height: height,
             cursor: 'pointer',
             zIndex: 10
@@ -605,8 +605,8 @@ export default function TeacherAvatar3D({
           background: 'rgba(255, 255, 255, 0.75)',
           backdropFilter: 'blur(12px)',
           borderRadius: '18px',
-          border: '1px solid rgba(0, 82, 204, 0.15)',
-          boxShadow: '0 8px 24px rgba(0, 82, 204, 0.08)'
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          boxShadow: '0 8px 24px rgba(245, 158, 11, 0.1)'
         }}>
           <div style={{
             display: 'flex',
@@ -615,7 +615,7 @@ export default function TeacherAvatar3D({
             marginBottom: '8px'
           }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Zap size={14} color="#0052CC" /> حركات ومؤثرات 3D الحية:
+              <Zap size={14} color="#F59E0B" /> حركات ومؤثرات 3D الحية:
             </span>
             <button
               onClick={() => setIsAutoCycle(!isAutoCycle)}

@@ -103,7 +103,7 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
                     borderRadius: 'var(--radius-full)',
                     fontSize: '0.78rem',
                     fontWeight: 800,
-                    boxShadow: '0 4px 12px rgba(0, 82, 204, 0.35)',
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.45)',
                     whiteSpace: 'nowrap'
                   }}>
                     ⭐ المسار الأكثر تسجيلاً والأقوى

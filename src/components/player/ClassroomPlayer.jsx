@@ -279,7 +279,7 @@ export default function ClassroomPlayer({ courseId, onNavigate }) {
             className="btn btn-ghost btn-icon-only"
             style={{ borderRadius: '50%' }}
           >
-            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#0052CC" />}
+            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#D97706" />}
           </button>
         </div>
       </header>
@@ -333,14 +333,14 @@ export default function ClassroomPlayer({ courseId, onNavigate }) {
                       width: '68px',
                       height: '68px',
                       borderRadius: '50%',
-                      background: 'rgba(0, 82, 204, 0.95)',
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                       color: 'white',
                       border: 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      boxShadow: '0 4px 25px rgba(0, 82, 204, 0.5)',
+                      boxShadow: '0 4px 25px rgba(245, 158, 11, 0.5)',
                       transition: 'transform 0.2s'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -373,7 +373,7 @@ export default function ClassroomPlayer({ courseId, onNavigate }) {
                     onChange={handleSeek}
                     style={{
                       width: '100%',
-                      accentColor: '#0052CC',
+                      accentColor: '#F59E0B',
                       cursor: 'pointer',
                       height: '4px'
                     }}
@@ -410,7 +410,7 @@ export default function ClassroomPlayer({ courseId, onNavigate }) {
                           key={speed}
                           onClick={() => handleSpeedChange(speed)}
                           style={{
-                            background: playbackSpeed === speed ? '#0052CC' : 'rgba(255, 255, 255, 0.2)',
+                            background: playbackSpeed === speed ? '#D97706' : 'rgba(255, 255, 255, 0.2)',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',

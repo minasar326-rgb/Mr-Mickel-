@@ -89,7 +89,7 @@ export default function StudentPortal({ onNavigate, onOpenCodeModal }) {
       <div className="container">
         {/* Student Profile Card (Google Account Details) */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
+          background: 'linear-gradient(135deg, #141419 0%, #1A1A22 50%, #201D17 100%)',
           color: 'white',
           padding: '2rem 2.5rem',
           borderRadius: 'var(--radius-xl)',
@@ -99,8 +99,8 @@ export default function StudentPortal({ onNavigate, onOpenCodeModal }) {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '1.5rem',
-          border: '1px solid rgba(0, 82, 204, 0.35)',
-          boxShadow: '0 10px 30px rgba(0, 82, 204, 0.25)'
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
             <img
@@ -110,7 +110,7 @@ export default function StudentPortal({ onNavigate, onOpenCodeModal }) {
                 width: '76px',
                 height: '76px',
                 borderRadius: '50%',
-                border: '3px solid #818CF8',
+                border: '3px solid #F59E0B',
                 objectFit: 'cover',
                 background: 'white'
               }}

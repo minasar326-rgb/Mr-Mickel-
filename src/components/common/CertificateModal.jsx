@@ -102,7 +102,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
               width: '44px',
               height: '44px',
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -111,7 +111,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
               <Award size={26} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#002B66', margin: 0 }}>مَنَصَّة مَدَارِك التَّعْلِيمِيَّة</h2>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#92400E', margin: 0 }}>مَنَصَّة مَدَارِك التَّعْلِيمِيَّة</h2>
               <span style={{ fontSize: '0.78rem', color: '#6B7280', letterSpacing: '1px' }}>MADAREK ACADEMY FOR DIGITAL EXCELLENCE</span>
             </div>
           </div>
@@ -134,7 +134,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
           <div style={{
             fontSize: '2.4rem',
             fontWeight: 900,
-            color: '#4338CA',
+            color: '#B45309',
             padding: '0.5rem 0',
             borderBottom: '2px dashed #CBD5E1',
             maxWidth: '500px',
@@ -196,8 +196,8 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
                 fontFamily: 'monospace',
                 fontSize: '0.9rem',
                 fontWeight: 700,
-                color: '#0052CC',
-                background: '#F0F7FF',
+                color: '#B45309',
+                background: '#FEF3C7',
                 padding: '4px 10px',
                 borderRadius: '6px',
                 display: 'inline-block'

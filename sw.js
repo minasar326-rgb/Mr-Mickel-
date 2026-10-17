@@ -1,5 +1,5 @@
 // Service Worker for Mr. Michael Shehata LMS (The Master)
-const CACHE_NAME = 'ms-lms-v2.0.0';
+const CACHE_NAME = 'ms-lms-v2.1.0-icons';
 const STATIC_ASSETS = [
   './',
   './index.html',

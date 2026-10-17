@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/syncDev.js && vite",
-    "build": "node scripts/syncDev.js && vite build && node scripts/syncDistToRoot.js",
+    "icons": "node scripts/generateAppIcons.js",
+    "build": "node scripts/generateAppIcons.js && node scripts/syncDev.js && vite build && node scripts/syncDistToRoot.js",
     "preview": "vite preview",
     "deploy": "npm run build && node scripts/deployToCloudflare.js"
   },
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "sharp": "^0.35.5",
     "vite": "^6.0.1"
   }
 }

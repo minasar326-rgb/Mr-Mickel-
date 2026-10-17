@@ -39,7 +39,7 @@ export default function TeacherAvatar3D({
   const autoCycleIntervalRef = useRef(null);
 
   // Fallback image if none provided
-  const imageSource = src || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80';
+  const imageSource = src || './teacher-avatar.jpg';
 
   // Handle pointer tracking for 3D Tilt
   const handlePointerMove = useCallback((e) => {

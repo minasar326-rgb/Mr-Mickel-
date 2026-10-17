@@ -3,7 +3,7 @@ export const teacherProfile = {
   englishName: "Mr. Michael Shehata",
   title: "خبير تدريس اللغة الإنجليزية للمراحل الابتدائية والإعدادية والثانوية",
   subtitle: "صاحب سلسلة The Master ومعد أوائل الطلاب لكافة المراحل التعليمية",
-  avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
+  avatar: "./teacher-avatar.jpg",
   coverImage: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
   experienceYears: 16,
   totalStudents: 18500,

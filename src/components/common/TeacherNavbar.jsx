@@ -72,14 +72,23 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               width: '46px',
               height: '46px',
               borderRadius: '12px',
+              overflow: 'hidden',
               background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
               boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)',
-              border: '2px solid #818CF8'
+              border: '2px solid #818CF8',
+              flexShrink: 0,
+              position: 'relative'
             }}>
+              <img 
+                src="./favicon.png" 
+                alt="Logo" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
               <span style={{ fontWeight: 900, fontSize: '1.2rem', fontFamily: 'monospace' }}>MS</span>
             </div>
             <div>

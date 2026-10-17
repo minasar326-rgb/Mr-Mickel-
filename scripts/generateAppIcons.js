@@ -248,7 +248,99 @@ async function buildIcons() {
   fs.writeFileSync(path.resolve(rootDir, 'apple-touch-icon.png'), appleTouchIcon);
   console.log('✓ Generated apple-touch-icon.png (180x180 iOS standard)');
 
-  console.log('🎉 All App Icons Generated Successfully!');
+  // 8. Native Android Mipmap & Splash Resources (Capacitor Android Project)
+  const androidResDir = path.resolve(rootDir, 'android/app/src/main/res');
+  if (fs.existsSync(androidResDir)) {
+    console.log('🤖 Generating Native Android Mipmaps & Splash Resources...');
+
+    const androidDensities = [
+      { name: 'mdpi', iconSize: 48, fgSize: 108 },
+      { name: 'hdpi', iconSize: 72, fgSize: 162 },
+      { name: 'xhdpi', iconSize: 96, fgSize: 216 },
+      { name: 'xxhdpi', iconSize: 144, fgSize: 324 },
+      { name: 'xxxhdpi', iconSize: 192, fgSize: 432 }
+    ];
+
+    for (const d of androidDensities) {
+      const mipmapDir = path.resolve(androidResDir, `mipmap-${d.name}`);
+      fs.mkdirSync(mipmapDir, { recursive: true });
+
+      // ic_launcher.png (Legacy)
+      const icLauncher = await sharp(masterBase)
+        .resize(d.iconSize, d.iconSize, { kernel: sharp.kernel.lanczos3 })
+        .png()
+        .toBuffer();
+      fs.writeFileSync(path.resolve(mipmapDir, 'ic_launcher.png'), icLauncher);
+
+      // ic_launcher_round.png
+      const roundMask = Buffer.from(`
+        <svg width="${d.iconSize}" height="${d.iconSize}">
+          <circle cx="${d.iconSize / 2}" cy="${d.iconSize / 2}" r="${d.iconSize / 2}" fill="#fff"/>
+        </svg>
+      `);
+      const icRound = await sharp(icLauncher)
+        .composite([{ input: roundMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      fs.writeFileSync(path.resolve(mipmapDir, 'ic_launcher_round.png'), icRound);
+
+      // ic_launcher_foreground.png (Adaptive icon foreground, 108dp canvas)
+      const icForeground = await sharp(masterBase)
+        .resize(d.fgSize, d.fgSize, { kernel: sharp.kernel.lanczos3 })
+        .png()
+        .toBuffer();
+      fs.writeFileSync(path.resolve(mipmapDir, 'ic_launcher_foreground.png'), icForeground);
+
+      console.log(`✓ Generated Android mipmap-${d.name} (${d.iconSize}x${d.iconSize} & ${d.fgSize}x${d.fgSize})`);
+    }
+
+    // Android Splash Screens
+    const splashDefs = [
+      { dir: 'drawable', width: 480, height: 320 },
+      { dir: 'drawable-port-mdpi', width: 320, height: 480 },
+      { dir: 'drawable-port-hdpi', width: 480, height: 800 },
+      { dir: 'drawable-port-xhdpi', width: 720, height: 1280 },
+      { dir: 'drawable-port-xxhdpi', width: 960, height: 1600 },
+      { dir: 'drawable-port-xxxhdpi', width: 1280, height: 1920 },
+      { dir: 'drawable-land-mdpi', width: 480, height: 320 },
+      { dir: 'drawable-land-hdpi', width: 800, height: 480 },
+      { dir: 'drawable-land-xhdpi', width: 1280, height: 720 },
+      { dir: 'drawable-land-xxhdpi', width: 1600, height: 960 },
+      { dir: 'drawable-land-xxxhdpi', width: 1920, height: 1280 }
+    ];
+
+    for (const s of splashDefs) {
+      const targetDir = path.resolve(androidResDir, s.dir);
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      const emblemSize = Math.floor(Math.min(s.width, s.height) * 0.45);
+      const emblem = await sharp(masterBase)
+        .resize(emblemSize, emblemSize, { kernel: sharp.kernel.lanczos3 })
+        .png()
+        .toBuffer();
+
+      const splashBuffer = await sharp({
+        create: {
+          width: s.width,
+          height: s.height,
+          channels: 4,
+          background: { r: 11, g: 15, b: 29, alpha: 1 } // #0B0F1D
+        }
+      })
+        .composite([{
+          input: emblem,
+          top: Math.floor((s.height - emblemSize) / 2),
+          left: Math.floor((s.width - emblemSize) / 2)
+        }])
+        .png()
+        .toBuffer();
+
+      fs.writeFileSync(path.resolve(targetDir, 'splash.png'), splashBuffer);
+      console.log(`✓ Generated Android splash ${s.dir} (${s.width}x${s.height})`);
+    }
+  }
+
+  console.log('🎉 All App Icons & Native Android Resources Generated Successfully!');
 }
 
 buildIcons().catch(err => {

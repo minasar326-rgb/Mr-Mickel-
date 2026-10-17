@@ -38,8 +38,9 @@ export default function TeacherAvatar3D({
   const speechTimeoutRef = useRef(null);
   const autoCycleIntervalRef = useRef(null);
 
-  // Fallback image if none provided
-  const imageSource = src || './teacher-avatar.jpg';
+  // Strictly reject stale mock Unsplash URL and use real teacher avatar
+  const isOldDummyAvatar = !src || typeof src !== 'string' || src.includes('unsplash.com/photo-1560250097-0b93528c311a');
+  const imageSource = isOldDummyAvatar ? './teacher-avatar.jpg' : src;
 
   // Handle pointer tracking for 3D Tilt
   const handlePointerMove = useCallback((e) => {
@@ -127,6 +128,14 @@ export default function TeacherAvatar3D({
     }
   };
 
+  // Initial welcome greeting on page load
+  useEffect(() => {
+    const welcomeTimer = setTimeout(() => {
+      triggerGesture('wave');
+    }, 1200);
+    return () => clearTimeout(welcomeTimer);
+  }, [triggerGesture]);
+
   // Periodic subtle auto-gesture cycle
   useEffect(() => {
     if (!isAutoCycle) {
@@ -134,7 +143,7 @@ export default function TeacherAvatar3D({
       return;
     }
 
-    const gestures = ['wave', 'scan', 'float', 'shield', 'spin'];
+    const gestures = ['scan', 'float', 'shield', 'wave', 'spin'];
     let idx = 0;
 
     autoCycleIntervalRef.current = setInterval(() => {
@@ -142,7 +151,7 @@ export default function TeacherAvatar3D({
         triggerGesture(gestures[idx % gestures.length]);
         idx++;
       }
-    }, 12000);
+    }, 7500);
 
     return () => {
       if (autoCycleIntervalRef.current) clearInterval(autoCycleIntervalRef.current);
@@ -162,10 +171,10 @@ export default function TeacherAvatar3D({
       <style>{`
         @keyframes avatarFloat3D {
           0%, 100% {
-            transform: translateY(0px) rotateX(1deg) rotateY(-1deg);
+            transform: perspective(1200px) translateY(0px) rotateX(2deg) rotateY(-2deg) scale3d(1, 1, 1);
           }
           50% {
-            transform: translateY(-14px) rotateX(-2deg) rotateY(2deg);
+            transform: perspective(1200px) translateY(-16px) rotateX(-3deg) rotateY(3deg) scale3d(1.02, 1.02, 1.02);
           }
         }
 
@@ -383,6 +392,7 @@ export default function TeacherAvatar3D({
         className="avatar-3d-wrapper"
         onMouseMove={handlePointerMove}
         onMouseLeave={handlePointerLeave}
+        onTouchStart={handlePointerMove}
         onTouchMove={handlePointerMove}
         onTouchEnd={handlePointerLeave}
       >
@@ -396,9 +406,9 @@ export default function TeacherAvatar3D({
             isHovered ? '' : 'avatar-3d-idle'
           }`}
           style={{
-            transform: activeGesture === 'spin' || activeGesture === 'wave'
+            transform: (activeGesture === 'spin' || activeGesture === 'wave' || (!isHovered && !activeGesture))
               ? undefined
-              : `perspective(1200px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isHovered ? 1.03 : 1}, ${isHovered ? 1.03 : 1}, 1)`,
+              : `perspective(1200px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isHovered ? 1.04 : 1}, ${isHovered ? 1.04 : 1}, 1)`,
             borderRadius: '28px',
             overflow: 'hidden',
             border: activeGesture === 'shield'

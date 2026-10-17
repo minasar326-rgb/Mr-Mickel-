@@ -329,13 +329,22 @@ function AppContent() {
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
+                  overflow: 'hidden',
                   background: 'var(--primary-gradient)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: 900
+                  fontWeight: 900,
+                  position: 'relative',
+                  flexShrink: 0
                 }}>
-                  MS
+                  <img 
+                    src="./favicon.png" 
+                    alt="Logo" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0, zIndex: 2 }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <span>MS</span>
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'white' }}>
                   {teacherProfile?.name || 'مستر مايكل شحاتة'}

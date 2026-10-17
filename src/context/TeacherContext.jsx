@@ -338,6 +338,13 @@ export const initialTransactions = [
   }
 ];
 
+const sanitizeAvatar = (url) => {
+  if (!url || typeof url !== 'string' || url.includes('unsplash.com/photo-1560250097-0b93528c311a')) {
+    return './teacher-avatar.jpg';
+  }
+  return url;
+};
+
 export function TeacherProvider({ children }) {
   const { currentUser, role, addXP, addSubscriptionToUser, openAuthModal } = useAuth();
   const { addToast } = useToast();
@@ -350,11 +357,12 @@ export function TeacherProvider({ children }) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return { ...initialTeacherProfile, ...parsed, password: parsed.password || savedPin };
+          const cleanAvatar = sanitizeAvatar(parsed.avatar);
+          return { ...initialTeacherProfile, ...parsed, avatar: cleanAvatar, password: parsed.password || savedPin };
         }
       }
     } catch (e) {}
-    return { ...initialTeacherProfile, password: savedPin };
+    return { ...initialTeacherProfile, avatar: './teacher-avatar.jpg', password: savedPin };
   });
 
   // 2. Stages
@@ -721,7 +729,8 @@ export function TeacherProvider({ children }) {
     const unsubRtdbProfile = listenToRtdbNode('teacherProfile', ({ exists, data }) => {
       if (isCancelled) return;
       if (exists && data && typeof data === 'object') {
-        setTeacherProfile(prev => ({ ...prev, ...data }));
+        const cleanAvatar = sanitizeAvatar(data.avatar);
+        setTeacherProfile(prev => ({ ...prev, ...data, avatar: cleanAvatar }));
       }
     });
 

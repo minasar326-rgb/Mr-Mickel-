@@ -429,14 +429,14 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 width: '72px',
                 height: '72px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
                 color: 'white',
                 border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: '0 4px 30px rgba(79, 70, 229, 0.6)',
+                boxShadow: '0 4px 30px rgba(0, 82, 204, 0.6)',
                 transition: 'transform 0.2s',
                 zIndex: 15
               }}
@@ -472,7 +472,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 setCurrentTime(t);
                 if (videoRef.current) videoRef.current.currentTime = t;
               }}
-              style={{ width: '100%', accentColor: '#6366F1', cursor: 'pointer', height: '4px' }}
+              style={{ width: '100%', accentColor: '#0052CC', cursor: 'pointer', height: '4px' }}
             />
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
@@ -500,7 +500,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                       if (videoRef.current) videoRef.current.playbackRate = speed;
                     }}
                     style={{
-                      background: playbackSpeed === speed ? '#4F46E5' : 'rgba(255, 255, 255, 0.2)',
+                      background: playbackSpeed === speed ? '#0052CC' : 'rgba(255, 255, 255, 0.2)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '4px',

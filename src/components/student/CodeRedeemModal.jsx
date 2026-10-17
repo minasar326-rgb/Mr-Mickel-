@@ -259,7 +259,7 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
             {/* Check if user is logged in with Google */}
             {isGuest ? (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.05) 100%)',
+                background: 'linear-gradient(135deg, rgba(0, 82, 204, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%)',
                 border: '1.5px solid var(--primary-300)',
                 borderRadius: 'var(--radius-lg)',
                 padding: '1.5rem',

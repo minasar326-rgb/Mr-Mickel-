@@ -29,13 +29,14 @@ export default function StudentDashboard({ initialTab, onNavigate }) {
       <div className="container">
         {/* Welcome Header Banner with Gamification Pill */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
           color: 'white',
           padding: '2rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          border: '1px solid rgba(0, 82, 204, 0.35)'
         }}>
           <div style={{
             display: 'flex',

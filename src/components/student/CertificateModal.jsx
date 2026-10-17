@@ -105,7 +105,7 @@ export default function CertificateModal({ isOpen, onClose, studentData, examSco
           <h2 style={{
             fontSize: '2.4rem',
             fontWeight: 900,
-            color: '#1E1B4B',
+            color: '#002B66',
             margin: '6px 0 10px',
             letterSpacing: '-0.5px'
           }}>
@@ -130,7 +130,7 @@ export default function CertificateModal({ isOpen, onClose, studentData, examSco
           <h3 style={{
             fontSize: '2rem',
             fontWeight: 900,
-            color: '#4F46E5',
+            color: '#0052CC',
             margin: '0.5rem 0',
             borderBottom: '2px dashed #CBD5E1',
             display: 'inline-block',
@@ -161,7 +161,7 @@ export default function CertificateModal({ isOpen, onClose, studentData, examSco
             {/* Left: QR Verification */}
             <div style={{ textAlign: 'center' }}>
               <div style={{ display: 'inline-flex', padding: '6px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '4px' }}>
-                <QrCode size={48} color="#1E1B4B" />
+                <QrCode size={48} color="#002B66" />
               </div>
               <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748B' }}>
                 كود التحقق الرقمي: <strong>{studentCode}</strong>
@@ -195,7 +195,7 @@ export default function CertificateModal({ isOpen, onClose, studentData, examSco
               <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block', marginBottom: '4px' }}>
                 المشرف العام والمعلم المعتمد:
               </span>
-              <strong style={{ fontSize: '1.05rem', color: '#1E1B4B', display: 'block', fontFamily: 'serif' }}>
+              <strong style={{ fontSize: '1.05rem', color: '#002B66', display: 'block', fontFamily: 'serif' }}>
                 {teacherProfile?.name || 'مستر مايكل شحاته'}
               </strong>
               <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>

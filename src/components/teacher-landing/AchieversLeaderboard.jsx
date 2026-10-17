@@ -68,7 +68,7 @@ export default function AchieversLeaderboard() {
                 transition: 'all 0.2s',
                 background: selectedStageFilter === 'all' ? 'var(--primary-gradient)' : 'transparent',
                 color: selectedStageFilter === 'all' ? 'white' : 'var(--text-secondary)',
-                boxShadow: selectedStageFilter === 'all' ? '0 4px 12px rgba(79, 70, 229, 0.3)' : 'none'
+                boxShadow: selectedStageFilter === 'all' ? '0 4px 12px rgba(0, 82, 204, 0.3)' : 'none'
               }}
             >
               🌟 جميع المراحل ({Array.isArray(topAchievers) ? topAchievers.length : 0})
@@ -90,7 +90,7 @@ export default function AchieversLeaderboard() {
                     transition: 'all 0.2s',
                     background: selectedStageFilter === s.id ? 'var(--primary-gradient)' : 'transparent',
                     color: selectedStageFilter === s.id ? 'white' : 'var(--text-secondary)',
-                    boxShadow: selectedStageFilter === s.id ? '0 4px 12px rgba(79, 70, 229, 0.3)' : 'none'
+                    boxShadow: selectedStageFilter === s.id ? '0 4px 12px rgba(0, 82, 204, 0.3)' : 'none'
                   }}
                 >
                   🎓 {s.name} {count > 0 ? `(${count})` : ''}
@@ -158,11 +158,11 @@ export default function AchieversLeaderboard() {
                       gap: '4px',
                       padding: '3px 10px',
                       borderRadius: 'var(--radius-full)',
-                      background: 'rgba(79, 70, 229, 0.1)',
+                      background: 'rgba(0, 82, 204, 0.1)',
                       color: 'var(--primary-600)',
                       fontSize: '0.78rem',
                       fontWeight: 800,
-                      border: '1px solid rgba(79, 70, 229, 0.2)'
+                      border: '1px solid rgba(0, 82, 204, 0.2)'
                     }}>
                       <GraduationCap size={13} />
                       <span>{stageLabel}</span>

@@ -241,13 +241,14 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
       <div className="container">
         {/* Stage Header Banner */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
           color: 'white',
           padding: '2.5rem',
           borderRadius: 'var(--radius-xl)',
           marginBottom: '2rem',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          border: '1px solid rgba(0, 82, 204, 0.35)'
         }}>
           <div style={{ position: 'relative', zIndex: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>

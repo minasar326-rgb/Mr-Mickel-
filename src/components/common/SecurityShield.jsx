@@ -404,7 +404,7 @@ export default function SecurityShield({ children }) {
             <button
               onClick={handleReload}
               style={{
-                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '50px',
@@ -416,7 +416,7 @@ export default function SecurityShield({ children }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                boxShadow: '0 10px 25px rgba(79, 70, 229, 0.5)',
+                boxShadow: '0 10px 25px rgba(0, 82, 204, 0.45)',
                 width: '100%',
                 maxWidth: '300px'
               }}

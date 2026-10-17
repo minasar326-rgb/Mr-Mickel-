@@ -11,13 +11,14 @@ export default function LiveWebinarsBanner({ onNavigate }) {
     <section style={{ padding: '3.5rem 0', background: 'var(--bg-main)' }}>
       <div className="container">
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
           color: 'white',
           borderRadius: 'var(--radius-xl)',
           padding: '2.5rem',
           boxShadow: 'var(--shadow-xl)',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          border: '1px solid rgba(0, 82, 204, 0.35)'
         }}>
           {/* Background Decorative Glow */}
           <div style={{
@@ -86,7 +87,7 @@ export default function LiveWebinarsBanner({ onNavigate }) {
               <button
                 onClick={() => onNavigate('live')}
                 className="btn btn-primary btn-lg"
-                style={{ background: '#FFFFFF', color: '#4F46E5', fontWeight: 800, gap: '8px' }}
+                style={{ background: '#FFFFFF', color: '#0052CC', fontWeight: 800, gap: '8px' }}
               >
                 <Video size={18} />
                 <span>انضم إلى قاعة البث الحي الآن</span>

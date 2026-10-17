@@ -662,7 +662,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
       <div className="container-wide">
         {/* Top Control Banner */}
         <div className="card" style={{
-          background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+          background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)',
           color: 'white',
           padding: '2rem 2.5rem',
           borderRadius: 'var(--radius-xl)',
@@ -671,12 +671,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '1.5rem'
+          gap: '1.5rem',
+          border: '1px solid rgba(0, 82, 204, 0.35)'
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span className="badge badge-gold">لوحة الإدارة والدرع الأمني الشامل 🛡️</span>
-              <span style={{ fontSize: '0.85rem', color: '#A5B4FC' }}>The Master Studio 🇬🇧</span>
+              <span style={{ fontSize: '0.85rem', color: '#7CC2FF' }}>The Master Studio 🇬🇧</span>
             </div>
             <h1 style={{ fontSize: '2rem', fontWeight: 900, margin: '0 0 4px', color: 'white' }}>
               استوديو إدارة منصة {teacherProfile.name}
@@ -1602,7 +1603,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </p>
                 </div>
 
-                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #4F46E5' }}>
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #0052CC' }}>
                   <div className="flex-between" style={{ marginBottom: '8px' }}>
                     <strong style={{ fontSize: '1rem' }}>2. حظر أدوات المطورين</strong>
                     <span className="badge badge-success">نشط 100%</span>
@@ -1622,7 +1623,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </p>
                 </div>
 
-                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #EC4899' }}>
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #DC2626' }}>
                   <div className="flex-between" style={{ marginBottom: '8px' }}>
                     <strong style={{ fontSize: '1rem' }}>4. علامة مائية متحركة عشوائية</strong>
                     <span className="badge badge-success">نشط 100%</span>
@@ -1632,7 +1633,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </p>
                 </div>
 
-                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #6366F1' }}>
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #002B66' }}>
                   <div className="flex-between" style={{ marginBottom: '8px' }}>
                     <strong style={{ fontSize: '1rem' }}>5. منع نسخ نصوص الامتحانات</strong>
                     <span className="badge badge-success">نشط 100%</span>
@@ -1658,8 +1659,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
               {/* Teacher Password Management Card */}
               <div style={{
                 marginTop: '1.5rem',
-                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%)',
-                border: '2px solid rgba(99, 102, 241, 0.3)',
+                background: 'linear-gradient(135deg, rgba(0, 82, 204, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%)',
+                border: '2px solid rgba(0, 82, 204, 0.3)',
                 borderRadius: 'var(--radius-lg)',
                 padding: '1.5rem',
                 display: 'flex',
@@ -1669,7 +1670,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 gap: '1.25rem'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '50px', height: '50px', borderRadius: '14px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)' }}>
+                  <div style={{ width: '50px', height: '50px', borderRadius: '14px', background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0, 82, 204, 0.3)' }}>
                     <KeyRound size={26} />
                   </div>
                   <div>
@@ -1687,7 +1688,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   type="button"
                   onClick={() => setIsChangePasswordModalOpen(true)}
                   className="btn btn-primary btn-lg"
-                  style={{ gap: '8px', fontWeight: 800, boxShadow: '0 4px 20px rgba(79, 70, 229, 0.35)', padding: '0.75rem 1.4rem' }}
+                  style={{ gap: '8px', fontWeight: 800, boxShadow: '0 4px 20px rgba(0, 82, 204, 0.35)', padding: '0.75rem 1.4rem' }}
                 >
                   <KeyRound size={18} />
                   <span>تغيير كلمة المرور الآن 🔑</span>
@@ -1876,12 +1877,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>من العمليات الناجحة (دفع إلكتروني + كروت مدفوعة)</span>
               </div>
 
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #4F46E5', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #0052CC', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="flex-between" style={{ marginBottom: '6px' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎟️ مبيعات كروت الشحن</span>
                   <span className="badge badge-primary">أكواد تفعيل</span>
                 </div>
-                <strong style={{ fontSize: '2.1rem', color: '#4F46E5', display: 'block' }}>{codesRevenue.toLocaleString()} ج.م</strong>
+                <strong style={{ fontSize: '2.1rem', color: '#0052CC', display: 'block' }}>{codesRevenue.toLocaleString()} ج.م</strong>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>إجمالي مبيعات أكواد الشحن المسبقة الدفع</span>
               </div>
 
@@ -2133,13 +2134,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 gridColumn: 'span 2',
                 padding: '1.25rem',
                 borderRadius: '20px',
-                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(124, 58, 237, 0.06) 100%)',
-                border: '1.5px dashed rgba(79, 70, 229, 0.35)',
+                background: 'linear-gradient(135deg, rgba(0, 82, 204, 0.04) 0%, rgba(220, 38, 38, 0.04) 100%)',
+                border: '1.5px dashed rgba(0, 82, 204, 0.35)',
                 textAlign: 'center',
                 margin: '0.5rem 0'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-                  <Sparkles size={18} color="#4F46E5" />
+                  <Sparkles size={18} color="#0052CC" />
                   <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                     المعاينة ثلاثية الأبعاد الفورية لصورتك (مجسم 3D تفاعلي مع الحركات) ✨🔮
                   </strong>
@@ -2262,8 +2263,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
               marginTop: '1.75rem',
               padding: '1.5rem',
               borderRadius: 'var(--radius-lg)',
-              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(245, 158, 11, 0.06) 100%)',
-              border: '2px solid rgba(79, 70, 229, 0.25)',
+              background: 'linear-gradient(135deg, rgba(0, 82, 204, 0.06) 0%, rgba(245, 158, 11, 0.06) 100%)',
+              border: '2px solid rgba(0, 82, 204, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -2271,7 +2272,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
               gap: '1rem'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0, 82, 204, 0.3)' }}>
                   <KeyRound size={24} />
                 </div>
                 <div>
@@ -3178,7 +3179,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
           padding: '1.5rem'
         }}>
           <div className="card animate-fade-in" style={{ maxWidth: '420px', width: '100%', padding: '0', borderRadius: 'var(--radius-xl)', overflow: 'hidden', background: '#FFFFFF', color: '#0F172A' }}>
-            <div style={{ background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)', color: 'white', padding: '1.25rem', textAlign: 'center', position: 'relative' }}>
+            <div style={{ background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0A2540 100%)', color: 'white', padding: '1.25rem', textAlign: 'center', position: 'relative' }}>
               <button
                 onClick={() => setActiveCardStudent(null)}
                 style={{ position: 'absolute', top: '12px', left: '12px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
@@ -3193,19 +3194,19 @@ export default function TeacherAdminCenter({ onNavigate }) {
               <img
                 src={activeCardStudent.avatar}
                 alt={activeCardStudent.name}
-                style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid #4F46E5', margin: '0 auto 10px', objectFit: 'cover' }}
+                style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid #0052CC', margin: '0 auto 10px', objectFit: 'cover' }}
               />
-              <h4 style={{ fontSize: '1.25rem', fontWeight: 900, margin: '0 0 4px', color: '#1E1B4B' }}>{activeCardStudent.name}</h4>
+              <h4 style={{ fontSize: '1.25rem', fontWeight: 900, margin: '0 0 4px', color: '#002B66' }}>{activeCardStudent.name}</h4>
               <span className="badge badge-primary" style={{ fontSize: '0.8rem', padding: '4px 12px', marginBottom: '1rem' }}>{activeCardStudent.stageName}</span>
 
               <div style={{ background: '#F8FAFC', padding: '10px', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '1rem', textAlign: 'right', fontSize: '0.82rem' }}>
-                <div className="flex-between" style={{ marginBottom: '4px' }}><span style={{ color: '#64748B' }}>كود الطالب:</span><strong style={{ fontFamily: 'monospace', color: '#4F46E5' }}>{activeCardStudent.code}</strong></div>
+                <div className="flex-between" style={{ marginBottom: '4px' }}><span style={{ color: '#64748B' }}>كود الطالب:</span><strong style={{ fontFamily: 'monospace', color: '#0052CC' }}>{activeCardStudent.code}</strong></div>
                 <div className="flex-between" style={{ marginBottom: '4px' }}><span style={{ color: '#64748B' }}>هاتف الطالب:</span><strong>{activeCardStudent.phone}</strong></div>
                 <div className="flex-between"><span style={{ color: '#64748B' }}>طوارئ ولي الأمر:</span><strong>{activeCardStudent.parentPhone}</strong></div>
               </div>
 
               <div style={{ background: '#F1F5F9', padding: '12px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                <QrCode size={64} color="#1E1B4B" />
+                <QrCode size={64} color="#002B66" />
                 <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: 700 }}>*{activeCardStudent.code}*</span>
               </div>
             </div>

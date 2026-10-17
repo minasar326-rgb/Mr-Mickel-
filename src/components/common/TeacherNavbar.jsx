@@ -38,7 +38,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
     }}>
       {/* Top Banner Announcement */}
       <div style={{
-        background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+        background: 'linear-gradient(135deg, #001A40 0%, #002B66 50%, #0F2042 100%)',
         color: 'white',
         padding: '0.4rem 1rem',
         fontSize: '0.82rem',
@@ -48,10 +48,10 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        borderBottom: '1px solid rgba(245, 158, 11, 0.25)'
       }}>
         <Sparkles size={14} color="#FBBF24" />
-        <span>أهلاً بكم في المنصة التعليمية الرسمية لـ <strong>{teacherProfile?.name || 'مستر مايكل شحاتة'}</strong> • ابتدائي وإعدادي وثانوي!</span>
+        <span>أهلاً بكم في المنصة التعليمية الرسمية لـ <strong>{teacherProfile?.name || 'مستر مايكل شحاتة'}</strong> • ابتدائي وإعدادي وثانوي! 🇬🇧</span>
       </div>
 
       {/* Main Bar */}
@@ -73,13 +73,13 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               height: '46px',
               borderRadius: '12px',
               overflow: 'hidden',
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              background: 'linear-gradient(135deg, #002B66 0%, #0052CC 60%, #DC2626 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)',
-              border: '2px solid #818CF8',
+              boxShadow: '0 4px 15px rgba(0, 82, 204, 0.35)',
+              border: '2px solid #389EFF',
               flexShrink: 0,
               position: 'relative'
             }}>
@@ -166,7 +166,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 fontWeight: 800,
                 color: 'var(--primary-600)',
                 border: '1px solid var(--primary-400)',
-                background: 'rgba(79, 70, 229, 0.08)'
+                background: 'rgba(0, 82, 204, 0.08)'
               }}
               title="دخول المستر لإدارة المنصة"
             >
@@ -356,7 +356,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             style={{ borderRadius: '50%' }}
             title="تبديل الوضع الليلي / الفاتح"
           >
-            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#6366F1" />}
+            {isDark ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#0052CC" />}
           </button>
 
           {/* Mobile Menu Toggle Button */}

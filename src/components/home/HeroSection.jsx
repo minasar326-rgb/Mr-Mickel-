@@ -16,7 +16,7 @@ export default function HeroSection({ onNavigate, onSearch }) {
       position: 'relative',
       padding: '4rem 0 5rem',
       overflow: 'hidden',
-      background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(79, 70, 229, 0.15), transparent)'
+      background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 82, 204, 0.18), transparent)'
     }}>
       <div className="container">
         <div style={{

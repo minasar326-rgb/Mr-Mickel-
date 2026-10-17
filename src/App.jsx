@@ -311,10 +311,10 @@ function AppContent() {
 
       {/* Teacher Footer */}
       <footer style={{
-        background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%)',
+        background: 'linear-gradient(135deg, #060B14 0%, #0A192F 50%, #001A40 100%)',
         color: 'white',
         padding: '3rem 0 1.5rem',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+        borderTop: '1px solid rgba(0, 82, 204, 0.25)'
       }}>
         <div className="container">
           <div style={{

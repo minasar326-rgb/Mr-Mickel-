@@ -147,7 +147,24 @@ const richInitialStudents = [
     totalXp: 4200,
     rank: 1,
     pronunciationScore: "96%",
-    teacherNotes: "طالب متميز جداً وحريص على الدرجة النهائية"
+    teacherNotes: "طالب متميز جداً وحريص على الدرجة النهائية",
+    subscriptions: {
+      "sec3-month-1": {
+        id: "sub-101-1",
+        targetId: "sec3-month-1",
+        targetTitle: "الشهر الأول: Grammar Units 1 & 2 + Advanced Translation",
+        stageId: "sec-3",
+        stageName: "الصف الثالث الثانوي",
+        type: "month",
+        activationCode: "MS-SEC3-2026",
+        startDate: "2026-08-01",
+        expirationDate: "2026-11-01",
+        expiresAt: "2026-11-01",
+        durationDays: 90,
+        paidAmount: 250,
+        status: "active"
+      }
+    }
   },
   {
     id: "std-102",
@@ -185,7 +202,24 @@ const richInitialStudents = [
     totalXp: 3950,
     rank: 2,
     pronunciationScore: "92%",
-    teacherNotes: "مستواها رائع في حفظ الكلمات"
+    teacherNotes: "مستواها رائع في حفظ الكلمات",
+    subscriptions: {
+      "sec3-course-fnd": {
+        id: "sub-102-1",
+        targetId: "sec3-course-fnd",
+        targetTitle: "كورس التأسيس الشامل (The Master Foundation Bootcamp)",
+        stageId: "sec-3",
+        stageName: "الصف الثالث الثانوي",
+        type: "course",
+        activationCode: "MS-FND-8899",
+        startDate: "2026-08-05",
+        expirationDate: "2026-11-05",
+        expiresAt: "2026-11-05",
+        durationDays: 90,
+        paidAmount: 250,
+        status: "active"
+      }
+    }
   },
   {
     id: "std-103",
@@ -223,7 +257,26 @@ const richInitialStudents = [
     totalXp: 3400,
     rank: 3,
     pronunciationScore: "88%",
-    teacherNotes: "متبقي عليه 150 ج.م من مصاريف الشهر"
+    teacherNotes: "متبقي عليه 150 ج.م من مصاريف الشهر",
+    subscriptions: {
+      "sec3-month-1": {
+        id: "sub-103-1",
+        targetId: "sec3-month-1",
+        targetTitle: "الشهر الأول: Grammar Units 1 & 2 + Advanced Translation",
+        stageId: "sec-3",
+        stageName: "الصف الثالث الثانوي",
+        type: "month",
+        activationCode: "MS-SEC3-8812",
+        startDate: "2026-08-08",
+        expirationDate: "2026-10-08",
+        expiresAt: "2026-10-08",
+        durationDays: 60,
+        paidAmount: 100,
+        status: "paused",
+        isPaused: true,
+        pauseReason: "تأخر في سداد القسط الثاني بالسنتر"
+      }
+    }
   }
 ];
 
@@ -466,10 +519,16 @@ export function TeacherProvider({ children }) {
       const saved = localStorage.getItem('ms_students_rich');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(s => {
+            const initialMatch = richInitialStudents.find(m => m.id === s.id);
+            const subs = s.subscriptions || initialMatch?.subscriptions || {};
+            return { ...s, subscriptions: subs };
+          });
+        }
       }
     } catch (e) {}
-    return [];
+    return richInitialStudents;
   });
 
   // 8. Dynamic Sections (Months & Courses per stage)
@@ -698,6 +757,91 @@ export function TeacherProvider({ children }) {
     } catch (e) {}
     return {};
   });
+
+  // 11d. Full Exams Database (State of all manual exams per lecture)
+  const [examsData, setExamsData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_exams_data');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return initialExams;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_exams_data', JSON.stringify(examsData));
+    } catch (e) {}
+  }, [examsData]);
+
+  // 11e. Student Exam Submissions & Teacher Manual Grading Queue
+  const [examSubmissions, setExamSubmissions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_exam_submissions');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      "lec-s3-01": {
+        "std-103": {
+          studentUid: "std-103",
+          studentName: "عبدالله الشمري",
+          studentPhone: "01233445566",
+          lectureId: "lec-s3-01",
+          lectureTitle: "المحاضرة 1: الأزمنة والماضي البسيط والمستمر",
+          submittedAt: "2026-08-15T14:30:00Z",
+          status: "pending_grading",
+          autoScore: 12,
+          manualScore: 0,
+          totalScore: 12,
+          maxMarks: 20,
+          passingMarks: 14,
+          hasManualQuestions: true,
+          answers: {
+            "eq-1": 1,
+            "eq-2": 1,
+            "eq-essay-1": "We use past continuous for background actions in progress when interrupted by another sudden action in past simple. Example: While I was studying, my father arrived.",
+            "eq-short-1": "piracy"
+          },
+          gradedQuestions: {},
+          teacherNotes: ""
+        }
+      }
+    };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_exam_submissions', JSON.stringify(examSubmissions));
+    } catch (e) {}
+  }, [examSubmissions]);
+
+  // 11f. Subscription Audit Logs (سجل عمليات الاشتراكات والتدقيق)
+  const [subscriptionAuditLogs, setSubscriptionAuditLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_subscription_logs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      {
+        id: "log-1",
+        action: "pause",
+        actionLabel: "إيقاف مؤقت ⏸️",
+        studentId: "std-103",
+        studentName: "عبدالله الشمري",
+        studentPhone: "01233445566",
+        targetId: "sec3-month-1",
+        targetTitle: "الشهر الأول: Grammar Units 1 & 2",
+        reason: "تأخر في سداد القسط الثاني بالسنتر",
+        adminName: "مستر مايكل شحاته",
+        date: "2026-08-14T10:15:00Z"
+      }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_subscription_logs', JSON.stringify(subscriptionAuditLogs));
+    } catch (e) {}
+  }, [subscriptionAuditLogs]);
 
   // 12. Announcements
   const [announcements, setAnnouncements] = useState(() => {
@@ -1403,6 +1547,57 @@ export function TeacherProvider({ children }) {
         day: 'numeric'
       }) : '';
 
+      // Account Freeze Check:
+      if (currentUser?.isFrozen === true || sub.isFrozen === true) {
+        return {
+          isSubscribed: false,
+          isFrozen: true,
+          status: 'frozen',
+          reason: currentUser?.freezeReason || sub.freezeReason || 'تم إيقاف هذا الحساب بالكامل من قبل إدارة المنصة 🔒',
+          startDate: startDateStr,
+          startDateFormatted,
+          expirationDate: expiryStr,
+          expiresAt: expiryStr,
+          expiresAtFormatted,
+          targetTitle: sub.targetTitle || '',
+          targetId: sub.targetId || targetId
+        };
+      }
+
+      // Paused Subscription Check:
+      if (sub.status === 'paused' || sub.isPaused === true) {
+        return {
+          isSubscribed: false,
+          isPaused: true,
+          status: 'paused',
+          reason: sub.pauseReason || 'تم إيقاف الاشتراك مؤقتاً من قِبل إدارة المنصة 🔒',
+          startDate: startDateStr,
+          startDateFormatted,
+          expirationDate: expiryStr,
+          expiresAt: expiryStr,
+          expiresAtFormatted,
+          targetTitle: sub.targetTitle || '',
+          targetId: sub.targetId || targetId
+        };
+      }
+
+      // Cancelled Subscription Check:
+      if (sub.status === 'cancelled' || sub.isCancelled === true) {
+        return {
+          isSubscribed: false,
+          isCancelled: true,
+          status: 'cancelled',
+          reason: sub.cancelReason || 'تم إلغاء هذا الاشتراك نهائياً من قِبل الإدارة',
+          startDate: startDateStr,
+          startDateFormatted,
+          expirationDate: expiryStr,
+          expiresAt: expiryStr,
+          expiresAtFormatted,
+          targetTitle: sub.targetTitle || '',
+          targetId: sub.targetId || targetId
+        };
+      }
+
       // Expired: currentDate >= expiresAt
       if (diffMs <= 0) {
         return {
@@ -1487,15 +1682,26 @@ export function TeacherProvider({ children }) {
       }
 
       // Check section subscription (month or course)
+      let matchedSub = null;
       if (lecture.sectionId) {
         const secSub = getSubscriptionStatus(lecture.sectionId);
-        if (secSub.isSubscribed && !secSub.isExpired) hasSubscription = true;
+        if (secSub.isFrozen) return { allowed: false, isFrozen: true, reason: secSub.reason };
+        if (secSub.isPaused) return { allowed: false, isPaused: true, reason: secSub.reason };
+        if (secSub.isSubscribed && !secSub.isExpired) {
+          hasSubscription = true;
+          matchedSub = secSub;
+        }
       }
 
       // Direct lecture subscription
       if (!hasSubscription) {
         const lecSub = getSubscriptionStatus(lecture.id);
-        if (lecSub.isSubscribed && !lecSub.isExpired) hasSubscription = true;
+        if (lecSub.isFrozen) return { allowed: false, isFrozen: true, reason: lecSub.reason };
+        if (lecSub.isPaused) return { allowed: false, isPaused: true, reason: lecSub.reason };
+        if (lecSub.isSubscribed && !lecSub.isExpired) {
+          hasSubscription = true;
+          matchedSub = lecSub;
+        }
       }
 
       // Stage-level subscription
@@ -1503,13 +1709,23 @@ export function TeacherProvider({ children }) {
         const rawStageId = stageId || lecture.stageId;
         const targetStageId = normalizeStageId(rawStageId);
         const stageSub = getSubscriptionStatus(targetStageId) || getSubscriptionStatus(rawStageId);
-        if (stageSub.isSubscribed && !stageSub.isExpired) hasSubscription = true;
+        if (stageSub.isFrozen) return { allowed: false, isFrozen: true, reason: stageSub.reason };
+        if (stageSub.isPaused) return { allowed: false, isPaused: true, reason: stageSub.reason };
+        if (stageSub.isSubscribed && !stageSub.isExpired) {
+          hasSubscription = true;
+          matchedSub = stageSub;
+        }
       }
 
       // All-access VIP
       if (!hasSubscription) {
         const allSub = getSubscriptionStatus('all-access');
-        if (allSub.isSubscribed && !allSub.isExpired) hasSubscription = true;
+        if (allSub.isFrozen) return { allowed: false, isFrozen: true, reason: allSub.reason };
+        if (allSub.isPaused) return { allowed: false, isPaused: true, reason: allSub.reason };
+        if (allSub.isSubscribed && !allSub.isExpired) {
+          hasSubscription = true;
+          matchedSub = allSub;
+        }
       }
 
       if (!hasSubscription) {
@@ -1561,6 +1777,20 @@ export function TeacherProvider({ children }) {
     const prevExamRequired = prevLec.examRequired !== false && Boolean(prevExam);
 
     if (prevExamRequired) {
+      // 2a. Check if student submitted exam and is pending manual teacher grading
+      const submission = examSubmissions[prevLec.id]?.[currentUid];
+      if (submission && submission.status === 'pending_grading') {
+        return {
+          allowed: false,
+          isProgressionLocked: true,
+          isPendingGrading: true,
+          reason: `امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة اليدوية من المستر 📝. سيتم فتح المحاضرة التالية فور اعتماد درجتك.`,
+          prevLecture: prevLec,
+          prevWatchPercent,
+          missing: 'exam_pending_grading'
+        };
+      }
+
       const prevResult = examResults[prevLec.id];
       if (!prevResult) {
         return {
@@ -1570,6 +1800,18 @@ export function TeacherProvider({ children }) {
           prevLecture: prevLec,
           prevWatchPercent,
           missing: 'exam_not_taken'
+        };
+      }
+
+      if (prevResult.pendingGrading || prevResult.status === 'pending_grading') {
+        return {
+          allowed: false,
+          isProgressionLocked: true,
+          isPendingGrading: true,
+          reason: `امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة اليدوية من المستر 📝`,
+          prevLecture: prevLec,
+          prevWatchPercent,
+          missing: 'exam_pending_grading'
         };
       }
 
@@ -2149,6 +2391,494 @@ export function TeacherProvider({ children }) {
     addToast('تم إلغاء الفتح الاستثنائي للمحاضرة 🔒', 'info');
   };
 
+  // -------------------------------------------------------------
+  // Student Subscriptions Management (إدارة والتحكم في اشتراكات الطلاب)
+  // -------------------------------------------------------------
+
+  const pauseStudentSubscription = (studentId, targetId, reason = 'تم إيقاف الاشتراك مؤقتاً بواسطة الإدارة') => {
+    let studentTargetName = '';
+    let studentTargetPhone = '';
+    let targetDisplayTitle = '';
+
+    setStudents(prev => prev.map(std => {
+      if (std.id === studentId || std.code === studentId) {
+        studentTargetName = std.name;
+        studentTargetPhone = std.phone;
+        const currentSubs = { ...(std.subscriptions || {}) };
+        if (currentSubs[targetId]) {
+          targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
+          currentSubs[targetId] = {
+            ...currentSubs[targetId],
+            status: 'paused',
+            isPaused: true,
+            pauseReason: reason,
+            pausedAt: new Date().toISOString()
+          };
+        } else {
+          currentSubs[targetId] = {
+            targetId,
+            targetTitle: `اشتراك ${targetId}`,
+            status: 'paused',
+            isPaused: true,
+            pauseReason: reason,
+            pausedAt: new Date().toISOString()
+          };
+        }
+        const updated = { ...std, subscriptions: currentSubs };
+        saveStudentToFirestore(updated).catch(() => {});
+        return updated;
+      }
+      return std;
+    }));
+
+    const currentUid = currentUser?.uid || currentUser?.id;
+    if (currentUid === studentId) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('madarek_user') || '{}');
+        if (saved && saved.subscriptions && saved.subscriptions[targetId]) {
+          saved.subscriptions[targetId].status = 'paused';
+          saved.subscriptions[targetId].isPaused = true;
+          saved.subscriptions[targetId].pauseReason = reason;
+          localStorage.setItem('madarek_user', JSON.stringify(saved));
+        }
+      } catch (e) {}
+    }
+
+    const logEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      action: 'pause',
+      actionLabel: 'إيقاف مؤقت ⏸️',
+      studentId,
+      studentName: studentTargetName || studentId,
+      studentPhone: studentTargetPhone || '',
+      targetId,
+      targetTitle: targetDisplayTitle || targetId,
+      reason,
+      adminName: teacherProfile.name,
+      date: new Date().toISOString()
+    };
+    setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    addToast(`تم إيقاف اشتراك الطالب (${studentTargetName || studentId}) مؤقتاً بنجاح ⏸️`, 'info');
+  };
+
+  const resumeStudentSubscription = (studentId, targetId) => {
+    let studentTargetName = '';
+    let studentTargetPhone = '';
+    let targetDisplayTitle = '';
+
+    setStudents(prev => prev.map(std => {
+      if (std.id === studentId || std.code === studentId) {
+        studentTargetName = std.name;
+        studentTargetPhone = std.phone;
+        const currentSubs = { ...(std.subscriptions || {}) };
+        if (currentSubs[targetId]) {
+          targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
+          const { isPaused, pauseReason, ...rest } = currentSubs[targetId];
+          currentSubs[targetId] = {
+            ...rest,
+            status: 'active',
+            isPaused: false,
+            resumedAt: new Date().toISOString()
+          };
+        }
+        const updated = { ...std, subscriptions: currentSubs };
+        saveStudentToFirestore(updated).catch(() => {});
+        return updated;
+      }
+      return std;
+    }));
+
+    const logEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      action: 'resume',
+      actionLabel: 'إعادة تفعيل ▶️',
+      studentId,
+      studentName: studentTargetName || studentId,
+      studentPhone: studentTargetPhone || '',
+      targetId,
+      targetTitle: targetDisplayTitle || targetId,
+      reason: 'إعادة تفعيل الاشتراك من قِبل المستر',
+      adminName: teacherProfile.name,
+      date: new Date().toISOString()
+    };
+    setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    addToast(`تمت إعادة تفعيل اشتراك الطالب (${studentTargetName || studentId}) بنجاح ▶️`, 'success');
+  };
+
+  const extendStudentSubscription = (studentId, targetId, additionalDays = 30) => {
+    let studentTargetName = '';
+    let targetDisplayTitle = '';
+    let newExpiryDateStr = '';
+
+    setStudents(prev => prev.map(std => {
+      if (std.id === studentId || std.code === studentId) {
+        studentTargetName = std.name;
+        const currentSubs = { ...(std.subscriptions || {}) };
+        if (currentSubs[targetId]) {
+          targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
+          const currentExp = currentSubs[targetId].expirationDate || currentSubs[targetId].expiresAt;
+          const baseTime = (currentExp && new Date(currentExp).getTime() > Date.now()) 
+            ? new Date(currentExp).getTime() 
+            : Date.now();
+          const newExpTime = baseTime + Number(additionalDays) * 24 * 60 * 60 * 1000;
+          newExpiryDateStr = new Date(newExpTime).toISOString();
+
+          currentSubs[targetId] = {
+            ...currentSubs[targetId],
+            status: 'active',
+            isPaused: false,
+            expirationDate: newExpiryDateStr,
+            expiresAt: newExpiryDateStr,
+            durationDays: (Number(currentSubs[targetId].durationDays) || 30) + Number(additionalDays),
+            extendedAt: new Date().toISOString()
+          };
+        }
+        const updated = { ...std, subscriptions: currentSubs };
+        saveStudentToFirestore(updated).catch(() => {});
+        return updated;
+      }
+      return std;
+    }));
+
+    const logEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      action: 'extend',
+      actionLabel: `تمديد (+${additionalDays} يوم) ⏳`,
+      studentId,
+      studentName: studentTargetName || studentId,
+      targetId,
+      targetTitle: targetDisplayTitle || targetId,
+      reason: `تمديد الصلاحية لمدة ${additionalDays} يوم حتى ${newExpiryDateStr ? new Date(newExpiryDateStr).toLocaleDateString('ar-EG') : ''}`,
+      adminName: teacherProfile.name,
+      date: new Date().toISOString()
+    };
+    setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    addToast(`تم تمديد اشتراك الطالب (${studentTargetName || studentId}) بنجاح لمدة ${additionalDays} يوم ⏳`, 'success');
+  };
+
+  const cancelStudentSubscription = (studentId, targetId, reason = 'إلغاء نهائي من قِبل الإدارة') => {
+    let studentTargetName = '';
+    let targetDisplayTitle = '';
+
+    setStudents(prev => prev.map(std => {
+      if (std.id === studentId || std.code === studentId) {
+        studentTargetName = std.name;
+        const currentSubs = { ...(std.subscriptions || {}) };
+        if (currentSubs[targetId]) {
+          targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
+          currentSubs[targetId] = {
+            ...currentSubs[targetId],
+            status: 'cancelled',
+            isCancelled: true,
+            cancelReason: reason,
+            cancelledAt: new Date().toISOString()
+          };
+        }
+        const updated = { ...std, subscriptions: currentSubs };
+        saveStudentToFirestore(updated).catch(() => {});
+        return updated;
+      }
+      return std;
+    }));
+
+    const logEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      action: 'cancel',
+      actionLabel: 'إلغاء نهائي ❌',
+      studentId,
+      studentName: studentTargetName || studentId,
+      targetId,
+      targetTitle: targetDisplayTitle || targetId,
+      reason,
+      adminName: teacherProfile.name,
+      date: new Date().toISOString()
+    };
+    setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    addToast(`تم إلغاء اشتراك الطالب (${studentTargetName || studentId}) نهائياً`, 'info');
+  };
+
+  const toggleStudentFreeze = (studentId, reason = 'تجميد الحساب من قبل الإدارة') => {
+    let studentTargetName = '';
+    let isNowFrozen = false;
+
+    setStudents(prev => prev.map(std => {
+      if (std.id === studentId || std.code === studentId) {
+        studentTargetName = std.name;
+        isNowFrozen = !std.isFrozen;
+        const updated = {
+          ...std,
+          isFrozen: isNowFrozen,
+          freezeReason: isNowFrozen ? reason : null,
+          frozenAt: isNowFrozen ? new Date().toISOString() : null
+        };
+        saveStudentToFirestore(updated).catch(() => {});
+        return updated;
+      }
+      return std;
+    }));
+
+    const logEntry = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      action: isNowFrozen ? 'freeze' : 'unfreeze',
+      actionLabel: isNowFrozen ? 'تجميد الحساب ❄️' : 'إلغاء تجميد الحساب 🔓',
+      studentId,
+      studentName: studentTargetName || studentId,
+      targetId: 'all-account',
+      targetTitle: 'حساب المنصة بالكامل',
+      reason: isNowFrozen ? reason : 'فك تجميد الحساب',
+      adminName: teacherProfile.name,
+      date: new Date().toISOString()
+    };
+    setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    addToast(isNowFrozen ? `تم تجميد حساب الطالب (${studentTargetName}) بالكامل ❄️` : `تم فك تجميد حساب الطالب (${studentTargetName}) 🔓`, 'info');
+  };
+
+  const bulkUpdateSubscriptions = (studentIds, action, payload = {}) => {
+    if (!Array.isArray(studentIds) || studentIds.length === 0) return;
+
+    studentIds.forEach(stdId => {
+      const std = students.find(s => s.id === stdId || s.code === stdId);
+      if (!std) return;
+      const subKeys = Object.keys(std.subscriptions || {});
+      if (subKeys.length === 0) {
+        const defaultTarget = 'sec3-month-1';
+        if (action === 'pause') pauseStudentSubscription(stdId, defaultTarget, payload.reason || 'إيقاف جماعي');
+        else if (action === 'resume') resumeStudentSubscription(stdId, defaultTarget);
+        else if (action === 'extend') extendStudentSubscription(stdId, defaultTarget, payload.days || 30);
+      } else {
+        subKeys.forEach(tId => {
+          if (action === 'pause') pauseStudentSubscription(stdId, tId, payload.reason || 'إيقاف جماعي');
+          else if (action === 'resume') resumeStudentSubscription(stdId, tId);
+          else if (action === 'extend') extendStudentSubscription(stdId, tId, payload.days || 30);
+        });
+      }
+    });
+
+    addToast(`تم تنفيذ الإجراء الجماعي على ${studentIds.length} طالب بنجاح! ⚡`, 'success');
+  };
+
+  // -------------------------------------------------------------
+  // Manual Exam Builder & Grading Suite (إنشاء الامتحانات والتصحيح)
+  // -------------------------------------------------------------
+
+  const saveExamToLecture = (lectureId, examObj) => {
+    if (!lectureId || !examObj) return;
+
+    const totalMarks = examObj.totalMarks || (examObj.questions || []).reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+    const passingMarks = examObj.passingMarks || Math.ceil(totalMarks * 0.5);
+
+    const fullExam = {
+      ...examObj,
+      lectureId,
+      totalMarks,
+      passingMarks,
+      updatedAt: new Date().toISOString()
+    };
+
+    setExamsData(prev => {
+      const updated = { ...prev, [lectureId]: fullExam };
+      try {
+        localStorage.setItem('ms_exams_data', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setLectures(prev => prev.map(lec => {
+      if (lec.id === lectureId) {
+        const updatedLec = { ...lec, exam: fullExam, examRequired: true };
+        saveLectureToFirestore(updatedLec).catch(() => {});
+        return updatedLec;
+      }
+      return lec;
+    }));
+
+    saveToRtdb(`exams/${lectureId}`, fullExam).catch(() => {});
+    addToast('تم حفظ ونشر امتحان المحاضرة بنجاح ✍️', 'success');
+  };
+
+  const deleteExamFromLecture = (lectureId) => {
+    if (!lectureId) return;
+
+    setExamsData(prev => {
+      const updated = { ...prev };
+      delete updated[lectureId];
+      try {
+        localStorage.setItem('ms_exams_data', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setLectures(prev => prev.map(lec => {
+      if (lec.id === lectureId) {
+        const { exam, ...rest } = lec;
+        const updatedLec = { ...rest, examRequired: false };
+        saveLectureToFirestore(updatedLec).catch(() => {});
+        return updatedLec;
+      }
+      return lec;
+    }));
+
+    removeFromRtdb(`exams/${lectureId}`).catch(() => {});
+    addToast('تم حذف الامتحان من المحاضرة', 'info');
+  };
+
+  const submitStudentExamDetailed = (lectureId, submissionPayload) => {
+    const studentUid = currentUser?.uid || currentUser?.id || 'guest-student';
+    const studentName = currentUser?.name || 'طالب مسجل بالمنصة';
+    const studentPhone = currentUser?.phone || '';
+    const currentLecture = lectures.find(l => l.id === lectureId);
+    const lectureTitle = currentLecture?.title || 'امتحان المحاضرة';
+
+    const {
+      answers = {},
+      autoScore = 0,
+      maxMarks = 20,
+      hasManualQuestions = false
+    } = submissionPayload;
+
+    const status = hasManualQuestions ? 'pending_grading' : 'graded';
+    const passed = !hasManualQuestions && (autoScore / maxMarks) >= 0.5;
+
+    const submissionEntry = {
+      studentUid,
+      studentName,
+      studentPhone,
+      lectureId,
+      lectureTitle,
+      submittedAt: new Date().toISOString(),
+      answers,
+      autoScore,
+      manualScore: 0,
+      totalScore: autoScore,
+      maxMarks,
+      passingMarks: Math.ceil(maxMarks * 0.5),
+      hasManualQuestions,
+      status,
+      gradedAt: hasManualQuestions ? null : new Date().toISOString(),
+      teacherNotes: '',
+      gradedQuestions: {}
+    };
+
+    setExamSubmissions(prev => {
+      const lectureSubs = prev[lectureId] || {};
+      const updated = {
+        ...prev,
+        [lectureId]: {
+          ...lectureSubs,
+          [studentUid]: submissionEntry
+        }
+      };
+      try {
+        localStorage.setItem('ms_exam_submissions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    saveToRtdb(`examSubmissions/${lectureId}/${studentUid}`, submissionEntry).catch(() => {});
+
+    const resultObj = {
+      score: autoScore,
+      total: maxMarks,
+      status,
+      pendingGrading: hasManualQuestions,
+      passed,
+      grade: `${autoScore} من ${maxMarks} (${Math.round((autoScore / maxMarks) * 100)}%)`,
+      date: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
+
+    setExamResults(prev => {
+      const updated = { ...prev, [lectureId]: resultObj };
+      try {
+        localStorage.setItem('ms_exam_results', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (hasManualQuestions) {
+      addToast('تم استلام إجاباتك بنجاح! 📝 تم رصد الأسئلة المقالية وإرسالها للمستر للتصحيح اليدوي.', 'info', 6000);
+    } else {
+      if (passed) {
+        markLectureComplete(lectureId);
+        addXP(100);
+        addToast(`مبارك! اجتزت الامتحان بنجاح بدرجة ${resultObj.grade} 🏆`, 'success');
+      } else {
+        addToast(`حصلت على ${resultObj.grade}. راجع المذكرة جيداً وأعد المحاولة.`, 'warning');
+      }
+    }
+  };
+
+  const gradeManualExamSubmission = (lectureId, studentUid, gradingData) => {
+    const { gradedQuestions = {}, teacherNotes = '', additionalScore = 0 } = gradingData;
+
+    let targetStudentName = '';
+    let finalTotalScore = 0;
+    let maxMarks = 20;
+    let passed = false;
+
+    setExamSubmissions(prev => {
+      const lectureSubs = prev[lectureId] || {};
+      const sub = lectureSubs[studentUid];
+      if (!sub) return prev;
+
+      targetStudentName = sub.studentName;
+      maxMarks = sub.maxMarks || 20;
+      finalTotalScore = (Number(sub.autoScore) || 0) + Number(additionalScore);
+      passed = (finalTotalScore / maxMarks) >= 0.5;
+
+      const updatedSub = {
+        ...sub,
+        status: 'graded',
+        manualScore: Number(additionalScore),
+        totalScore: finalTotalScore,
+        gradedAt: new Date().toISOString(),
+        gradedQuestions,
+        teacherNotes,
+        passed
+      };
+
+      const updated = {
+        ...prev,
+        [lectureId]: {
+          ...lectureSubs,
+          [studentUid]: updatedSub
+        }
+      };
+
+      try {
+        localStorage.setItem('ms_exam_submissions', JSON.stringify(updated));
+      } catch (e) {}
+      saveToRtdb(`examSubmissions/${lectureId}/${studentUid}`, updatedSub).catch(() => {});
+      return updated;
+    });
+
+    const gradeText = `${finalTotalScore} من ${maxMarks} (${Math.round((finalTotalScore / maxMarks) * 100)}%)`;
+    setExamResults(prev => {
+      const updated = {
+        ...prev,
+        [lectureId]: {
+          score: finalTotalScore,
+          total: maxMarks,
+          grade: gradeText,
+          status: 'graded',
+          pendingGrading: false,
+          passed,
+          date: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })
+        }
+      };
+      try {
+        localStorage.setItem('ms_exam_results', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (passed) {
+      markLectureComplete(lectureId);
+      addToast(`تم اعتماد الدرجة النهائية (${gradeText}) للطالب (${targetStudentName}) وفك حظر المحاضرة التالية بنجاح! 🏆`, 'success');
+    } else {
+      addToast(`تم رصد درجة الطالب (${targetStudentName}): ${gradeText}. لم يجتز نسبة النجاح المطلوبة.`, 'warning');
+    }
+  };
+
   return (
     <TeacherContext.Provider
       value={{
@@ -2166,6 +2896,9 @@ export function TeacherProvider({ children }) {
         examResults,
         videoWatchProgress,
         manualOverrides,
+        examsData,
+        examSubmissions,
+        subscriptionAuditLogs,
         updateLectureWatchProgress,
         overrideUnlockLecture,
         revokeOverrideLecture,
@@ -2206,6 +2939,16 @@ export function TeacherProvider({ children }) {
         markLectureComplete,
         submitHomework,
         submitExam,
+        saveExamToLecture,
+        deleteExamFromLecture,
+        submitStudentExamDetailed,
+        gradeManualExamSubmission,
+        pauseStudentSubscription,
+        resumeStudentSubscription,
+        extendStudentSubscription,
+        cancelStudentSubscription,
+        toggleStudentFreeze,
+        bulkUpdateSubscriptions,
         generateParentWhatsAppReport,
         syncAllToFirebase,
         changeTeacherPassword

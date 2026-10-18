@@ -131,6 +131,10 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   };
 
   const handleDownloadLecturePdf = async () => {
+    if (!isAllowedToWatch || accessCheck.isPaused || accessCheck.isFrozen) {
+      addToast(accessCheck.reason || 'المحاضرة غير متاحة للتنزيل، يرجى تفعيل الاشتراك والتواصل مع الإدارة 🔒', 'error', 5000);
+      return;
+    }
     if (isDownloadingPdf) return;
     setIsDownloadingPdf(true);
     setDownloadProgress(20);
@@ -329,10 +333,86 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                   </button>
                 </div>
               </>
+            ) : accessCheck.isPaused ? (
+              <>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.75rem', color: '#FCD34D' }}>
+                  تم إيقاف اشتراكك مؤقتاً ⏸️
+                </h2>
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  maxWidth: '580px',
+                  margin: '0 auto 2rem',
+                  textAlign: 'right'
+                }}>
+                  <p style={{ color: '#FEF3C7', fontSize: '1.05rem', lineHeight: '1.7', margin: '0 0 10px', fontWeight: 800 }}>
+                    🔒 {accessCheck.reason || 'تم إيقاف الاشتراك مؤقتاً بواسطة الإدارة'}
+                  </p>
+                  <p style={{ color: '#CBD5E1', fontSize: '0.88rem', margin: 0, lineHeight: '1.6' }}>
+                    تم تعليق الوصول إلى فيديوهات المحاضرة وتحميل المذكرات مؤقتاً. بياناتك ودرجاتك محفوظة بالكامل. يرجى التواصل مع مستر مايكل شحاته أو الدعم الفني لإعادة التفعيل الفوري.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <a
+                    href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`السلام عليكم مستر مايكل، أنا الطالب ${currentUser?.name || ''}، بخصوص إيقاف اشتراكي مؤقتاً في المحاضرة (${lecture.title})`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-lg"
+                    style={{ gap: '8px', fontWeight: 800, background: '#25D366', color: 'white' }}
+                  >
+                    <MessageCircle size={18} />
+                    <span>تواصل مع المستر عبر واتساب 💬</span>
+                  </a>
+                  <button
+                    onClick={() => onNavigate('stage-lectures', { stageId: lecture?.stageId })}
+                    className="btn btn-secondary btn-lg"
+                  >
+                    العودة لقائمة المحاضرات
+                  </button>
+                </div>
+              </>
+            ) : accessCheck.isFrozen ? (
+              <>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.75rem', color: '#EF4444' }}>
+                  تم إيقاف هذا الحساب بالكامل ❄️
+                </h2>
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.5rem',
+                  maxWidth: '580px',
+                  margin: '0 auto 2rem',
+                  textAlign: 'right'
+                }}>
+                  <p style={{ color: '#FCA5A5', fontSize: '1.05rem', lineHeight: '1.7', margin: '0 0 10px', fontWeight: 800 }}>
+                    🚫 {accessCheck.reason || 'تم تجميد حساب الطالب من قبل إدارة المنصة'}
+                  </p>
+                  <p style={{ color: '#CBD5E1', fontSize: '0.88rem', margin: 0, lineHeight: '1.6' }}>
+                    تم إيقاف كافة صلاحيات الحساب. يرجى مراجعة إدارة السنتر أو مستر مايكل شحاته مباشرة.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <a
+                    href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(`السلام عليكم مستر مايكل، أنا الطالب ${currentUser?.name || ''}، بخصوص تجميد حسابي على المنصة`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-lg"
+                    style={{ gap: '8px', fontWeight: 800, background: '#25D366', color: 'white' }}
+                  >
+                    <MessageCircle size={18} />
+                    <span>التواصل مع الإدارة 💬</span>
+                  </a>
+                </div>
+              </>
             ) : accessCheck.isProgressionLocked ? (
               <>
                 <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.75rem', color: '#FCD34D' }}>
-                  المحاضرة مغلقة مؤقتاً (نظام فتح المحاضرات بالتدريج) ⏳
+                  {accessCheck.isPendingGrading 
+                    ? 'امتحان المحاضرة السابقة قيد التصحيح اليدوي 📝' 
+                    : 'المحاضرة مغلقة مؤقتاً (نظام فتح المحاضرات بالتدريج) ⏳'}
                 </h2>
                 <div style={{
                   background: 'rgba(245, 158, 11, 0.1)',
@@ -346,10 +426,16 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                   <p style={{ color: '#FEF3C7', fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 10px', fontWeight: 700 }}>
                     ⚠️ {accessCheck.reason}
                   </p>
-                  <ul style={{ color: '#E2E8F0', fontSize: '0.85rem', margin: 0, paddingRight: '20px', lineHeight: '1.7' }}>
-                    <li>شرط 1: مشاهدة 50% على الأقل من المحاضرة السابقة بدون تسريع أو تقديم وهمي.</li>
-                    <li>شرط 2: اجتياز امتحان المحاضرة السابقة بنسبة تتجاوز 50% (إن وُجد).</li>
-                  </ul>
+                  {accessCheck.isPendingGrading ? (
+                    <p style={{ color: '#E2E8F0', fontSize: '0.85rem', margin: 0, lineHeight: '1.7' }}>
+                      لقد قمت بتسليم الامتحان. إجاباتك المقالية معروضة الآن على مستر مايكل شحاته لرصد الدرجة واعتماد النتيجة، وستُفتح هذه المحاضرة تلقائياً فور اعتماد النتيجة بنسبة تجاوز 50%.
+                    </p>
+                  ) : (
+                    <ul style={{ color: '#E2E8F0', fontSize: '0.85rem', margin: 0, paddingRight: '20px', lineHeight: '1.7' }}>
+                      <li>شرط 1: مشاهدة 50% على الأقل من المحاضرة السابقة بدون تسريع أو تقديم وهمي.</li>
+                      <li>شرط 2: اجتياز امتحان المحاضرة السابقة بنسبة تتجاوز 50% (إن وُجد).</li>
+                    </ul>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   {accessCheck.prevLecture && (
@@ -359,7 +445,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                       style={{ gap: '8px', fontWeight: 800, background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
                     >
                       <Play size={18} fill="currentColor" />
-                      <span>الانتقال للمحاضرة السابقة لإكمالها ▶️</span>
+                      <span>الانتقال للمحاضرة السابقة ({accessCheck.prevLecture.title}) ▶️</span>
                     </button>
                   )}
                   <button

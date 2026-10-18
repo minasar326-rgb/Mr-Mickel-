@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import CertificateModal from '../student/CertificateModal';
+import EnglishExamModal from '../student/EnglishExamModal';
 import { 
   Upload, Key, Users, BookOpen, Video, FileText, CheckCircle2, 
   Send, MessageCircle, Plus, Copy, Sparkles, Bell, Trophy, Shield, 
@@ -9,7 +10,8 @@ import {
   DollarSign, CreditCard, AlertCircle, Phone, Search, Filter, Printer, 
   QrCode, Lock, Unlock, ArrowUpRight, Check, X, Image, Film, FileUp,
   Award, ScanLine, ShieldCheck, ShieldAlert, Activity, Flame, Cloud,
-  Database, HardDrive, RefreshCw, KeyRound, Smartphone, Download
+  Database, HardDrive, RefreshCw, KeyRound, Smartphone, Download,
+  Pause, Play, Calendar, UserX, AlertTriangle, ArrowUp, ArrowDown, CheckSquare, Square
 } from 'lucide-react';
 import { uploadFileToFirebaseStorage } from '../../services/firestoreSync';
 import { uploadFileToR2, uploadTeacherAvatarToR2, uploadAppIconToR2 } from '../../services/r2Storage';
@@ -32,6 +34,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
     generateNewCode, deleteCode,
     postAnnouncement, deleteAnnouncement,
     overrideUnlockLecture, revokeOverrideLecture, manualOverrides,
+    examsData, examSubmissions, subscriptionAuditLogs,
+    saveExamToLecture, deleteExamFromLecture, gradeManualExamSubmission,
+    pauseStudentSubscription, resumeStudentSubscription, extendStudentSubscription,
+    cancelStudentSubscription, toggleStudentFreeze, bulkUpdateSubscriptions,
     resetToFactoryDefaults,
     syncAllToFirebase,
     changeTeacherPassword
@@ -41,7 +47,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('lectures'); 
-  // 'sections' | 'lectures' | 'security' | 'students' | 'finance' | 'profile' | 'stages' | 'booklets' | 'achievers' | 'codes' | 'broadcast'
+  // 'sections' | 'lectures' | 'subscriptions' | 'exams' | 'security' | 'students' | 'finance' | 'profile' | 'stages' | 'booklets' | 'achievers' | 'codes' | 'broadcast'
 
   // Student Search & Filter
   const [studentSearch, setStudentSearch] = useState('');
@@ -234,6 +240,51 @@ export default function TeacherAdminCenter({ onNavigate }) {
   // Broadcast State
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
+
+  // -------------------------------------------------------------
+  // Student Subscriptions State (التحكم في اشتراكات الطلاب)
+  // -------------------------------------------------------------
+  const [subSearch, setSubSearch] = useState('');
+  const [subStageFilter, setSubStageFilter] = useState('all');
+  const [subStatusFilter, setSubStatusFilter] = useState('all');
+  const [selectedSubStudentIds, setSelectedSubStudentIds] = useState([]);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState('pause'); // 'pause' | 'resume' | 'extend'
+  const [bulkActionReason, setBulkActionReason] = useState('إيقاف مؤقت من الإدارة');
+  const [bulkActionDays, setBulkActionDays] = useState(30);
+
+  const [activePauseStudent, setActivePauseStudent] = useState(null);
+  const [pauseReasonInput, setPauseReasonInput] = useState('تأخر في سداد القسط الثاني');
+  const [activeExtendStudent, setActiveExtendStudent] = useState(null);
+  const [extendDaysInput, setExtendDaysInput] = useState(30);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+
+  // -------------------------------------------------------------
+  // Manual Exam Builder & Grading State (إنشاء الامتحانات والتصحيح)
+  // -------------------------------------------------------------
+  const [examsSubTab, setExamsSubTab] = useState('list'); // 'list' | 'grading'
+  const [isExamBuilderOpen, setIsExamBuilderOpen] = useState(false);
+  const [editingExamLectureId, setEditingExamLectureId] = useState('');
+  const [bldExamTitle, setBldExamTitle] = useState('');
+  const [bldExamDuration, setBldExamDuration] = useState(25);
+  const [bldExamTotalMarks, setBldExamTotalMarks] = useState(20);
+  const [bldExamPassMarks, setBldExamPassMarks] = useState(10);
+  const [bldExamMaxAttempts, setBldExamMaxAttempts] = useState(2);
+  const [bldExamShowResult, setBldExamShowResult] = useState(true);
+  const [bldExamShowCorrectAnswers, setBldExamShowCorrectAnswers] = useState(true);
+  const [bldExamIsDraft, setBldExamIsDraft] = useState(false);
+  const [bldExamQuestions, setBldExamQuestions] = useState([]);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewExamPayload, setPreviewExamPayload] = useState(null);
+
+  // Manual Grading Queue State
+  const [activeGradingItem, setActiveGradingItem] = useState(null);
+  const [manualQuestionScores, setManualQuestionScores] = useState({});
+  const [gradingTeacherNotes, setGradingTeacherNotes] = useState('');
+  const [examQImageInputIdx, setExamQImageInputIdx] = useState(null);
+  const examQImageInputRef = useRef(null);
+  const examOptImageInputRef = useRef(null);
+  const [activeOptUploadTarget, setActiveOptUploadTarget] = useState({ qIdx: 0, optIdx: 0 });
 
   // Refs for hidden file inputs
   const videoFileInputRef = useRef(null);
@@ -470,6 +521,379 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
     return matchSearch && matchStage && matchPay && matchGroup;
   });
+
+  // -------------------------------------------------------------
+  // Comprehensive Student Subscriptions Computations & Handlers
+  // -------------------------------------------------------------
+  const allStudentSubscriptions = [];
+  (students || []).forEach(std => {
+    const userSubs = std.subscriptions || {};
+    const subKeys = Object.keys(userSubs);
+    if (subKeys.length === 0) {
+      const defaultTargetId = `${std.stageId || 'sec-3'}-month-1`;
+      allStudentSubscriptions.push({
+        studentId: std.id,
+        studentCode: std.code,
+        studentName: std.name,
+        studentPhone: std.phone,
+        parentPhone: std.parentPhone,
+        avatar: std.avatar,
+        stageId: std.stageId,
+        stageName: std.stageName,
+        targetId: defaultTargetId,
+        targetTitle: `الشهر الأول: ${std.stageName || 'المرحلة الدراسية'}`,
+        targetType: 'month',
+        activationCode: 'MS-SEC3-2026',
+        startDate: std.joinedDate || '2026-08-01',
+        expirationDate: '2026-11-01',
+        status: std.isFrozen ? 'frozen' : (std.finance?.paymentStatus === 'unpaid' ? 'paused' : 'active'),
+        paidAmount: std.finance?.paidAmount || 250,
+        isFrozen: std.isFrozen,
+        pauseReason: std.finance?.paymentStatus === 'unpaid' ? 'تأخر في السداد' : ''
+      });
+    } else {
+      subKeys.forEach(tId => {
+        const sub = userSubs[tId];
+        if (!sub) return;
+        const now = Date.now();
+        const expTime = sub.expirationDate || sub.expiresAt ? new Date(sub.expirationDate || sub.expiresAt).getTime() : now + 30 * 86400000;
+        const isExp = expTime < now;
+        const status = std.isFrozen 
+          ? 'frozen' 
+          : (sub.status === 'paused' || sub.isPaused ? 'paused' : (sub.status === 'cancelled' ? 'cancelled' : (isExp ? 'expired' : 'active')));
+
+        allStudentSubscriptions.push({
+          studentId: std.id,
+          studentCode: std.code,
+          studentName: std.name,
+          studentPhone: std.phone,
+          parentPhone: std.parentPhone,
+          avatar: std.avatar,
+          stageId: std.stageId,
+          stageName: std.stageName,
+          targetId: tId,
+          targetTitle: sub.targetTitle || `اشتراك ${tId}`,
+          targetType: sub.targetType || sub.type || 'month',
+          activationCode: sub.activationCode || sub.codeUsed || 'كود شحن مباشر',
+          startDate: sub.startDate || sub.activatedAt || std.joinedDate || '2026-08-01',
+          expirationDate: sub.expirationDate || sub.expiresAt || '2026-11-01',
+          status,
+          paidAmount: sub.paidAmount !== undefined ? sub.paidAmount : (std.finance?.paidAmount || 250),
+          isFrozen: std.isFrozen,
+          pauseReason: sub.pauseReason || ''
+        });
+      });
+    }
+  });
+
+  const filteredSubscriptions = allStudentSubscriptions.filter(sub => {
+    const matchSearch = (sub.studentName || '').toLowerCase().includes(subSearch.toLowerCase()) ||
+      (sub.studentPhone || '').includes(subSearch) ||
+      (sub.studentCode || '').toLowerCase().includes(subSearch.toLowerCase()) ||
+      (sub.activationCode || '').toLowerCase().includes(subSearch.toLowerCase()) ||
+      (sub.targetTitle || '').toLowerCase().includes(subSearch.toLowerCase());
+    const matchStage = subStageFilter === 'all' || sub.stageId === subStageFilter;
+    const matchStatus = subStatusFilter === 'all' || sub.status === subStatusFilter;
+    return matchSearch && matchStage && matchStatus;
+  });
+
+  const activeSubCount = allStudentSubscriptions.filter(s => s.status === 'active').length;
+  const pausedSubCount = allStudentSubscriptions.filter(s => s.status === 'paused').length;
+  const expiredSubCount = allStudentSubscriptions.filter(s => s.status === 'expired').length;
+  const frozenSubCount = allStudentSubscriptions.filter(s => s.status === 'frozen').length;
+
+  // Bulk Subscriptions Handlers
+  const handleToggleSelectSubStudent = (stdId) => {
+    setSelectedSubStudentIds(prev => 
+      prev.includes(stdId) ? prev.filter(id => id !== stdId) : [...prev, stdId]
+    );
+  };
+
+  const handleSelectAllSubscriptions = () => {
+    if (selectedSubStudentIds.length === filteredSubscriptions.length) {
+      setSelectedSubStudentIds([]);
+    } else {
+      setSelectedSubStudentIds(filteredSubscriptions.map(s => s.studentId));
+    }
+  };
+
+  const handleOpenBulkModal = (type) => {
+    if (selectedSubStudentIds.length === 0) {
+      addToast('يرجى تحديد طالب واحد على الأقل أولاً لتنفيذ الإجراء الجماعي', 'warning');
+      return;
+    }
+    setBulkActionType(type);
+    setIsBulkModalOpen(true);
+  };
+
+  const handleConfirmBulkAction = () => {
+    if (bulkActionType === 'pause') {
+      bulkUpdateSubscriptions(selectedSubStudentIds, 'pause', { reason: bulkActionReason });
+    } else if (bulkActionType === 'resume') {
+      bulkUpdateSubscriptions(selectedSubStudentIds, 'resume');
+    } else if (bulkActionType === 'extend') {
+      bulkUpdateSubscriptions(selectedSubStudentIds, 'extend', { days: Number(bulkActionDays) || 30 });
+    }
+    setIsBulkModalOpen(false);
+    setSelectedSubStudentIds([]);
+  };
+
+  const handleOpenPauseModal = (subItem) => {
+    setActivePauseStudent(subItem);
+    setPauseReasonInput('تأخر في سداد القسط الثاني بالسنتر');
+  };
+
+  const handleConfirmPauseSingle = () => {
+    if (!activePauseStudent) return;
+    pauseStudentSubscription(activePauseStudent.studentId, activePauseStudent.targetId, pauseReasonInput.trim() || 'إيقاف مؤقت من الإدارة');
+    setActivePauseStudent(null);
+  };
+
+  const handleOpenExtendModal = (subItem) => {
+    setActiveExtendStudent(subItem);
+    setExtendDaysInput(30);
+  };
+
+  const handleConfirmExtendSingle = () => {
+    if (!activeExtendStudent) return;
+    extendStudentSubscription(activeExtendStudent.studentId, activeExtendStudent.targetId, Number(extendDaysInput) || 30);
+    setActiveExtendStudent(null);
+  };
+
+  // -------------------------------------------------------------
+  // Manual Exam Builder & Grading Handlers
+  // -------------------------------------------------------------
+  const allSubmissionsList = [];
+  Object.keys(examSubmissions || {}).forEach(lecId => {
+    const subsForLec = examSubmissions[lecId] || {};
+    Object.keys(subsForLec).forEach(uid => {
+      allSubmissionsList.push(subsForLec[uid]);
+    });
+  });
+
+  const pendingGradingSubmissions = allSubmissionsList.filter(s => s.status === 'pending_grading');
+
+  const handleOpenExamBuilder = (lec) => {
+    setEditingExamLectureId(lec.id);
+    const existing = lec.exam || (examsData && examsData[lec.id]);
+    if (existing) {
+      setBldExamTitle(existing.title || `امتحان ${lec.title}`);
+      setBldExamDuration(existing.timeMinutes || 25);
+      setBldExamTotalMarks(existing.totalMarks || 20);
+      setBldExamPassMarks(existing.passingMarks || 10);
+      setBldExamMaxAttempts(existing.maxAttempts || 2);
+      setBldExamShowResult(existing.showResult !== false);
+      setBldExamShowCorrectAnswers(existing.showCorrectAnswers !== false);
+      setBldExamIsDraft(existing.status === 'draft');
+      setBldExamQuestions(existing.questions && existing.questions.length > 0 ? JSON.parse(JSON.stringify(existing.questions)) : [
+        {
+          id: `q-${Date.now()}-1`,
+          type: 'mcq',
+          question: 'اختر الإجابة الصحيحة للقاعدة اللغوية:',
+          questionImage: '',
+          options: ['الاختيار الأول (صحيح)', 'الاختيار الثاني', 'الاختيار الثالث', 'الاختيار الرابع'],
+          optionImages: ['', '', '', ''],
+          correctAnswer: 0,
+          points: 4,
+          explanation: 'توضيح نموذج الإجابة للقاعدة.'
+        }
+      ]);
+    } else {
+      setBldExamTitle(`الامتحان الشامل - ${lec.title}`);
+      setBldExamDuration(25);
+      setBldExamTotalMarks(20);
+      setBldExamPassMarks(10);
+      setBldExamMaxAttempts(2);
+      setBldExamShowResult(true);
+      setBldExamShowCorrectAnswers(true);
+      setBldExamIsDraft(false);
+      setBldExamQuestions([
+        {
+          id: `q-${Date.now()}-1`,
+          type: 'mcq',
+          question: 'Choose the correct answer based on the grammar rule taught in this lecture:',
+          questionImage: '',
+          options: ['Option A (Correct)', 'Option B', 'Option C', 'Option D'],
+          optionImages: ['', '', '', ''],
+          correctAnswer: 0,
+          points: 4,
+          explanation: 'Model answer explanation.'
+        },
+        {
+          id: `q-${Date.now()}-2`,
+          type: 'essay',
+          question: 'Write a comprehensive answer or essay paragraph explaining the rule:',
+          questionImage: '',
+          options: [],
+          optionImages: [],
+          correctAnswer: '',
+          modelAnswer: 'Clear answer demonstrating proper grammar structure.',
+          points: 6,
+          explanation: 'يتم تقييم دقة الجمل والكلمات.'
+        }
+      ]);
+    }
+    setIsExamBuilderOpen(true);
+  };
+
+  const handleAddQuestionToBuilder = (type = 'mcq') => {
+    const newQ = {
+      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      type,
+      question: '',
+      questionImage: '',
+      options: (type === 'mcq' || type === 'multi') ? ['اختيار 1', 'اختيار 2', 'اختيار 3', 'اختيار 4'] : (type === 'tf' ? ['صحيح (True)', 'خطأ (False)'] : []),
+      optionImages: (type === 'mcq' || type === 'multi') ? ['', '', '', ''] : [],
+      correctAnswer: type === 'multi' ? [0] : 0,
+      modelAnswer: type === 'essay' ? '' : '',
+      points: type === 'essay' ? 5 : 3,
+      explanation: ''
+    };
+    setBldExamQuestions(prev => [...prev, newQ]);
+  };
+
+  const handleMoveQuestion = (idx, direction) => {
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === bldExamQuestions.length - 1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const updated = [...bldExamQuestions];
+    const temp = updated[idx];
+    updated[idx] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setBldExamQuestions(updated);
+  };
+
+  const handleDeleteQuestion = (idx) => {
+    setBldExamQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUploadQuestionImage = (e, qIdx) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      setBldExamQuestions(prev => prev.map((q, i) => i === qIdx ? { ...q, questionImage: dataUrl } : q));
+      addToast('تم إرفاق صورة السؤال بنجاح 🖼️', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadOptionImage = (e, qIdx, optIdx) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      setBldExamQuestions(prev => prev.map((q, i) => {
+        if (i !== qIdx) return q;
+        const newImages = [...(q.optionImages || [])];
+        newImages[optIdx] = dataUrl;
+        return { ...q, optionImages: newImages };
+      }));
+      addToast('تم إرفاق صورة الاختيار بنجاح 🖼️', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveExamSubmit = (e) => {
+    e.preventDefault();
+    if (!editingExamLectureId) {
+      addToast('يرجى تحديد المحاضرة المرتبطة بالامتحان', 'error');
+      return;
+    }
+    if (!bldExamTitle.trim()) {
+      addToast('يرجى إدخال عنوان الامتحان', 'error');
+      return;
+    }
+    if (bldExamQuestions.length === 0) {
+      addToast('يرجى إضافة سؤال واحد على الأقل داخل الامتحان', 'error');
+      return;
+    }
+
+    const calculatedTotal = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+    const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay' || q.type === 'short_answer');
+
+    const examPayload = {
+      id: `exam-${editingExamLectureId}`,
+      lectureId: editingExamLectureId,
+      title: bldExamTitle.trim(),
+      timeMinutes: Number(bldExamDuration) || 25,
+      totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
+      passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
+      maxAttempts: Number(bldExamMaxAttempts) || 2,
+      status: bldExamIsDraft ? 'draft' : 'published',
+      showResult: bldExamShowResult,
+      showCorrectAnswers: bldExamShowCorrectAnswers,
+      hasManualGrading,
+      questions: bldExamQuestions
+    };
+
+    saveExamToLecture(editingExamLectureId, examPayload);
+    setIsExamBuilderOpen(false);
+  };
+
+  const handleOpenPreviewModal = () => {
+    const calculatedTotal = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+    const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay' || q.type === 'short_answer');
+
+    const payload = {
+      id: `preview-${editingExamLectureId}`,
+      lectureId: editingExamLectureId,
+      title: bldExamTitle || 'معاينة الامتحان',
+      timeMinutes: Number(bldExamDuration) || 25,
+      totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
+      passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
+      showResult: bldExamShowResult,
+      showCorrectAnswers: bldExamShowCorrectAnswers,
+      hasManualGrading,
+      questions: bldExamQuestions
+    };
+    setPreviewExamPayload(payload);
+    setIsPreviewModalOpen(true);
+  };
+
+  const handleOpenGradingModal = (sub) => {
+    setActiveGradingItem(sub);
+    const initialScores = {};
+    const lecExam = examsData[sub.lectureId] || lectures.find(l => l.id === sub.lectureId)?.exam;
+    (lecExam?.questions || []).forEach(q => {
+      if (q.type === 'essay' || q.type === 'short_answer') {
+        initialScores[q.id] = sub.gradedQuestions?.[q.id]?.score || 0;
+      }
+    });
+    setManualQuestionScores(initialScores);
+    setGradingTeacherNotes(sub.teacherNotes || '');
+  };
+
+  const handleSubmitManualGrading = () => {
+    if (!activeGradingItem) return;
+
+    let manualSum = 0;
+    const gradedQuestionsMap = {};
+    const lecExam = examsData[activeGradingItem.lectureId] || lectures.find(l => l.id === activeGradingItem.lectureId)?.exam;
+
+    (lecExam?.questions || []).forEach(q => {
+      if (q.type === 'essay' || q.type === 'short_answer') {
+        const assignedScore = Number(manualQuestionScores[q.id]) || 0;
+        manualSum += assignedScore;
+        gradedQuestionsMap[q.id] = {
+          score: assignedScore,
+          maxScore: Number(q.points) || 5,
+          studentAnswer: activeGradingItem.answers?.[q.id] || '',
+          gradedAt: new Date().toISOString()
+        };
+      }
+    });
+
+    gradeManualExamSubmission(activeGradingItem.lectureId, activeGradingItem.studentUid, {
+      gradedQuestions: gradedQuestionsMap,
+      teacherNotes: gradingTeacherNotes,
+      additionalScore: manualSum
+    });
+
+    setActiveGradingItem(null);
+  };
 
   // Handlers
   const handleAddStudentSubmit = (e) => {
@@ -839,6 +1263,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
           {[
             { id: 'lectures', label: `🎥 رفع المحاضرات (${lectures.length})`, icon: Video },
             { id: 'sections', label: `📅 الشهور والكورسات (${sections.length})`, icon: BookOpen },
+            { id: 'subscriptions', label: `🎫 إدارة الاشتراكات والمشتركين (${allStudentSubscriptions.length})`, icon: CreditCard },
+            { id: 'exams', label: `📝 الامتحانات والتصحيح اليدوي ${pendingGradingSubmissions.length > 0 ? `(${pendingGradingSubmissions.length} 🔔)` : ''}`, icon: HelpCircle },
             { id: 'security', label: '🛡️ درع الحماية والأمان (Anti-Piracy)', icon: ShieldCheck },
             { id: 'students', label: `👥 سجل ومتابعة الطلاب (${students.length})`, icon: Users },
             { id: 'finance', label: `💰 الخزينة (${totalCollectedRevenue.toLocaleString()} ج.م)`, icon: DollarSign },
@@ -1767,6 +2193,658 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     })}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB: STUDENT SUBSCRIPTIONS MANAGEMENT (إدارة الاشتراكات) */}
+        {/* ========================================================= */}
+        {activeTab === 'subscriptions' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #1F4D3A 0%, #15382A 100%)', color: '#F4E8D3', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(166, 124, 82, 0.4)' }}>
+                    <CreditCard size={26} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>
+                      التحكم الكامل في اشتراكات وصلاحيات الطلاب 🎫
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                      إيقاف مؤقت، تمديد الصلاحية، إعادة تفعيل، إلغاء نهائي، وتجميد الحسابات مع سجل تدقيق أمني وإجراءات جماعية.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => setIsAuditModalOpen(true)}
+                    className="btn btn-secondary"
+                    style={{ gap: '8px', fontWeight: 800 }}
+                  >
+                    <span>سجل العمليات والتدقيق 📜</span>
+                    <span className="badge badge-gold">{subscriptionAuditLogs.length}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Metric Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #10B981' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>اشتراكات نشطة سارية:</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                    <strong style={{ fontSize: '1.8rem', color: '#10B981' }}>{activeSubCount}</strong>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>طالب مشترك</span>
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #F59E0B' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>موقوفة مؤقتاً (Paused):</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                    <strong style={{ fontSize: '1.8rem', color: '#F59E0B' }}>{pausedSubCount}</strong>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>اشتراك</span>
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #EF4444' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>منتهية الصلاحية:</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                    <strong style={{ fontSize: '1.8rem', color: '#EF4444' }}>{expiredSubCount}</strong>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>اشتراك</span>
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-subtle)', borderRight: '4px solid #6366F1' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>حسابات مجمدة بالكامل:</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                    <strong style={{ fontSize: '1.8rem', color: '#6366F1' }}>{frozenSubCount}</strong>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>حساب</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters Bar */}
+              <div style={{
+                background: 'var(--bg-subtle)',
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-lg)',
+                marginBottom: '1.5rem',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem',
+                alignItems: 'center'
+              }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    value={subSearch}
+                    onChange={e => setSubSearch(e.target.value)}
+                    placeholder="بحث باسم الطالب، الهاتف، الكود..."
+                    className="input-control"
+                    style={{ paddingRight: '40px' }}
+                  />
+                </div>
+
+                <div>
+                  <select
+                    value={subStageFilter}
+                    onChange={e => setSubStageFilter(e.target.value)}
+                    className="input-control"
+                    style={{ fontWeight: 700 }}
+                  >
+                    <option value="all">🎓 كل المراحل الدراسية</option>
+                    {stages.map(stg => (
+                      <option key={stg.id} value={stg.id}>{stg.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    value={subStatusFilter}
+                    onChange={e => setSubStatusFilter(e.target.value)}
+                    className="input-control"
+                    style={{ fontWeight: 700 }}
+                  >
+                    <option value="all">⚡ كل الحالات</option>
+                    <option value="active">🟢 سارية ونشطة فقط</option>
+                    <option value="paused">🟡 موقوفة مؤقتاً فقط</option>
+                    <option value="expired">🔴 منتهية الصلاحية فقط</option>
+                    <option value="cancelled">⚫ ملغاة نهائياً</option>
+                    <option value="frozen">❄️ حسابات مجمدة</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Sticky Bulk Selection Bar */}
+              {selectedSubStudentIds.length > 0 && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #1F4D3A 0%, #15382A 100%)',
+                  color: 'white',
+                  padding: '1rem 1.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  boxShadow: '0 8px 25px rgba(31, 77, 58, 0.4)',
+                  border: '1px solid rgba(166, 124, 82, 0.5)'
+                }} className="animate-fade-in">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="badge badge-gold" style={{ fontSize: '0.9rem', padding: '6px 14px' }}>
+                      تم تحديد {selectedSubStudentIds.length} طالب
+                    </span>
+                    <span style={{ fontSize: '0.9rem' }}>
+                      اختر الإجراء الجماعي لتطبيقه دفعة واحدة:
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => handleOpenBulkModal('pause')}
+                      className="btn btn-warning btn-sm"
+                      style={{ gap: '6px', fontWeight: 800 }}
+                    >
+                      <Pause size={16} />
+                      <span>إيقاف جماعي ⏸️</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenBulkModal('resume')}
+                      className="btn btn-success btn-sm"
+                      style={{ gap: '6px', fontWeight: 800 }}
+                    >
+                      <Play size={16} />
+                      <span>تفعيل جماعي ▶️</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenBulkModal('extend')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ gap: '6px', fontWeight: 800, background: 'rgba(255,255,255,0.2)', color: 'white' }}
+                    >
+                      <Calendar size={16} />
+                      <span>تمديد جماعي (+30 يوم) ⏳</span>
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedSubStudentIds([])}
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: '#FCA5A5' }}
+                    >
+                      إلغاء التحديد
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Subscriptions Table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                      <th style={{ padding: '12px 14px', width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={filteredSubscriptions.length > 0 && selectedSubStudentIds.length === filteredSubscriptions.length}
+                          onChange={handleSelectAllSubscriptions}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                      </th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الطالب</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>المرحلة</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>المحتوى المشترك فيه</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>كود التفعيل</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الصلاحية والانتهاء</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الحالة</th>
+                      <th style={{ padding: '12px 14px', fontSize: '0.85rem', textAlign: 'center' }}>إجراءات التحكم</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSubscriptions.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          لم يتم العثور على اشتراكات مطابقة للبحث أو الفلتر المحدد.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSubscriptions.map((sub, idx) => {
+                        const isSelected = selectedSubStudentIds.includes(sub.studentId);
+                        const expDate = new Date(sub.expirationDate);
+                        const diffDays = Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+                        return (
+                          <tr
+                            key={`${sub.studentId}-${sub.targetId}-${idx}`}
+                            style={{
+                              borderBottom: '1px solid var(--border-subtle)',
+                              background: isSelected ? 'rgba(31, 77, 58, 0.05)' : 'transparent',
+                              transition: 'background 0.15s ease'
+                            }}
+                          >
+                            <td style={{ padding: '12px 14px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectSubStudent(sub.studentId)}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              />
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <img
+                                  src={sub.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
+                                  alt={sub.studentName}
+                                  style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
+                                />
+                                <div>
+                                  <strong style={{ display: 'block', fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                                    {sub.studentName}
+                                  </strong>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                    <span>كود: {sub.studentCode || sub.studentId}</span>
+                                    <span>•</span>
+                                    <a
+                                      href={`https://wa.me/${(sub.studentPhone || '').replace(/[^0-9]/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#059669', textDecoration: 'none' }}
+                                    >
+                                      {sub.studentPhone}
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className="badge" style={{ background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: 700 }}>
+                                {sub.stageName}
+                              </span>
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                                {sub.targetTitle}
+                              </strong>
+                              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                نوع المحتوى: {sub.targetType === 'month' ? 'شهر دراسي' : (sub.targetType === 'course' ? 'كورس' : 'محاضرة')}
+                              </span>
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              <code style={{ fontSize: '0.82rem', background: 'var(--bg-subtle)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)', fontWeight: 700 }}>
+                                {sub.activationCode}
+                              </code>
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              <div style={{ fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                                  {new Date(sub.expirationDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
+                                {sub.status === 'active' && (
+                                  <span className="badge" style={{ background: diffDays <= 5 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: diffDays <= 5 ? '#EF4444' : '#10B981', marginRight: '6px', fontSize: '0.72rem' }}>
+                                    متبقي {diffDays} يوم
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td style={{ padding: '12px 14px' }}>
+                              {sub.isFrozen ? (
+                                <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#6366F1', fontWeight: 800 }}>
+                                  ❄️ حساب مجمد
+                                </span>
+                              ) : sub.status === 'paused' ? (
+                                <div>
+                                  <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontWeight: 800 }}>
+                                    ⏸️ موقوف مؤقتاً
+                                  </span>
+                                  {sub.pauseReason && (
+                                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                      {sub.pauseReason}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : sub.status === 'expired' ? (
+                                <span className="badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', fontWeight: 800 }}>
+                                  🔴 منتهي الصلاحية
+                                </span>
+                              ) : sub.status === 'cancelled' ? (
+                                <span className="badge" style={{ background: 'rgba(100, 116, 139, 0.15)', color: '#64748B', fontWeight: 800 }}>
+                                  ⚫ ملغي نهائياً
+                                </span>
+                              ) : (
+                                <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: 800 }}>
+                                  🟢 نشط وسارٍ
+                                </span>
+                              )}
+                            </td>
+
+                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                {sub.status === 'paused' ? (
+                                  <button
+                                    onClick={() => resumeStudentSubscription(sub.studentId, sub.targetId)}
+                                    className="btn btn-success btn-sm"
+                                    title="إعادة تفعيل الاشتراك فوراً"
+                                    style={{ gap: '4px', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 800 }}
+                                  >
+                                    <Play size={13} />
+                                    <span>تفعيل</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleOpenPauseModal(sub)}
+                                    className="btn btn-warning btn-sm"
+                                    title="إيقاف الاشتراك مؤقتاً"
+                                    style={{ gap: '4px', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 800 }}
+                                  >
+                                    <Pause size={13} />
+                                    <span>إيقاف</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => handleOpenExtendModal(sub)}
+                                  className="btn btn-secondary btn-sm"
+                                  title="تمديد مدة الاشتراك"
+                                  style={{ gap: '4px', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700 }}
+                                >
+                                  <Calendar size={13} />
+                                  <span>تمديد</span>
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`هل أنت متأكد من تجميد/فك تجميد حساب الطالب (${sub.studentName}) بالكامل؟`)) {
+                                      toggleStudentFreeze(sub.studentId, 'قرار إدارة المنصة');
+                                    }
+                                  }}
+                                  className="btn btn-ghost btn-sm"
+                                  title={sub.isFrozen ? 'فك تجميد الحساب' : 'تجميد الحساب بالكامل'}
+                                  style={{ color: sub.isFrozen ? '#10B981' : '#6366F1', padding: '4px 8px' }}
+                                >
+                                  <UserX size={14} />
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`⚠️ تحذير: هل أنت متأكد من إلغاء اشتراك الطالب (${sub.studentName}) في "${sub.targetTitle}" نهائياً؟`)) {
+                                      cancelStudentSubscription(sub.studentId, sub.targetId, 'إلغاء نهائي من قِبل المستر');
+                                    }
+                                  }}
+                                  className="btn btn-ghost btn-sm"
+                                  title="إلغاء الاشتراك نهائياً"
+                                  style={{ color: '#EF4444', padding: '4px 8px' }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB: MANUAL EXAM CREATION & MANUAL GRADING SUITE */}
+        {/* ========================================================= */}
+        {activeTab === 'exams' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #1F4D3A 0%, #15382A 100%)', color: '#F4E8D3', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(166, 124, 82, 0.4)' }}>
+                    <HelpCircle size={26} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>
+                      استوديو إنشاء الامتحانات والتصحيح اليدوي (100% Manual - No AI) ✍️
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                      أنشئ امتحانات المحاضرات يدويًا بالكامل مع دعم الصور والأسئلة المقالية، ومراجعة وتصحيح إجابات الطلاب وفك المحاضرات التالية.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => setExamsSubTab('list')}
+                    className={`btn ${examsSubTab === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ gap: '6px', fontWeight: 800 }}
+                  >
+                    <BookOpen size={16} />
+                    <span>قائمة الامتحانات ({lectures.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setExamsSubTab('grading')}
+                    className={`btn ${examsSubTab === 'grading' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ gap: '6px', fontWeight: 800 }}
+                  >
+                    <FileText size={16} />
+                    <span>التصحيح اليدوي للأسئلة المقالية</span>
+                    {pendingGradingSubmissions.length > 0 && (
+                      <span className="badge badge-warning" style={{ background: '#EF4444', color: 'white' }}>
+                        {pendingGradingSubmissions.length} 🔔
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-tab 1: Exams List by Lecture */}
+              {examsSubTab === 'list' && (
+                <div>
+                  <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
+                      امتحانات المحاضرات المسجلة بالمنصة:
+                    </h4>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      اضغط على «تعديل الامتحان» أو «إنشاء امتحان» لفتح محرر الأسئلة اليدوي الكامل.
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+                    {lectures.map((lec) => {
+                      const lecExam = lec.exam || (examsData && examsData[lec.id]);
+                      const hasExam = Boolean(lecExam);
+                      const qCount = (lecExam?.questions || []).length;
+                      const hasManualQ = (lecExam?.questions || []).some(q => q.type === 'essay' || q.type === 'short_answer');
+
+                      return (
+                        <div
+                          key={lec.id}
+                          className="card"
+                          style={{
+                            padding: '1.5rem',
+                            background: 'var(--bg-subtle)',
+                            border: hasExam ? '1.5px solid rgba(31, 77, 58, 0.4)' : '1px solid var(--border-subtle)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <div>
+                            <div className="flex-between" style={{ marginBottom: '8px' }}>
+                              <span className="badge badge-primary">{lec.stageName || 'المرحلة'}</span>
+                              {hasExam ? (
+                                <span className="badge" style={{ background: lecExam.status === 'draft' ? '#F59E0B' : '#10B981', color: 'white', fontWeight: 800 }}>
+                                  {lecExam.status === 'draft' ? 'مسودة 📝' : 'منشور للطلاب ✓'}
+                                </span>
+                              ) : (
+                                <span className="badge" style={{ background: 'var(--border-subtle)', color: 'var(--text-muted)' }}>
+                                  لا يوجد امتحان
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 6px', color: 'var(--text-primary)' }}>
+                              {lec.title}
+                            </h4>
+
+                            {hasExam ? (
+                              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.6' }}>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '6px 0' }}>
+                                  <span className="badge" style={{ background: 'var(--bg-surface)' }}>⏱️ {lecExam.timeMinutes || 25} دقيقة</span>
+                                  <span className="badge" style={{ background: 'var(--bg-surface)' }}>❓ {qCount} أسئلة</span>
+                                  <span className="badge" style={{ background: 'var(--bg-surface)' }}>🎯 {lecExam.passingMarks || 10}/{lecExam.totalMarks || 20} درجة</span>
+                                </div>
+                                {hasManualQ && (
+                                  <div style={{ color: '#D97706', fontWeight: 700, fontSize: '0.78rem', marginTop: '4px' }}>
+                                    ⚠️ يتضمن أسئلة مقالية تتطلب تصحيحاً يدوياً
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                                لم يتم ربط امتحان بعد بهذه المحاضرة. يمكنك إنشاء امتحان يدوي كامل في ثوانٍ.
+                              </p>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                            <button
+                              onClick={() => handleOpenExamBuilder(lec)}
+                              className="btn btn-primary btn-sm"
+                              style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+                            >
+                              <Edit size={14} />
+                              <span>{hasExam ? 'تعديل الامتحان ✏️' : 'إنشاء امتحان يدوي ➕'}</span>
+                            </button>
+
+                            {hasExam && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setPreviewExamPayload(lecExam);
+                                    setIsPreviewModalOpen(true);
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                  title="معاينة الامتحان كطالب"
+                                  style={{ gap: '4px' }}
+                                >
+                                  <Eye size={14} />
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`هل أنت متأكد من حذف امتحان محاضرة "${lec.title}"؟`)) {
+                                      deleteExamFromLecture(lec.id);
+                                    }
+                                  }}
+                                  className="btn btn-ghost btn-sm"
+                                  title="حذف الامتحان"
+                                  style={{ color: '#EF4444' }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 2: Manual Grading Queue */}
+              {examsSubTab === 'grading' && (
+                <div>
+                  <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px', fontSize: '1.15rem', fontWeight: 800 }}>
+                        طابور التصحيح اليدوي لإجابات الطلاب المقالية 📝
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        المحاضرات التالية مقفولة لهؤلاء الطلاب حتى تقوم باعتماد درجاتهم المقالية وتجاوز نسبة 50%.
+                      </p>
+                    </div>
+
+                    <span className="badge badge-warning" style={{ fontWeight: 800, padding: '6px 14px' }}>
+                      {pendingGradingSubmissions.length} إجابة بانتظار اعتماد المستر
+                    </span>
+                  </div>
+
+                  {pendingGradingSubmissions.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3.5rem 1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)' }}>
+                      <CheckCircle2 size={48} color="#10B981" style={{ margin: '0 auto 1rem' }} />
+                      <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 6px' }}>
+                        رائع! لا توجد امتحانات معلقة بانتظار التصحيح اليدوي 🎉
+                      </h4>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                        جميع إجابات الطلاب المقالية تم تصحيحها واعتماد درجاتها بنجاح.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+                      {pendingGradingSubmissions.map((sub, sIdx) => (
+                        <div
+                          key={`${sub.lectureId}-${sub.studentUid}-${sIdx}`}
+                          className="card"
+                          style={{
+                            padding: '1.5rem',
+                            background: 'var(--bg-subtle)',
+                            border: '1.5px solid rgba(245, 158, 11, 0.4)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <div>
+                            <div className="flex-between" style={{ marginBottom: '10px' }}>
+                              <span className="badge badge-gold">بانتظار تصحيح المستر ⏳</span>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                {sub.submittedAt ? new Date(sub.submittedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                            </div>
+
+                            <h4 style={{ fontSize: '1.1rem', fontWeight: 900, margin: '0 0 4px', color: 'var(--text-primary)' }}>
+                              الطالب: {sub.studentName}
+                            </h4>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+                              امتحان: <strong>{sub.lectureTitle}</strong>
+                            </p>
+
+                            <div style={{ background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-subtle)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                              <div className="flex-between">
+                                <span style={{ color: 'var(--text-muted)' }}>الدرجة التلقائية المحتسبة:</span>
+                                <strong style={{ color: '#1F4D3A' }}>{sub.autoScore} / {sub.maxMarks}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleOpenGradingModal(sub)}
+                            className="btn btn-primary"
+                            style={{ gap: '8px', fontWeight: 800, width: '100%' }}
+                          >
+                            <Edit size={16} />
+                            <span>مراجعة الإجابات المقالية ورصد الدرجة ✍️</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3598,6 +4676,1150 @@ export default function TeacherAdminCenter({ onNavigate }) {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
+
+      {/* ========================================================= */}
+      {/* MODAL 9: FULL MANUAL EXAM BUILDER MODAL */}
+      {/* ========================================================= */}
+      {isExamBuilderOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.82)',
+          backdropFilter: 'blur(6px)',
+          padding: '1.25rem'
+        }}>
+          <div className="card animate-fade-in" style={{
+            maxWidth: '920px',
+            width: '100%',
+            padding: '2rem',
+            borderRadius: 'var(--radius-xl)',
+            maxHeight: '92vh',
+            overflowY: 'auto',
+            background: 'var(--bg-surface)'
+          }}>
+            {/* Modal Header */}
+            <div className="flex-between" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0 }}>إنشاء وتعديل الامتحان يدويًا 📝</h3>
+                    <span className={bldExamIsDraft ? 'badge badge-warning' : 'badge badge-success'} style={{ fontSize: '0.75rem' }}>
+                      {bldExamIsDraft ? 'مسودة (غير معلن)' : 'منشور للطلاب 🟢'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    المحاضرة: {lectures.find(l => l.id === editingExamLectureId)?.title || 'المحاضرة المحددة'}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setIsExamBuilderOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <form onSubmit={handleSaveExamSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Exam General Settings Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                background: 'var(--bg-subtle)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عنوان الامتحان الكامل:</label>
+                  <input
+                    type="text"
+                    value={bldExamTitle}
+                    onChange={e => setBldExamTitle(e.target.value)}
+                    className="input-control"
+                    placeholder="مثال: امتحان شامل على قواعد الوحدة الأولى"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>مدة الامتحان (بالدقائق):</label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="180"
+                    value={bldExamDuration}
+                    onChange={e => setBldExamDuration(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>الدرجة الكلية للامتحان:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={bldExamTotalMarks}
+                    onChange={e => setBldExamTotalMarks(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>درجة النجاح المقررة (50%+):</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={bldExamPassMarks}
+                    onChange={e => setBldExamPassMarks(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عدد المحاولات المسموحة:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={bldExamMaxAttempts}
+                    onChange={e => setBldExamMaxAttempts(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+
+                {/* Toggles */}
+                <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={bldExamShowResult}
+                      onChange={e => setBldExamShowResult(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--primary-600)' }}
+                    />
+                    <span>إظهار النتيجة للطالب فور الانتهاء</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={bldExamShowCorrectAnswers}
+                      onChange={e => setBldExamShowCorrectAnswers(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--primary-600)' }}
+                    />
+                    <span>عرض نموذج الإجابة الصحيحة والتفسير</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={bldExamIsDraft}
+                      onChange={e => setBldExamIsDraft(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--warning)' }}
+                    />
+                    <span>حفظ كمسودة مؤقتة (لا يظهر للطالب حتى تنشره)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Add Question Toolbar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="flex-between">
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>
+                    قائمة الأسئلة ({bldExamQuestions.length} سؤال)
+                  </h4>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    إجمالي درجات الأسئلة الحالية: {bldExamQuestions.reduce((s, q) => s + (Number(q.points) || 0), 0)} درجة
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: 'var(--bg-subtle)', padding: '0.75rem', borderRadius: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('mcq')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.8rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ اختيار من متعدد (إجابة واحدة)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('multi')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.8rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ اختيار من متعدد (أكثر من إجابة)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('tf')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.8rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('essay')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.8rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)' }}
+                  >
+                    <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي) ✍️</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('short_answer')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.8rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)' }}
+                  >
+                    <Plus size={14} /> <span>+ إجابة قصيرة (تصحيح يدوي) 📝</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Questions List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {bldExamQuestions.map((q, qIdx) => (
+                  <div
+                    key={q.id || qIdx}
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '12px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                    }}
+                  >
+                    {/* Question Header Bar */}
+                    <div className="flex-between" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: 'var(--primary-600)',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '0.85rem'
+                        }}>
+                          {qIdx + 1}
+                        </span>
+
+                        <span className={
+                          q.type === 'essay' ? 'badge badge-gold' :
+                          q.type === 'short_answer' ? 'badge badge-warning' :
+                          q.type === 'multi' ? 'badge badge-primary' :
+                          q.type === 'tf' ? 'badge badge-secondary' : 'badge badge-success'
+                        } style={{ fontSize: '0.75rem' }}>
+                          {q.type === 'mcq' ? 'اختيار من متعدد (إجابة واحدة)' :
+                           q.type === 'multi' ? 'اختيار من متعدد (أكثر من إجابة)' :
+                           q.type === 'tf' ? 'صح أو خطأ' :
+                           q.type === 'essay' ? 'سؤال مقالي (تصحيح يدوي)' : 'إجابة قصيرة (تصحيح يدوي)'}
+                        </span>
+
+                        {(q.type === 'essay' || q.type === 'short_answer') && (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--accent-600)', fontWeight: 700 }}>
+                            ⚠️ يتطلب مراجعة المستر لفك قفل المحاضرة التالية
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>الدرجة:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={q.points || 3}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, points: Number(val) } : item));
+                            }}
+                            className="input-control"
+                            style={{ width: '65px', height: '32px', textAlign: 'center', fontWeight: 800 }}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleMoveQuestion(qIdx, 'up')}
+                          disabled={qIdx === 0}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 8px' }}
+                          title="تحريك لأعلى"
+                        >
+                          <ArrowUp size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleMoveQuestion(qIdx, 'down')}
+                          disabled={qIdx === bldExamQuestions.length - 1}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 8px' }}
+                          title="تحريك لأسفل"
+                        >
+                          <ArrowDown size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQuestion(qIdx)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 8px', color: '#EF4444' }}
+                          title="حذف هذا السؤال"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Question Text & Image Section */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                        نص السؤال (أو اتركه فارغاً واكتفِ بالصورة):
+                      </label>
+                      <textarea
+                        value={q.question || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, question: val } : item));
+                        }}
+                        placeholder="اكتب السؤال باللغة الإنجليزية أو العربية هنا..."
+                        className="input-control"
+                        style={{ height: '70px' }}
+                      />
+                    </div>
+
+                    {/* Question Image Attachment */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExamQImageInputIdx(qIdx);
+                            examQImageInputRef.current.click();
+                          }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.78rem', gap: '6px' }}
+                        >
+                          <Image size={15} />
+                          <span>{q.questionImage ? 'تغيير صورة السؤال 🖼️' : 'إرفاق صورة للسؤال 🖼️'}</span>
+                        </button>
+
+                        {q.questionImage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, questionImage: '' } : item));
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: '0.75rem', color: '#EF4444' }}
+                          >
+                            إزالة الصورة ✖
+                          </button>
+                        )}
+                      </div>
+
+                      {q.questionImage && (
+                        <div style={{ marginTop: '8px', maxWidth: '320px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                          <img src={q.questionImage} alt="Question Attachment" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', background: '#000' }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Choices / Options for MCQ, Multi, TF */}
+                    {(q.type === 'mcq' || q.type === 'multi' || q.type === 'tf') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 800, display: 'block', marginBottom: '4px' }}>
+                          خيارات الإجابة (حدد الإجابة الصحيحة):
+                        </label>
+
+                        {(q.options || []).map((opt, optIdx) => {
+                          const isCorrect = q.type === 'multi' 
+                            ? (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(optIdx))
+                            : (q.correctAnswer === optIdx);
+
+                          return (
+                            <div key={optIdx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-surface)', padding: '8px 12px', borderRadius: '8px', border: isCorrect ? '1.5px solid var(--success)' : '1px solid var(--border-subtle)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* Radio / Checkbox for correct answer */}
+                                {q.type === 'multi' ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={isCorrect}
+                                    onChange={e => {
+                                      setBldExamQuestions(prev => prev.map((item, i) => {
+                                        if (i !== qIdx) return item;
+                                        const currentArr = Array.isArray(item.correctAnswer) ? [...item.correctAnswer] : [];
+                                        const nextArr = e.target.checked 
+                                          ? [...currentArr, optIdx]
+                                          : currentArr.filter(idx => idx !== optIdx);
+                                        return { ...item, correctAnswer: nextArr };
+                                      }));
+                                    }}
+                                    style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
+                                    title="تحديد كإجابة صحيحة"
+                                  />
+                                ) : (
+                                  <input
+                                    type="radio"
+                                    name={`correct_${q.id || qIdx}`}
+                                    checked={isCorrect}
+                                    onChange={() => {
+                                      setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, correctAnswer: optIdx } : item));
+                                    }}
+                                    style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
+                                    title="تحديد كإجابة صحيحة"
+                                  />
+                                )}
+
+                                <input
+                                  type="text"
+                                  value={opt}
+                                  disabled={q.type === 'tf'}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setBldExamQuestions(prev => prev.map((item, i) => {
+                                      if (i !== qIdx) return item;
+                                      const newOpts = [...item.options];
+                                      newOpts[optIdx] = val;
+                                      return { ...item, options: newOpts };
+                                    }));
+                                  }}
+                                  className="input-control"
+                                  style={{ flex: 1, height: '36px', fontSize: '0.85rem' }}
+                                  placeholder={`نص الاختيار ${optIdx + 1}`}
+                                />
+
+                                {/* Option Image Upload Button */}
+                                {q.type !== 'tf' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveOptUploadTarget({ qIdx, optIdx });
+                                      examOptImageInputRef.current.click();
+                                    }}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                    title="إرفاق صورة لهذا الاختيار"
+                                  >
+                                    <Image size={15} />
+                                  </button>
+                                )}
+
+                                {/* Delete option button if > 2 */}
+                                {q.type !== 'tf' && (q.options?.length || 0) > 2 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBldExamQuestions(prev => prev.map((item, i) => {
+                                        if (i !== qIdx) return item;
+                                        const newOpts = item.options.filter((_, idx) => idx !== optIdx);
+                                        const newImages = (item.optionImages || []).filter((_, idx) => idx !== optIdx);
+                                        return { ...item, options: newOpts, optionImages: newImages };
+                                      }));
+                                    }}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ color: '#EF4444', padding: '4px 8px' }}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Option image preview if attached */}
+                              {q.optionImages?.[optIdx] && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '26px' }}>
+                                  <img src={q.optionImages[optIdx]} alt={`Option ${optIdx + 1}`} style={{ height: '50px', borderRadius: '4px', objectFit: 'contain', background: '#000' }} />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBldExamQuestions(prev => prev.map((item, i) => {
+                                        if (i !== qIdx) return item;
+                                        const newImages = [...(item.optionImages || [])];
+                                        newImages[optIdx] = '';
+                                        return { ...item, optionImages: newImages };
+                                      }));
+                                    }}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ color: '#EF4444', fontSize: '0.72rem' }}
+                                  >
+                                    إزالة صورة الاختيار
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {q.type !== 'tf' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBldExamQuestions(prev => prev.map((item, i) => {
+                                if (i !== qIdx) return item;
+                                return {
+                                  ...item,
+                                  options: [...(item.options || []), `اختيار جديد ${(item.options?.length || 0) + 1}`],
+                                  optionImages: [...(item.optionImages || []), '']
+                                };
+                              }));
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{ alignSelf: 'flex-start', fontSize: '0.78rem', marginTop: '4px' }}
+                          >
+                            + إضافة اختيار إضافي
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Model Answer for Essay & Short Answer */}
+                    {(q.type === 'essay' || q.type === 'short_answer') && (
+                      <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, marginBottom: '4px' }}>
+                          نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
+                        </label>
+                        <textarea
+                          value={q.modelAnswer || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, modelAnswer: val } : item));
+                          }}
+                          placeholder="اكتب المعايير أو الإجابة النموذجية الاسترشادية لتسهيل تقييم إجابة الطالب..."
+                          className="input-control"
+                          style={{ height: '65px' }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Rationale / Explanation */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                        شرح الإجابة النموذجية وتوضيح القاعدة (يظهر للطالب بعد إعلان النتيجة):
+                      </label>
+                      <input
+                        type="text"
+                        value={q.explanation || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, explanation: val } : item));
+                        }}
+                        placeholder="توضيح سبب صحة الإجابة أو القاعدة اللغوية..."
+                        className="input-control"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom Actions Bar */}
+              <div style={{ display: 'flex', gap: '10px', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleOpenPreviewModal}
+                  className="btn btn-secondary btn-lg"
+                  style={{ gap: '8px' }}
+                >
+                  <Eye size={18} />
+                  <span>معاينة الامتحان كطالب 👁️</span>
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-lg"
+                  style={{ flex: 1, gap: '8px', fontWeight: 800 }}
+                >
+                  <Check size={18} />
+                  <span>{bldExamIsDraft ? 'حفظ الامتحان كمسودة 💾' : 'حفظ واعتماد الامتحان ونشره للطلاب 🚀'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsExamBuilderOpen(false)}
+                  className="btn btn-secondary"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 10: TEACHER MANUAL GRADING WORKFLOW MODAL */}
+      {/* ========================================================= */}
+      {activeGradingItem && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.82)',
+          backdropFilter: 'blur(6px)',
+          padding: '1.25rem'
+        }}>
+          <div className="card animate-fade-in" style={{
+            maxWidth: '840px',
+            width: '100%',
+            padding: '2rem',
+            borderRadius: 'var(--radius-xl)',
+            maxHeight: '92vh',
+            overflowY: 'auto',
+            background: 'var(--bg-surface)'
+          }}>
+            {/* Grading Header */}
+            <div className="flex-between" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-100)', color: 'var(--accent-800)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0 }}>
+                    تصحيح إجابات الطالب يدوياً 📝
+                  </h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    الطالب: <strong style={{ color: 'var(--primary-700)' }}>{activeGradingItem.studentName}</strong> • {lectures.find(l => l.id === activeGradingItem.lectureId)?.title}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setActiveGradingItem(null)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            {/* Score Strip */}
+            <div style={{
+              display: 'flex',
+              gap: '1.5rem',
+              background: 'var(--bg-subtle)',
+              padding: '1rem 1.25rem',
+              borderRadius: '12px',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap'
+            }}>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>درجة الأسئلة التلقائية (MCQ/TF):</span>
+                <strong style={{ fontSize: '1.15rem', color: 'var(--success)' }}>{activeGradingItem.autoScore || 0} درجات</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>إجمالي درجات الامتحان:</span>
+                <strong style={{ fontSize: '1.15rem' }}>{activeGradingItem.maxScore || 20} درجة</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>درجة النجاح المقررة:</span>
+                <strong style={{ fontSize: '1.15rem', color: 'var(--primary-700)' }}>{activeGradingItem.passingScore || 10} درجة</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>حالة التصحيح:</span>
+                <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>قيد المراجعة اليدوية</span>
+              </div>
+            </div>
+
+            {/* Essay and Short Answer Questions to Grade */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              {(examsData[activeGradingItem.lectureId] || lectures.find(l => l.id === activeGradingItem.lectureId)?.exam)?.questions
+                ?.filter(q => q.type === 'essay' || q.type === 'short_answer')
+                ?.map((q, qIndex) => {
+                  const studentAns = activeGradingItem.answers?.[q.id] || 'لم يتم تقديم إجابة';
+                  const maxPts = Number(q.points) || 5;
+
+                  return (
+                    <div
+                      key={q.id || qIndex}
+                      style={{
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '12px',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div className="flex-between">
+                        <strong style={{ fontSize: '0.95rem', color: 'var(--primary-800)' }}>
+                          سؤال {qIndex + 1}: {q.question}
+                        </strong>
+                        <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                          الدرجة القصوى: {maxPts} درجات
+                        </span>
+                      </div>
+
+                      {q.questionImage && (
+                        <div style={{ maxWidth: '300px', borderRadius: '8px', overflow: 'hidden' }}>
+                          <img src={q.questionImage} alt="Question" style={{ width: '100%', maxHeight: '150px', objectFit: 'contain' }} />
+                        </div>
+                      )}
+
+                      {q.modelAnswer && (
+                        <div style={{ background: '#FEF3C7', padding: '8px 12px', borderRadius: '8px', fontSize: '0.8rem', color: '#92400E' }}>
+                          <strong>دليل ونموذج الإجابة:</strong> {q.modelAnswer}
+                        </div>
+                      )}
+
+                      {/* Student's Actual Answer Box */}
+                      <div style={{
+                        background: 'var(--bg-surface)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--primary-300)',
+                        fontSize: '0.92rem',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        <strong style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          إجابة الطالب المسجلة:
+                        </strong>
+                        {studentAns}
+                      </div>
+
+                      {/* Teacher Score Input */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', alignSelf: 'flex-start', marginTop: '4px' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 800 }}>منح الطالب درجة لهذا السؤال:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={maxPts}
+                          value={manualQuestionScores[q.id] !== undefined ? manualQuestionScores[q.id] : ''}
+                          onChange={e => {
+                            const val = Math.min(maxPts, Math.max(0, Number(e.target.value) || 0));
+                            setManualQuestionScores(prev => ({ ...prev, [q.id]: val }));
+                          }}
+                          className="input-control"
+                          style={{ width: '80px', height: '36px', textAlign: 'center', fontWeight: 900, fontSize: '1rem' }}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>من {maxPts}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Teacher Notes Field */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '6px' }}>
+                ملاحظات وتوجيهات المستر للطالب (تظهر له داخل كارت النتيجة):
+              </label>
+              <textarea
+                value={gradingTeacherNotes}
+                onChange={e => setGradingTeacherNotes(e.target.value)}
+                placeholder="مثال: أحسنت في استخدام الروابط اللغوية، لكن انتبه لتصريف الأفعال الشاذة في السؤال الثاني..."
+                className="input-control"
+                style={{ height: '80px' }}
+              />
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleSubmitManualGrading}
+                className="btn btn-primary btn-lg"
+                style={{ flex: 1, gap: '8px', fontWeight: 800 }}
+              >
+                <CheckCircle2 size={18} />
+                <span>اعتماد الدرجة النهائية وفك قفل المحاضرة التالية 🏆</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveGradingItem(null)}
+                className="btn btn-secondary"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 11: PAUSE SINGLE STUDENT SUBSCRIPTION MODAL */}
+      {/* ========================================================= */}
+      {activePauseStudent && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '520px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-xl)' }}>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Pause size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>إيقاف اشتراك الطالب مؤقتاً ⏸️</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الطالب: {activePauseStudent.studentName} ({activePauseStudent.targetTitle})</span>
+                </div>
+              </div>
+              <button onClick={() => setActivePauseStudent(null)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', padding: '1rem', borderRadius: '10px', marginBottom: '1.25rem', fontSize: '0.85rem', color: '#92400E', lineHeight: '1.6' }}>
+              ⚠️ <strong>تنبيه الإيقاف المؤقت:</strong> سيتم حظر تشغيل فيديوهات المحاضرات وتنزيل ملفات الـ PDF للطالب فوراً، مع الحفاظ الكامل على تقدمه ودرجاته وسجلاته المالية.
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>سبب الإيقاف المؤقت:</label>
+              <input
+                type="text"
+                value={pauseReasonInput}
+                onChange={e => setPauseReasonInput(e.target.value)}
+                className="input-control"
+                placeholder="مثال: تأخر في سداد القسط الثاني بالسنتر"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmPauseSingle}
+                className="btn btn-warning btn-lg"
+                style={{ flex: 1, gap: '6px' }}
+              >
+                <Pause size={16} /> <span>تأكيد الإيقاف المؤقت</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePauseStudent(null)}
+                className="btn btn-secondary"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 12: EXTEND SUBSCRIPTION MODAL */}
+      {/* ========================================================= */}
+      {activeExtendStudent && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '520px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-xl)' }}>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Calendar size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>تمديد مدة الاشتراك ⏳</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>الطالب: {activeExtendStudent.studentName} ({activeExtendStudent.targetTitle})</span>
+                </div>
+              </div>
+              <button onClick={() => setActiveExtendStudent(null)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                اختر عدد الأيام الإضافية أو حدد فترة مخصصة:
+              </span>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                {[7, 15, 30, 60].map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setExtendDaysInput(d)}
+                    className={`btn btn-sm ${Number(extendDaysInput) === d ? 'btn-primary' : 'btn-secondary'}`}
+                  >
+                    +{d} يوم
+                  </button>
+                ))}
+              </div>
+
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عدد الأيام الإضافية:</label>
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={extendDaysInput}
+                onChange={e => setExtendDaysInput(e.target.value)}
+                className="input-control"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmExtendSingle}
+                className="btn btn-primary btn-lg"
+                style={{ flex: 1, gap: '6px' }}
+              >
+                <Check size={16} /> <span>تأكيد تمديد الاشتراك</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveExtendStudent(null)}
+                className="btn btn-secondary"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 13: BULK ACTION CONFIRMATION MODAL */}
+      {/* ========================================================= */}
+      {isBulkModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.78)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '520px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-xl)' }}>
+            <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>تنفيذ إجراء جماعي على الاشتراكات 👥</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    سيتم تطبيق الإجراء على ({selectedSubStudentIds.length}) طالب محدد
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setIsBulkModalOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            {bulkActionType === 'pause' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', padding: '1rem', borderRadius: '10px', fontSize: '0.85rem', color: '#92400E' }}>
+                  ⚠️ سيتم إيقاف اشتراكات جميع الطلاب المحددين ({selectedSubStudentIds.length} طالب) مؤقتاً وحظر وصولهم للمحتوى حتى إعادة التفعيل.
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>سبب الإيقاف المؤقت الجماعي:</label>
+                  <input
+                    type="text"
+                    value={bulkActionReason}
+                    onChange={e => setBulkActionReason(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {bulkActionType === 'resume' && (
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.5rem', fontSize: '0.88rem', color: '#166534' }}>
+                🟢 سيتم استئناف اشتراكات جميع الطلاب المحددين ({selectedSubStudentIds.length} طالب) فوراً وإعادة فتح المحاضرات والـ PDF لهم.
+              </div>
+            )}
+
+            {bulkActionType === 'extend' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px', fontSize: '0.85rem' }}>
+                  ⏳ سيتم تمديد تاريخ انتهاء اشتراك جميع الطلاب المحددين ({selectedSubStudentIds.length} طالب).
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عدد الأيام الإضافية:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={bulkActionDays}
+                    onChange={e => setBulkActionDays(e.target.value)}
+                    className="input-control"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmBulkAction}
+                className="btn btn-primary btn-lg"
+                style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+              >
+                <Check size={18} /> <span>تأكيد الإجراء الجماعي</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBulkModalOpen(false)}
+                className="btn btn-secondary"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 14: SUBSCRIPTION AUDIT LOGS MODAL */}
+      {/* ========================================================= */}
+      {isAuditModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{
+            maxWidth: '820px',
+            width: '100%',
+            padding: '2rem',
+            borderRadius: 'var(--radius-xl)',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            background: 'var(--bg-surface)'
+          }}>
+            <div className="flex-between" style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>سجل تدقيق وتعديلات الاشتراكات 📋</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>توثيق كامل لكافة عمليات الإيقاف، التمديد، والتفعيل</span>
+                </div>
+              </div>
+              <button onClick={() => setIsAuditModalOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1.5px solid var(--border-subtle)' }}>
+                    <th style={{ padding: '10px' }}>التاريخ والوقت</th>
+                    <th style={{ padding: '10px' }}>نوع العملية</th>
+                    <th style={{ padding: '10px' }}>معرف الطالب</th>
+                    <th style={{ padding: '10px' }}>الاشتراك المستهدف</th>
+                    <th style={{ padding: '10px' }}>السبب / التفاصيل</th>
+                    <th style={{ padding: '10px' }}>المسؤول</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(subscriptionAuditLogs || []).map((log, idx) => (
+                    <tr key={log.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        {new Date(log.timestamp).toLocaleString('ar-EG')}
+                      </td>
+                      <td style={{ padding: '10px' }}>
+                        <span className={
+                          log.action === 'pause' ? 'badge badge-warning' :
+                          log.action === 'resume' ? 'badge badge-success' :
+                          log.action === 'extend' ? 'badge badge-primary' :
+                          log.action === 'cancel' ? 'badge badge-danger' : 'badge badge-gold'
+                        } style={{ fontSize: '0.72rem' }}>
+                          {log.action === 'pause' ? 'إيقاف مؤقت ⏸️' :
+                           log.action === 'resume' ? 'استئناف تفعيل ▶️' :
+                           log.action === 'extend' ? 'تمديد اشتراك ⏳' :
+                           log.action === 'cancel' ? 'إلغاء نهائي ❌' : 'تجميد الحساب 🧊'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px', fontFamily: 'monospace', fontWeight: 700 }}>
+                        {students.find(s => s.id === log.studentId)?.name || log.studentId}
+                      </td>
+                      <td style={{ padding: '10px' }}>{log.targetId}</td>
+                      <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>
+                        {log.details?.reason || (log.details?.days ? `+${log.details.days} يوم` : '-')}
+                      </td>
+                      <td style={{ padding: '10px', fontSize: '0.78rem', color: 'var(--primary-700)', fontWeight: 700 }}>
+                        {log.admin || 'المستر / الإدارة'}
+                      </td>
+                    </tr>
+                  ))}
+                  {(subscriptionAuditLogs || []).length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        لا توجد سجلات تعديل اشتراكات مسجلة حتى الآن.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+              <button onClick={() => setIsAuditModalOpen(false)} className="btn btn-secondary">إغلاق</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 15: EXAM PREVIEW MODAL */}
+      {/* ========================================================= */}
+      {isPreviewModalOpen && previewExamPayload && (
+        <EnglishExamModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => setIsPreviewModalOpen(false)}
+          previewMode={true}
+          previewExam={previewExamPayload}
+        />
+      )}
+
+      {/* Hidden file inputs for Exam Builder images */}
+      <input
+        type="file"
+        ref={examQImageInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => examQImageInputIdx !== null && handleUploadQuestionImage(e, examQImageInputIdx)}
+      />
+      <input
+        type="file"
+        ref={examOptImageInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => handleUploadOptionImage(e, activeOptUploadTarget.qIdx, activeOptUploadTarget.optIdx)}
+      />
     </div>
   );
 }
+

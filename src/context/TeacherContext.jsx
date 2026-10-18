@@ -3332,6 +3332,24 @@ export function TeacherProvider({ children }) {
     addToast('تمت إعادة فتح محاولة الامتحان العام للطالب بنجاح! 🔓', 'success');
   };
 
+  const cancelGeneralExamCode = (code) => {
+    if (!code) return;
+    setGeneralExamCodes(prev => {
+      const updated = prev.map(c => {
+        if (c.code === code) {
+          return { ...c, isCancelled: true, status: 'cancelled' };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('ms_general_exam_codes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    saveToRtdb(`generalExamCodes/${code}/isCancelled`, true).catch(() => {});
+    addToast(`تم إلغاء كود الامتحان (${code}) بنجاح`, 'info');
+  };
+
   const verifyAndRedeemGeneralExamCode = (inputCode, studentUid, studentName) => {
     if (!inputCode) return { success: false, error: 'يرجى إدخال الكود المخصص' };
 
@@ -3340,6 +3358,13 @@ export function TeacherProvider({ children }) {
 
     if (!codeObj) {
       return { success: false, error: 'كود الامتحان غير صحيح أو غير موجود' };
+    }
+
+    if (codeObj.isCancelled || codeObj.status === 'cancelled') {
+      return { 
+        success: false, 
+        error: 'عذراً، تم إلغاء هذا الكود بواسطة المستر ولا يمكن استخدامه لدخول الامتحان!' 
+      };
     }
 
     // Strict personalization check: ensure student matches
@@ -3470,6 +3495,7 @@ export function TeacherProvider({ children }) {
         generateGeneralExamCode,
         bulkGenerateGeneralExamCodes,
         resetGeneralExamAttempt,
+        cancelGeneralExamCode,
         verifyAndRedeemGeneralExamCode,
         submitGeneralExam,
         subscriptionAuditLogs,

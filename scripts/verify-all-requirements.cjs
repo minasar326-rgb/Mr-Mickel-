@@ -135,8 +135,13 @@ assert(generalExamPageContent.includes('isAlreadySubmitted'), 'GeneralExamPage r
 assert(examModalContent.includes('isGeneralExam'), 'EnglishExamModal accepts isGeneralExam prop');
 assert(examModalContent.includes('submitGeneralExam'), 'EnglishExamModal routes submission to general exam engine');
 
-assert(adminCenterContent.includes("examsSubTab === 'general'"), 'TeacherAdminCenter contains General Exams and Codes management subtab');
-assert(adminCenterContent.includes('توليد أكواد جماعية لكافة طلاب مرحلة'), 'Admin center provides bulk generation for general exam codes');
+assert(adminCenterContent.includes("id: 'general-exams'"), 'TeacherAdminCenter provides standalone general-exams tab');
+assert(adminCenterContent.includes("id: 'general-codes'"), 'TeacherAdminCenter provides standalone general-codes tab');
+assert(adminCenterContent.includes("activeTab === 'general-exams'"), 'TeacherAdminCenter renders standalone General Exams Studio');
+assert(adminCenterContent.includes("activeTab === 'general-codes'"), 'TeacherAdminCenter renders standalone General Exam Codes Studio');
+assert(teacherContextContent.includes('cancelGeneralExamCode'), 'TeacherContext provides cancelGeneralExamCode');
+assert(adminCenterContent.includes('cancelGeneralExamCode'), 'TeacherAdminCenter allows cancelling general exam code');
+assert(adminCenterContent.includes('توليد كود شخصي مخصص لطالب'), 'Admin center provides personalized student code generator');
 assert(adminCenterContent.includes('resetGeneralExamAttempt'), 'Admin center provides reset attempt button for teacher manual override');
 
 console.log('\n=====================================================');

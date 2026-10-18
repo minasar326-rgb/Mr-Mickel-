@@ -37,7 +37,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
     overrideUnlockLecture, revokeOverrideLecture, manualOverrides,
     examsData, examSubmissions, subscriptionAuditLogs,
     generalExams, generalExamCodes, saveGeneralExam, deleteGeneralExam,
-    generateGeneralExamCode, bulkGenerateGeneralExamCodes, resetGeneralExamAttempt,
+    generateGeneralExamCode, bulkGenerateGeneralExamCodes, resetGeneralExamAttempt, cancelGeneralExamCode,
     saveExamToLecture, deleteExamFromLecture, gradeManualExamSubmission,
     pauseStudentSubscription, resumeStudentSubscription, extendStudentSubscription,
     cancelStudentSubscription, toggleStudentFreeze, bulkUpdateSubscriptions,
@@ -296,8 +296,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
   // General Exam Codes Management State
   const [genExamCodeSearch, setGenExamCodeSearch] = useState('');
   const [genExamCodeStageFilter, setGenExamCodeStageFilter] = useState('all');
+  const [genExamCodeExamFilter, setGenExamCodeExamFilter] = useState('all');
   const [genExamCodeStatusFilter, setGenExamCodeStatusFilter] = useState('all');
+  const [selectedGenExamIdForCode, setSelectedGenExamIdForCode] = useState('');
   const [selectedGenStudentForCode, setSelectedGenStudentForCode] = useState('');
+  const [customGenStudentName, setCustomGenStudentName] = useState('');
+  const [customGenStudentStage, setCustomGenStudentStage] = useState('sec-3');
   const [selectedGenStageForBulk, setSelectedGenStageForBulk] = useState('sec-3');
 
   // Manual Grading Queue State
@@ -1375,7 +1379,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
             { id: 'lectures', label: `🎥 رفع المحاضرات (${lectures.length})`, icon: Video },
             { id: 'sections', label: `📅 الشهور والكورسات (${sections.length})`, icon: BookOpen },
             { id: 'subscriptions', label: `🎫 إدارة الاشتراكات والمشتركين (${allStudentSubscriptions.length})`, icon: CreditCard },
-            { id: 'exams', label: `📝 الامتحانات والتصحيح اليدوي ${pendingGradingSubmissions.length > 0 ? `(${pendingGradingSubmissions.length} 🔔)` : ''}`, icon: HelpCircle },
+            { id: 'exams', label: `📝 امتحانات المحاضرات والتصحيح ${pendingGradingSubmissions.length > 0 ? `(${pendingGradingSubmissions.length} 🔔)` : ''}`, icon: HelpCircle },
+            { id: 'general-exams', label: `🌟 الامتحانات العامة (${generalExams.length})`, icon: Trophy },
+            { id: 'general-codes', label: `🎟️ أكواد الامتحانات العامة (${generalExamCodes.length})`, icon: Key },
             { id: 'security', label: '🛡️ درع الحماية والأمان (Anti-Piracy)', icon: ShieldCheck },
             { id: 'finance', label: `💰 الخزينة (${totalCollectedRevenue.toLocaleString()} ج.م)`, icon: DollarSign },
             { id: 'profile', label: '👤 بيانات المستر', icon: Settings },
@@ -3409,6 +3415,616 @@ export default function TeacherAdminCenter({ onNavigate }) {
         )}
 
         {/* ========================================================= */}
+        {/* TAB: STANDALONE GENERAL EXAMS STUDIO */}
+        {/* ========================================================= */}
+        {activeTab === 'general-exams' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              {/* Header */}
+              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Trophy size={28} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, color: '#1F4D3A' }}>
+                      🌟 قسم الامتحانات العامة الشاملة (The Master Independent General Exams)
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                      امتحانات شاملة مستقلة تماماً لا تتبع أي مرحلة أو محاضرة، وتظهر مباشرة للطلاب في القائمة الرئيسية ولا يدخلها الطالب إلا بكود شخصي لمرة واحدة.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setActiveTab('general-codes')}
+                    className="btn btn-secondary"
+                    style={{ gap: '6px', fontWeight: 700 }}
+                  >
+                    <Key size={16} />
+                    <span>🎟️ أكواد الطلاب ({generalExamCodes.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenGeneralExamBuilder()}
+                    className="btn btn-primary"
+                    style={{ gap: '8px', fontWeight: 800 }}
+                  >
+                    <Plus size={16} />
+                    <span>+ إنشاء امتحان عام جديد</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Cards Showcase */}
+              {generalExams.length === 0 ? (
+                <div style={{ padding: '4rem 2rem', textAlign: 'center', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)' }}>
+                  <Trophy size={48} style={{ color: '#F59E0B', marginBottom: '1rem', opacity: 0.6 }} />
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 8px' }}>لم يتم إنشاء أي امتحان عام حتى الآن</h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '500px', margin: '0 auto 1.5rem' }}>
+                    يمكنك إنشاء أول امتحان عام شامل لطلابك الآن، وتحديد المدة والدرجات وكتابة الأسئلة يدويًا.
+                  </p>
+                  <button
+                    onClick={() => handleOpenGeneralExamBuilder()}
+                    className="btn btn-primary"
+                    style={{ fontWeight: 800, gap: '6px' }}
+                  >
+                    <Plus size={16} />
+                    <span>إنشاء الامتحان العام الأول</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                  {generalExams.map(gExam => {
+                    const qCount = (gExam.questions || []).length;
+                    const essayCount = (gExam.questions || []).filter(q => q.type === 'essay' || q.type === 'short_answer').length;
+                    const codesForThisExam = generalExamCodes.filter(c => c.examId === gExam.id);
+
+                    return (
+                      <div
+                        key={gExam.id}
+                        className="card"
+                        style={{
+                          padding: '1.5rem',
+                          background: 'var(--bg-subtle)',
+                          border: '2px solid rgba(166, 124, 82, 0.45)',
+                          borderRadius: 'var(--radius-lg)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          boxShadow: '0 4px 15px rgba(31, 77, 58, 0.06)'
+                        }}
+                      >
+                        <div>
+                          <div className="flex-between" style={{ marginBottom: '8px' }}>
+                            <span className="badge badge-gold">امتحان عام شامل 🌟</span>
+                            <span className="badge" style={{ background: gExam.status === 'draft' ? '#F59E0B' : '#10B981', color: 'white', fontWeight: 800 }}>
+                              {gExam.status === 'draft' ? 'مسودة' : 'منشور للطلاب ✓'}
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-primary)' }}>
+                            {gExam.title}
+                          </h4>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 1rem', lineHeight: '1.5' }}>
+                            {gExam.description || 'امتحان شامل لتقييم مستوى الطالب بكود مخصص.'}
+                          </p>
+
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>⏱️ {gExam.timeMinutes || 45} دقيقة</span>
+                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>❓ {qCount} سؤال</span>
+                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>🎯 {gExam.totalMarks || 30} درجة</span>
+                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>🔒 محاولة واحدة فقط</span>
+                            {essayCount > 0 && (
+                              <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>
+                                ✍️ {essayCount} أسئلة مقالية
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => handleOpenGeneralExamBuilder(gExam)}
+                              className="btn btn-primary btn-sm"
+                              style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+                            >
+                              <Edit size={14} />
+                              <span>تعديل الامتحان</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setPreviewExamPayload(gExam);
+                                setIsPreviewModalOpen(true);
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ gap: '4px' }}
+                              title="معاينة كطالب"
+                            >
+                              <Eye size={14} />
+                              <span>معاينة</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`حذف الامتحان العام "${gExam.title}" نهائياً؟`)) {
+                                  deleteGeneralExam(gExam.id);
+                                }
+                              }}
+                              className="btn btn-ghost btn-sm"
+                              style={{ color: '#EF4444' }}
+                              title="حذف الامتحان"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedGenExamIdForCode(gExam.id);
+                              setActiveTab('general-codes');
+                            }}
+                            className="btn btn-outline btn-sm"
+                            style={{ width: '100%', gap: '6px', fontSize: '0.8rem', fontWeight: 700 }}
+                          >
+                            <Key size={13} />
+                            <span>توليد أكواد لهذا الامتحان ({codesForThisExam.length} كود حالي)</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB: STANDALONE GENERAL EXAM CODES STUDIO */}
+        {/* ========================================================= */}
+        {activeTab === 'general-codes' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              {/* Header */}
+              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Key size={28} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, color: '#1F4D3A' }}>
+                      🎟️ أكواد الامتحانات العامة المخصصة (Personalized General Exam Codes)
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                      توليد كود دخول مشفر ومخصص لكل طالب مربوط باسمه ومرحلته وامتحانه، لا يمكن لأي طالب آخر استخدامه، مع تتبع حالة الكود وإمكانية إلغائه أو إعادة فتحه.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => window.print()}
+                    className="btn btn-secondary"
+                    style={{ gap: '6px', fontWeight: 700 }}
+                    title="طباعة وتصدير قائمة الأكواد"
+                  >
+                    <Printer size={16} />
+                    <span>طباعة وتصدير 🖨️</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('general-exams')}
+                    className="btn btn-primary"
+                    style={{ gap: '6px', fontWeight: 800 }}
+                  >
+                    <Trophy size={16} />
+                    <span>🌟 إدارة الامتحانات العامة</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Generator Box */}
+              <div style={{
+                background: 'var(--bg-subtle)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                marginBottom: '2rem',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 900, margin: '0 0 1rem', color: '#1F4D3A' }}>
+                  توليد كود شخصي مخصص لطالب:
+                </h4>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '1rem',
+                  alignItems: 'flex-end',
+                  marginBottom: '1rem'
+                }}>
+                  {/* 1. Select General Exam */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                      1. اختيار الامتحان العام:
+                    </label>
+                    <select
+                      value={selectedGenExamIdForCode || (generalExams[0]?.id || '')}
+                      onChange={e => setSelectedGenExamIdForCode(e.target.value)}
+                      className="input-control"
+                    >
+                      {generalExams.map(g => (
+                        <option key={g.id} value={g.id}>{g.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 2. Choose from enrolled students OR manual name */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                      2. اختيار طالب مسجل (اختياري):
+                    </label>
+                    <select
+                      value={selectedGenStudentForCode}
+                      onChange={e => {
+                        const stdId = e.target.value;
+                        setSelectedGenStudentForCode(stdId);
+                        const foundStd = students.find(s => s.id === stdId);
+                        if (foundStd) {
+                          setCustomGenStudentName(foundStd.name);
+                          setCustomGenStudentStage(foundStd.stageId || 'sec-3');
+                        }
+                      }}
+                      className="input-control"
+                    >
+                      <option value="">-- أو اكتب الاسم يدويًا --</option>
+                      {students.map(std => (
+                        <option key={std.id} value={std.id}>
+                          {std.name} ({std.code || std.id}) - {std.stageName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3. Student Name (Manual Text Input) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                      3. إدخال اسم الطالب بالكامل:
+                    </label>
+                    <input
+                      type="text"
+                      value={customGenStudentName}
+                      onChange={e => setCustomGenStudentName(e.target.value)}
+                      placeholder="اسم الطالب ثلاثي..."
+                      className="input-control"
+                    />
+                  </div>
+
+                  {/* 4. Student Stage (for metadata/record keeping only) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                      4. المرحلة (لحفظ البيانات فقط):
+                    </label>
+                    <select
+                      value={customGenStudentStage}
+                      onChange={e => setCustomGenStudentStage(e.target.value)}
+                      className="input-control"
+                    >
+                      {stages.map(stg => (
+                        <option key={stg.id} value={stg.id}>{stg.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 5. Generate Button */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!customGenStudentName.trim()) {
+                          addToast('يرجى كتابة اسم الطالب أولاً لتوليد الكود المخصص', 'warning');
+                          return;
+                        }
+                        const targetExamId = selectedGenExamIdForCode || (generalExams[0]?.id || 'gen-exam-01');
+                        const targetExam = generalExams.find(e => e.id === targetExamId) || generalExams[0];
+                        const foundStd = students.find(s => s.id === selectedGenStudentForCode);
+                        const targetStageObj = stages.find(s => s.id === customGenStudentStage);
+
+                        generateGeneralExamCode({
+                          studentId: foundStd?.id || `std-${Date.now().toString().slice(-6)}`,
+                          studentName: customGenStudentName.trim(),
+                          studentPhone: foundStd?.phone || '',
+                          stageId: customGenStudentStage,
+                          stageName: targetStageObj?.name || 'مرحلة ثانوية',
+                          examId: targetExamId,
+                          examTitle: targetExam?.title || 'الامتحان العام الشامل'
+                        });
+
+                        setCustomGenStudentName('');
+                        setSelectedGenStudentForCode('');
+                      }}
+                      className="btn btn-primary"
+                      style={{ width: '100%', fontWeight: 800, padding: '0.85rem' }}
+                    >
+                      توليد الكود المخصص 🎟️
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bulk Stage Generator Accordion */}
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '1rem' }}>
+                  <details style={{ cursor: 'pointer' }}>
+                    <summary style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1F4D3A' }}>
+                      ⚡ توليد سريع لكامل طلاب مرحلة دفعة واحدة (اضغط للفتح)
+                    </summary>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select
+                        value={selectedGenStageForBulk}
+                        onChange={e => setSelectedGenStageForBulk(e.target.value)}
+                        className="input-control"
+                        style={{ width: 'auto', minWidth: '200px' }}
+                      >
+                        {stages.map(stg => (
+                          <option key={stg.id} value={stg.id}>{stg.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetExamId = selectedGenExamIdForCode || (generalExams[0]?.id || 'gen-exam-01');
+                          bulkGenerateGeneralExamCodes(selectedGenStageForBulk, targetExamId);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ fontWeight: 800 }}
+                      >
+                        توليد أكواد لجميع طلاب المرحلة الآن 🚀
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+              {/* Search & Filters Bar */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
+                  <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    value={genExamCodeSearch}
+                    onChange={e => setGenExamCodeSearch(e.target.value)}
+                    placeholder="ابحث باسم الطالب، الكود المخصص، أو رقم الهاتف..."
+                    className="input-control"
+                    style={{ paddingRight: '36px' }}
+                  />
+                </div>
+
+                <select
+                  value={genExamCodeExamFilter}
+                  onChange={e => setGenExamCodeExamFilter(e.target.value)}
+                  className="input-control"
+                  style={{ width: 'auto' }}
+                >
+                  <option value="all">جميع الامتحانات العامة</option>
+                  {generalExams.map(g => (
+                    <option key={g.id} value={g.id}>{g.title}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={genExamCodeStageFilter}
+                  onChange={e => setGenExamCodeStageFilter(e.target.value)}
+                  className="input-control"
+                  style={{ width: 'auto' }}
+                >
+                  <option value="all">جميع المراحل</option>
+                  {stages.map(stg => (
+                    <option key={stg.id} value={stg.id}>{stg.name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={genExamCodeStatusFilter}
+                  onChange={e => setGenExamCodeStatusFilter(e.target.value)}
+                  className="input-control"
+                  style={{ width: 'auto' }}
+                >
+                  <option value="all">جميع الحالات</option>
+                  <option value="unused">🟢 غير مستخدم (متاح للدخول)</option>
+                  <option value="used">✓ مستخدم (تم التسليم)</option>
+                  <option value="cancelled">🚫 ملغي</option>
+                </select>
+              </div>
+
+              {/* Codes Table */}
+              {(() => {
+                const filteredCodes = generalExamCodes.filter(c => {
+                  const matchSearch = (c.studentName || '').toLowerCase().includes(genExamCodeSearch.toLowerCase()) ||
+                    (c.code || '').toLowerCase().includes(genExamCodeSearch.toLowerCase()) ||
+                    (c.studentPhone || '').includes(genExamCodeSearch);
+                  const matchExam = genExamCodeExamFilter === 'all' || c.examId === genExamCodeExamFilter;
+                  const matchStage = genExamCodeStageFilter === 'all' || c.stageId === genExamCodeStageFilter;
+                  const isCanc = c.isCancelled || c.status === 'cancelled';
+                  let matchStatus = true;
+                  if (genExamCodeStatusFilter === 'cancelled') {
+                    matchStatus = isCanc;
+                  } else if (genExamCodeStatusFilter === 'used') {
+                    matchStatus = !isCanc && c.isUsed;
+                  } else if (genExamCodeStatusFilter === 'unused') {
+                    matchStatus = !isCanc && !c.isUsed;
+                  }
+                  return matchSearch && matchExam && matchStage && matchStatus;
+                });
+
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>اسم الطالب</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>المرحلة</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الامتحان العام</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الكود المخصص (حصرى)</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>حالة الكود</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>تاريخ الإنشاء</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الاستخدام والدرجة</th>
+                          <th style={{ padding: '12px 14px', fontSize: '0.85rem', textAlign: 'center' }}>إجراءات التحكم</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCodes.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              لا توجد أكواد مطابقة. يمكنك توليد كود جديد من النموذج بالأعلى.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredCodes.map((cObj, cIdx) => {
+                            const isCanc = cObj.isCancelled || cObj.status === 'cancelled';
+                            return (
+                              <tr
+                                key={cObj.code || cIdx}
+                                style={{
+                                  borderBottom: '1px solid var(--border-subtle)',
+                                  background: isCanc ? 'rgba(239, 68, 68, 0.04)' : cObj.isUsed ? 'rgba(245, 158, 11, 0.03)' : 'transparent'
+                                }}
+                              >
+                                <td style={{ padding: '12px 14px' }}>
+                                  <strong style={{ fontSize: '0.92rem', display: 'block', color: 'var(--text-primary)' }}>
+                                    {cObj.studentName}
+                                  </strong>
+                                  {cObj.studentPhone && (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                      {cObj.studentPhone}
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td style={{ padding: '12px 14px', fontSize: '0.85rem' }}>
+                                  <span className="badge badge-primary">{cObj.stageName || cObj.stageId}</span>
+                                </td>
+
+                                <td style={{ padding: '12px 14px', fontSize: '0.85rem' }}>
+                                  <strong>{cObj.examTitle || 'الامتحان العام'}</strong>
+                                </td>
+
+                                <td style={{ padding: '12px 14px' }}>
+                                  <span style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: '0.92rem',
+                                    fontWeight: 800,
+                                    letterSpacing: '1px',
+                                    background: 'var(--bg-subtle)',
+                                    padding: '4px 10px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-subtle)',
+                                    color: isCanc ? '#EF4444' : '#1F4D3A',
+                                    textDecoration: isCanc ? 'line-through' : 'none'
+                                  }}>
+                                    {cObj.code}
+                                  </span>
+                                </td>
+
+                                <td style={{ padding: '12px 14px' }}>
+                                  {isCanc ? (
+                                    <span className="badge" style={{ background: '#EF4444', color: 'white', fontWeight: 800 }}>
+                                      🚫 ملغي
+                                    </span>
+                                  ) : cObj.isUsed ? (
+                                    <span className="badge" style={{ background: '#E2E8F0', color: '#475569', fontWeight: 800 }}>
+                                      ✓ مستخدم (تم التسليم)
+                                    </span>
+                                  ) : (
+                                    <span className="badge badge-success" style={{ fontWeight: 800 }}>
+                                      🟢 غير مستخدم (متاح)
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                  {cObj.createdAt ? new Date(cObj.createdAt).toLocaleDateString('ar-EG') : 'اليوم'}
+                                </td>
+
+                                <td style={{ padding: '12px 14px', fontSize: '0.85rem' }}>
+                                  {cObj.isUsed ? (
+                                    <div>
+                                      <strong style={{ color: '#1F4D3A', display: 'block' }}>{cObj.score || 'تم التسليم'}</strong>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                        {cObj.usedAt ? new Date(cObj.usedAt).toLocaleString('ar-EG') : ''}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>لم يبدأ بعد</span>
+                                  )}
+                                </td>
+
+                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(cObj.code);
+                                        addToast(`تم نسخ كود الطالب (${cObj.studentName}): ${cObj.code}`, 'success');
+                                      }}
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ gap: '4px', fontSize: '0.75rem' }}
+                                      title="نسخ الكود"
+                                    >
+                                      <Copy size={13} />
+                                      <span>نسخ</span>
+                                    </button>
+
+                                    {!isCanc && !cObj.isUsed && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (window.confirm(`هل أنت متأكد من إلغاء كود الطالب (${cObj.studentName})؟ لن يتمكن من استخدامه.`)) {
+                                            cancelGeneralExamCode(cObj.code);
+                                          }
+                                        }}
+                                        className="btn btn-ghost btn-sm"
+                                        style={{ color: '#EF4444', gap: '4px', fontSize: '0.75rem' }}
+                                        title="إلغاء الكود"
+                                      >
+                                        <X size={13} />
+                                        <span>إلغاء</span>
+                                      </button>
+                                    )}
+
+                                    {cObj.isUsed && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (window.confirm(`هل أنت متأكد من إعادة فتح محاولة الامتحان العام للطالب (${cObj.studentName})؟`)) {
+                                            resetGeneralExamAttempt(cObj.studentId, cObj.examId);
+                                          }
+                                        }}
+                                        className="btn btn-warning btn-sm"
+                                        style={{ gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}
+                                        title="السماح بإعادة المحاولة"
+                                      >
+                                        <RotateCcw size={13} />
+                                        <span>إعادة فتح</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
         {/* TAB 3: SECURITY & ANTI-PIRACY SHIELD SUITE */}
         {/* ========================================================= */}
         {activeTab === 'security' && (
@@ -5254,7 +5870,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <img src={activeProfileStudent.avatar} alt={activeProfileStudent.name} style={{ width: '48px', height: '48px', borderRadius: '50%' }} />
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>ملف متابعة الطالب: {activeProfileStudent.name}</h3>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>الملف الأكاديمي للطالب: {activeProfileStudent.name}</h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>كود: {activeProfileStudent.code} • {activeProfileStudent.stageName}</span>
                 </div>
               </div>

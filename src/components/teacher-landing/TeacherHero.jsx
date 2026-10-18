@@ -115,7 +115,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
       style={{
         position: 'relative',
         padding: '3.5rem 0 4.5rem',
-        background: 'radial-gradient(ellipse 85% 60% at 50% -10%, rgba(245, 158, 11, 0.18), transparent)',
+        background: 'radial-gradient(ellipse 85% 60% at 50% -10%, rgba(31, 77, 58, 0.08), transparent)',
         borderBottom: '1px solid var(--border-subtle)',
         overflow: 'hidden'
       }}
@@ -246,7 +246,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
             zIndex: 99999,
             pointerEvents: introPhase === 'intro' ? 'auto' : 'none',
             background: introPhase === 'intro'
-              ? 'radial-gradient(ellipse 95% 85% at 50% 45%, #141419 0%, #060608 100%)'
+              ? 'radial-gradient(ellipse 95% 85% at 50% 45%, #13241D 0%, #0B1712 100%)'
               : 'transparent',
             transition: 'background 1.1s cubic-bezier(0.16, 1, 0.3, 1)',
             overflow: 'hidden',
@@ -293,7 +293,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
             <FastForward size={16} />
           </button>
 
-          {/* Intro Ambient Golden Lighting & Cyber Grid Background */}
+          {/* Intro Ambient Golden & Petrol Lighting */}
           <div 
             style={{
               position: 'absolute',
@@ -303,18 +303,18 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               pointerEvents: 'none'
             }}
           >
-            {/* Deep Royal Gold & Obsidian Warm Ambient Backlight */}
+            {/* Deep Petrol Green & Matte Bronze Ambient Backlight */}
             <div style={{
               position: 'absolute',
               width: '120vw',
               height: '120vh',
               top: '-10%',
               left: '-10%',
-              background: 'radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.15) 35%, transparent 70%)',
+              background: 'radial-gradient(circle at 50% 50%, rgba(31, 77, 58, 0.4) 0%, rgba(166, 124, 82, 0.2) 35%, transparent 70%)',
               filter: 'blur(60px)'
             }} />
 
-            {/* Golden Core Glow */}
+            {/* Core Glow */}
             <div style={{
               position: 'absolute',
               top: '50%',
@@ -322,20 +322,20 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               width: '600px',
               height: '600px',
               transform: 'translate(-50%, -50%)',
-              background: 'radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, rgba(217, 119, 6, 0.2) 45%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(166, 124, 82, 0.45) 0%, rgba(31, 77, 58, 0.25) 45%, transparent 70%)',
               borderRadius: '50%',
               filter: 'blur(45px)',
               animation: 'introGoldAuraPulse 3.5s ease-in-out infinite'
             }} />
 
-            {/* Floating 3D Educational & Mathematical Particles at Diverse Depths */}
+            {/* Floating 3D Educational & Language Particles at Diverse Depths */}
             {[
-              { text: 'The Master 👑', top: '15%', right: '12%', delay: '0s', size: '1rem', color: '#FDE68A' },
-              { text: 'A+ 50/50 🎯', top: '25%', left: '10%', delay: '0.4s', size: '1.2rem', color: '#FCD34D' },
-              { text: 'Cambridge Certified 🇬🇧', bottom: '20%', right: '14%', delay: '0.8s', size: '0.95rem', color: '#FDE68A' },
-              { text: 'Oxford Curriculum ✨', bottom: '22%', left: '12%', delay: '1.1s', size: '0.95rem', color: '#FBBF24' },
-              { text: 'Grammar Secrets ⚡', top: '48%', left: '6%', delay: '0.6s', size: '0.85rem', color: '#F59E0B' },
-              { text: 'Speaking Lab 🎙️', top: '50%', right: '6%', delay: '0.9s', size: '0.85rem', color: '#FDE68A' }
+              { text: 'The Master 👑', top: '15%', right: '12%', delay: '0s', size: '1rem', color: '#E2D3BE' },
+              { text: 'Final Mark 50/50 🎯', top: '25%', left: '10%', delay: '0.4s', size: '1.2rem', color: '#C5A880' },
+              { text: 'Cambridge Certified 🇬🇧', bottom: '20%', right: '14%', delay: '0.8s', size: '0.95rem', color: '#E2D3BE' },
+              { text: 'Oxford Curriculum ✨', bottom: '22%', left: '12%', delay: '1.1s', size: '0.95rem', color: '#C5A880' },
+              { text: 'Grammar Secrets ⚡', top: '48%', left: '6%', delay: '0.6s', size: '0.85rem', color: '#A67C52' },
+              { text: 'Speaking Lab 🎙️', top: '50%', right: '6%', delay: '0.9s', size: '0.85rem', color: '#FCFBF7' }
             ].map((item, idx) => (
               <div 
                 key={idx}
@@ -384,15 +384,15 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%)',
-              border: '1.5px solid rgba(245, 158, 11, 0.6)',
-              color: '#FCD34D',
+              background: 'linear-gradient(135deg, rgba(31, 77, 58, 0.45) 0%, rgba(166, 124, 82, 0.3) 100%)',
+              border: '1.5px solid rgba(166, 124, 82, 0.6)',
+              color: '#FCFBF7',
               fontSize: '0.9rem',
               fontWeight: 800,
               marginBottom: '10px',
-              boxShadow: '0 0 25px rgba(245, 158, 11, 0.3)'
+              boxShadow: '0 0 25px rgba(31, 77, 58, 0.3)'
             }}>
-              <Trophy size={16} color="#F59E0B" />
+              <Trophy size={16} color="#A67C52" />
               <span>المنصة التعليمية الرسمية لجمهورية مصر العربية</span>
             </div>
             <h2 style={{
@@ -407,7 +407,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
             </h2>
             <p style={{
               fontSize: '1rem',
-              color: '#C7D2FE',
+              color: '#E2D3BE',
               marginTop: '4px',
               fontWeight: 600
             }}>
@@ -443,10 +443,10 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               borderRadius: '28px',
               overflow: 'hidden',
               boxShadow: introPhase === 'intro'
-                ? '0 35px 80px -15px rgba(0, 0, 0, 0.95), 0 0 70px rgba(245, 158, 11, 0.6), 0 0 120px rgba(217, 119, 6, 0.35)'
-                : '0 25px 60px -15px rgba(245, 158, 11, 0.4)',
-              border: '4px solid #F59E0B',
-              background: 'linear-gradient(180deg, #1C1917 0%, #0C0C0E 100%)',
+                ? '0 35px 80px -15px rgba(0, 0, 0, 0.95), 0 0 60px rgba(31, 77, 58, 0.6), 0 0 100px rgba(166, 124, 82, 0.35)'
+                : '0 25px 60px -15px rgba(31, 77, 58, 0.35)',
+              border: '4px solid #A67C52',
+              background: 'linear-gradient(180deg, #13241D 0%, #0B1712 100%)',
               zIndex: 100002,
               animation: introPhase === 'intro' ? 'introCameraPush 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards' : 'none',
               transformOrigin: 'center center'
@@ -472,7 +472,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, transparent 45%, rgba(245, 158, 11, 0.3) 80%, rgba(217, 119, 6, 0.2) 100%)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 45%, rgba(166, 124, 82, 0.3) 80%, rgba(31, 77, 58, 0.25) 100%)',
                 pointerEvents: 'none',
                 mixBlendMode: 'overlay'
               }}
@@ -498,7 +498,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                     {teacherName}
                   </h3>
                   <span style={{
-                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    background: 'linear-gradient(135deg, #1F4D3A 0%, #A67C52 100%)',
                     color: '#FFFFFF',
                     padding: '3px 10px',
                     borderRadius: '9999px',
@@ -508,7 +508,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                     {teacherTitle}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8rem', color: '#C7D2FE', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: '#E2D3BE', margin: 0 }}>
                   {teacherSubtitle}
                 </p>
               </div>
@@ -537,16 +537,16 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 gap: '8px',
                 padding: '6px 16px',
                 borderRadius: 'var(--radius-full)',
-                background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                color: '#92400E',
-                border: '1px solid #FCD34D',
+                background: 'linear-gradient(135deg, #F5F1E8 0%, #E8E3D8 100%)',
+                color: '#1F4D3A',
+                border: '1px solid #D6CEBF',
                 fontSize: '0.88rem',
                 fontWeight: 800,
                 marginBottom: '1.25rem',
-                boxShadow: '0 2px 10px rgba(245, 158, 11, 0.15)'
+                boxShadow: '0 2px 10px rgba(31, 77, 58, 0.1)'
               }}
             >
-              <Trophy size={16} color="#D97706" />
+              <Trophy size={16} color="#A67C52" />
               <span>المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧</span>
             </div>
 
@@ -562,7 +562,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               }}
             >
               مع <span style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #FDE68A 100%)',
+                background: 'linear-gradient(135deg, #1F4D3A 0%, #2A644C 50%, #A67C52 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>{teacherName}</span>
@@ -591,7 +591,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               <button
                 onClick={onOpenCodeModal}
                 className="btn btn-primary btn-lg"
-                style={{ gap: '10px', boxShadow: '0 8px 25px rgba(245, 158, 11, 0.45)' }}
+                style={{ gap: '10px', boxShadow: '0 8px 25px rgba(31, 77, 58, 0.4)' }}
               >
                 <Key size={20} />
                 <span>شحن كود الحصة والبدء فوراً</span>
@@ -613,9 +613,9 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 className="btn btn-sm"
                 title="إعادة تشغيل المشهد السينمائي ثلاثي الأبعاد"
                 style={{
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  color: '#D97706',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  background: 'rgba(31, 77, 58, 0.08)',
+                  color: '#1F4D3A',
+                  border: '1px solid rgba(31, 77, 58, 0.25)',
                   borderRadius: 'var(--radius-full)',
                   padding: '6px 14px',
                   fontWeight: 700,
@@ -689,7 +689,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 gap: '12px',
                 boxShadow: 'var(--shadow-xl)',
                 borderRadius: 'var(--radius-lg)',
-                border: '2px solid rgba(245, 158, 11, 0.4)',
+                border: '2px solid rgba(166, 124, 82, 0.35)',
                 zIndex: 30,
                 opacity: introPhase === 'intro' ? 0 : 1,
                 transition: 'opacity 0.5s ease'
@@ -699,8 +699,8 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 width: '42px',
                 height: '42px',
                 borderRadius: '12px',
-                background: '#FEF3C7',
-                color: '#D97706',
+                background: '#F5F1E8',
+                color: '#A67C52',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'

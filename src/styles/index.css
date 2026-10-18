@@ -1,62 +1,70 @@
 /* ==========================================================================
-   Madarek LMS - VIP Royal Gold & Carbon Obsidian Luxury Design System
-   Theme: Royal Gold • Warm Amber • Carbon Obsidian • Pure Champagne
-   Language: Arabic (RTL native) & Typography: Cairo / Tajawal / Fira Code
+   Mr. Michael Shehata LMS - The Master of English
+   Visual Identity: Deep Petrol Green • Soft Olive • Light Cream • Warm Off-White • Matte Bronze / Gold
+   Language: Arabic (RTL native) & English Typography: Cairo / Tajawal / Plus Jakarta Sans
    ========================================================================== */
 
 :root {
-  /* VIP Royal Gold & Warm Amber Brand Palette */
-  --primary-50: #FFFDF5;
-  --primary-100: #FEF9C3;
-  --primary-200: #FEF08A;
-  --primary-300: #FDE047;
-  --primary-400: #FACC15;
-  --primary-500: #F59E0B;
-  --primary-600: #D97706;
-  --primary-700: #B45309;
-  --primary-800: #92400E;
-  --primary-900: #78350F;
+  /* Petrol Green Brand Palette */
+  --primary-50: #EDF4F0;
+  --primary-100: #D8E7DF;
+  --primary-200: #B2CEBF;
+  --primary-300: #88B29C;
+  --primary-400: #4D846B;
+  --primary-500: #1F4D3A;
+  --primary-600: #194030;
+  --primary-700: #133326;
+  --primary-800: #0E251C;
+  --primary-900: #081711;
 
-  /* Luxury Gold Gradients */
-  --primary-gradient: linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%);
-  --gold-gradient: linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%);
-  --royal-gradient: linear-gradient(135deg, #FBBF24 0%, #F59E0B 50%, #92400E 100%);
-  --accent-gradient: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
-  --amber-gradient: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  --success-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  /* Olive & Matte Gold Accents */
+  --olive-500: #556B2F;
+  --gold-300: #E2D3BE;
+  --gold-400: #C5A880;
+  --gold-500: #A67C52;
+  --gold-600: #8B633C;
+  --gold-700: #6D4C2B;
 
-  /* Light Mode Colors (Warm Luxury Ivory & Champagne) */
-  --bg-main: #FAF8F5;
+  /* Premium Gradients */
+  --primary-gradient: linear-gradient(135deg, #1F4D3A 0%, #296049 55%, #A67C52 100%);
+  --gold-gradient: linear-gradient(135deg, #C5A880 0%, #A67C52 50%, #7D5936 100%);
+  --royal-gradient: linear-gradient(135deg, #1F4D3A 0%, #556B2F 60%, #A67C52 100%);
+  --accent-gradient: linear-gradient(135deg, #556B2F 0%, #1F4D3A 100%);
+  --amber-gradient: linear-gradient(135deg, #A67C52 0%, #7D5936 100%);
+  --success-gradient: linear-gradient(135deg, #2E7D5B 0%, #1F4D3A 100%);
+
+  /* Light Mode Colors (Warm Academic Ivory, Cream & Matte Gold) */
+  --bg-main: #FCFBF7;
   --bg-surface: #FFFFFF;
   --bg-surface-elevated: #FFFFFF;
-  --bg-subtle: #F5F2EB;
-  --bg-card-hover: #FAF7F2;
+  --bg-subtle: #F5F1E8;
+  --bg-card-hover: #F8F5EE;
   
-  --text-primary: #1C1917;
-  --text-secondary: #57534E;
-  --text-muted: #78716C;
+  --text-primary: #1A2520;
+  --text-secondary: #5A564F;
+  --text-muted: #6E6A62;
   --text-inverse: #FFFFFF;
 
-  --border-subtle: #E7E2D8;
-  --border-strong: #D3CCBF;
-  --border-focus: #F59E0B;
+  --border-subtle: #E8E3D8;
+  --border-strong: #D6CEBF;
+  --border-focus: #1F4D3A;
 
-  --success: #10B981;
-  --success-bg: #ECFDF5;
-  --warning: #F59E0B;
-  --warning-bg: #FFFBEB;
-  --error: #EF4444;
+  --success: #2E7D5B;
+  --success-bg: #EDF7F2;
+  --warning: #A67C52;
+  --warning-bg: #FAF5EE;
+  --error: #C53030;
   --error-bg: #FEF2F2;
-  --info: #D97706;
-  --info-bg: #FFFBEB;
+  --info: #1F4D3A;
+  --info-bg: #EDF4F0;
 
-  /* Luxury Gold Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 2px 4px 0 rgba(28, 25, 23, 0.05);
-  --shadow-md: 0 4px 12px -1px rgba(28, 25, 23, 0.08), 0 2px 6px -1px rgba(28, 25, 23, 0.04);
-  --shadow-lg: 0 10px 25px -3px rgba(28, 25, 23, 0.1), 0 4px 10px -2px rgba(28, 25, 23, 0.05);
-  --shadow-xl: 0 20px 35px -5px rgba(28, 25, 23, 0.12), 0 10px 15px -5px rgba(28, 25, 23, 0.06);
-  --shadow-glow: 0 0 28px -3px rgba(245, 158, 11, 0.35);
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(26, 37, 32, 0.04);
+  --shadow-sm: 0 2px 5px 0 rgba(26, 37, 32, 0.06);
+  --shadow-md: 0 4px 14px -1px rgba(26, 37, 32, 0.08), 0 2px 6px -1px rgba(26, 37, 32, 0.04);
+  --shadow-lg: 0 12px 28px -3px rgba(26, 37, 32, 0.11), 0 4px 10px -2px rgba(26, 37, 32, 0.05);
+  --shadow-xl: 0 20px 38px -5px rgba(26, 37, 32, 0.14), 0 10px 18px -5px rgba(26, 37, 32, 0.06);
+  --shadow-glow: 0 0 28px -3px rgba(166, 124, 82, 0.35);
 
   /* Radii */
   --radius-sm: 6px;
@@ -71,38 +79,38 @@
   --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark Mode Overrides (Luxury Carbon Obsidian & Royal Gold) */
+/* Dark Mode Overrides (Deep Petrol Forest & Matte Bronze) */
 [data-theme="dark"] {
-  --bg-main: #0B0B0E;
-  --bg-surface: #141419;
-  --bg-surface-elevated: #1B1B22;
-  --bg-subtle: #181820;
-  --bg-card-hover: #22222B;
+  --bg-main: #0B1712;
+  --bg-surface: #13241D;
+  --bg-surface-elevated: #192E25;
+  --bg-subtle: #162920;
+  --bg-card-hover: #1E372D;
 
-  --text-primary: #FAF9F6;
-  --text-secondary: #D6D3CD;
-  --text-muted: #A8A29E;
-  --text-inverse: #0B0B0E;
+  --text-primary: #FCFBF7;
+  --text-secondary: #D4CDC3;
+  --text-muted: #9E988D;
+  --text-inverse: #0B1712;
 
-  --border-subtle: rgba(245, 158, 11, 0.15);
-  --border-strong: rgba(245, 158, 11, 0.35);
-  --border-focus: #FBBF24;
+  --border-subtle: rgba(166, 124, 82, 0.2);
+  --border-strong: rgba(166, 124, 82, 0.45);
+  --border-focus: #C5A880;
 
-  --primary-50: rgba(245, 158, 11, 0.15);
-  --primary-100: rgba(245, 158, 11, 0.25);
-  --primary-gradient: linear-gradient(135deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%);
+  --primary-50: rgba(31, 77, 58, 0.25);
+  --primary-100: rgba(31, 77, 58, 0.4);
+  --primary-gradient: linear-gradient(135deg, #2D6A50 0%, #1F4D3A 50%, #A67C52 100%);
 
-  --success-bg: rgba(16, 185, 129, 0.12);
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --error-bg: rgba(239, 68, 68, 0.12);
-  --info-bg: rgba(245, 158, 11, 0.12);
+  --success-bg: rgba(46, 125, 91, 0.18);
+  --warning-bg: rgba(166, 124, 82, 0.18);
+  --error-bg: rgba(197, 48, 48, 0.15);
+  --info-bg: rgba(31, 77, 58, 0.18);
 
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.7);
   --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.8);
   --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.85);
   --shadow-xl: 0 20px 35px -5px rgba(0, 0, 0, 0.95);
-  --shadow-glow: 0 0 35px -2px rgba(245, 158, 11, 0.45);
+  --shadow-glow: 0 0 35px -2px rgba(166, 124, 82, 0.4);
 }
 
 /* Base Styles */
@@ -122,7 +130,21 @@ html {
   line-height: 1.6;
 }
 
-/* Ultra-Luxury Gold & Carbon Platform Background */
+/* Selection Color */
+::selection {
+  background: #A67C52;
+  color: #FFFFFF;
+}
+
+/* Print Blackout Security */
+@media print {
+  html, body {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+/* Academic English Teacher Light Background with Seamless Typographic Watermark Pattern */
 body {
   min-height: 100vh;
   background-color: var(--bg-main);
@@ -131,22 +153,22 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image: 
-    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(245, 158, 11, 0.12), transparent 70%),
-    radial-gradient(circle at 95% 30%, rgba(217, 119, 6, 0.06), transparent 45%),
-    radial-gradient(circle at 5% 70%, rgba(245, 158, 11, 0.06), transparent 50%),
-    radial-gradient(rgba(217, 119, 6, 0.04) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+    radial-gradient(ellipse 90% 45% at 50% -5%, rgba(31, 77, 58, 0.05), transparent 70%),
+    radial-gradient(circle at 95% 30%, rgba(166, 124, 82, 0.04), transparent 45%),
+    radial-gradient(circle at 5% 70%, rgba(85, 107, 47, 0.035), transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'%3E%3Cstyle%3E.word%7Bfont-family:'Plus Jakarta Sans',sans-serif;font-weight:700;fill:%231F4D3A;opacity:0.024;font-size:14px;letter-spacing:1px;%7D.letter%7Bfont-family:'Plus Jakarta Sans',sans-serif;font-weight:800;fill:%23A67C52;opacity:0.034;font-size:24px;%7D%3C/style%3E%3Ctext x='25' y='40' class='word'%3EEnglish%3C/text%3E%3Ctext x='210' y='65' class='letter'%3EA%3C/text%3E%3Ctext x='75' y='125' class='word'%3EVocabulary%3C/text%3E%3Ctext x='250' y='145' class='word'%3EGrammar%3C/text%3E%3Ctext x='35' y='215' class='letter'%3EB%3C/text%3E%3Ctext x='165' y='230' class='word'%3EReading%3C/text%3E%3Ctext x='285' y='275' class='letter'%3EC%3C/text%3E%3Ctext x='65' y='310' class='word'%3EWriting%3C/text%3E%3Ctext x='225' y='335' class='word'%3ELearn%3C/text%3E%3C/svg%3E");
+  background-size: 100% 100%, 100% 100%, 100% 100%, 360px 360px;
   background-attachment: fixed;
 }
 
 [data-theme="dark"] body {
   background-color: var(--bg-main);
   background-image: 
-    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(245, 158, 11, 0.22), transparent 70%),
-    radial-gradient(circle at 95% 30%, rgba(217, 119, 6, 0.12), transparent 45%),
-    radial-gradient(circle at 5% 70%, rgba(245, 158, 11, 0.14), transparent 50%),
-    radial-gradient(rgba(245, 158, 11, 0.08) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+    radial-gradient(ellipse 90% 45% at 50% -5%, rgba(31, 77, 58, 0.25), transparent 70%),
+    radial-gradient(circle at 95% 30%, rgba(166, 124, 82, 0.12), transparent 45%),
+    radial-gradient(circle at 5% 70%, rgba(85, 107, 47, 0.12), transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'%3E%3Cstyle%3E.word%7Bfont-family:'Plus Jakarta Sans',sans-serif;font-weight:700;fill:%23FCFBF7;opacity:0.022;font-size:14px;letter-spacing:1px;%7D.letter%7Bfont-family:'Plus Jakarta Sans',sans-serif;font-weight:800;fill:%23C5A880;opacity:0.032;font-size:24px;%7D%3C/style%3E%3Ctext x='25' y='40' class='word'%3EEnglish%3C/text%3E%3Ctext x='210' y='65' class='letter'%3EA%3C/text%3E%3Ctext x='75' y='125' class='word'%3EVocabulary%3C/text%3E%3Ctext x='250' y='145' class='word'%3EGrammar%3C/text%3E%3Ctext x='35' y='215' class='letter'%3EB%3C/text%3E%3Ctext x='165' y='230' class='word'%3EReading%3C/text%3E%3Ctext x='285' y='275' class='letter'%3EC%3C/text%3E%3Ctext x='65' y='310' class='word'%3EWriting%3C/text%3E%3Ctext x='225' y='335' class='word'%3ELearn%3C/text%3E%3C/svg%3E");
+  background-size: 100% 100%, 100% 100%, 100% 100%, 360px 360px;
   background-attachment: fixed;
 }
 
@@ -237,11 +259,11 @@ button, input, select, textarea {
 .btn-primary {
   background: var(--primary-gradient);
   color: #FFFFFF;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 18px rgba(31, 77, 58, 0.35);
 }
 .btn-primary:hover {
-  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.65);
+  box-shadow: 0 6px 24px rgba(31, 77, 58, 0.5);
   transform: translateY(-1px);
   filter: brightness(1.06);
 }
@@ -258,8 +280,8 @@ button, input, select, textarea {
 
 .btn-accent {
   background: var(--accent-gradient);
-  color: #1A1406;
-  font-weight: 900;
+  color: #FFFFFF;
+  font-weight: 800;
 }
 .btn-accent:hover {
   filter: brightness(1.08);
@@ -268,19 +290,19 @@ button, input, select, textarea {
 
 .btn-gold {
   background: var(--gold-gradient);
-  color: #1A1406;
-  font-weight: 900;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  color: #FFFFFF;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(166, 124, 82, 0.35);
 }
 .btn-gold:hover {
-  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.55);
+  box-shadow: 0 6px 22px rgba(166, 124, 82, 0.5);
   transform: translateY(-1px);
 }
 
 .btn-success {
   background: var(--success-gradient);
   color: white;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 14px rgba(46, 125, 91, 0.3);
 }
 
 .btn-outline-primary {
@@ -291,8 +313,12 @@ button, input, select, textarea {
 .btn-outline-primary:hover {
   background: var(--primary-50);
 }
+[data-theme="dark"] .btn-outline-primary {
+  color: #C5A880;
+  border-color: #A67C52;
+}
 [data-theme="dark"] .btn-outline-primary:hover {
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(166, 124, 82, 0.18);
 }
 
 .btn-ghost {
@@ -333,37 +359,37 @@ button, input, select, textarea {
 }
 
 .badge-primary {
-  background: #FEF3C7;
-  color: #92400E;
-  border: 1px solid #FCD34D;
+  background: var(--primary-50);
+  color: var(--primary-700);
+  border: 1px solid var(--primary-200);
 }
 [data-theme="dark"] .badge-primary {
-  background: rgba(245, 158, 11, 0.2);
-  color: #FDE68A;
-  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(31, 77, 58, 0.3);
+  color: #D8E7DF;
+  border-color: rgba(31, 77, 58, 0.6);
 }
 
 .badge-success {
   background: var(--success-bg);
   color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(46, 125, 91, 0.25);
 }
 
 .badge-warning {
   background: var(--warning-bg);
   color: var(--warning);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(166, 124, 82, 0.25);
 }
 
 .badge-gold {
-  background: #FFFBEB;
-  color: #B45309;
-  border: 1px solid #FCD34D;
+  background: #FDF9F3;
+  color: #8B633C;
+  border: 1px solid #E2D3BE;
 }
 [data-theme="dark"] .badge-gold {
-  background: rgba(245, 158, 11, 0.18);
-  color: #FDE68A;
-  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(166, 124, 82, 0.2);
+  color: #E2D3BE;
+  border-color: rgba(166, 124, 82, 0.45);
 }
 
 .badge-subtle {
@@ -411,7 +437,7 @@ button, input, select, textarea {
 
 .input-control:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 0 3px rgba(31, 77, 58, 0.25);
 }
 
 .input-control::placeholder {
@@ -420,17 +446,17 @@ button, input, select, textarea {
 
 /* Glassmorphism Classes */
 .glass {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(166, 124, 82, 0.2);
 }
 
 [data-theme="dark"] .glass {
-  background: rgba(20, 20, 25, 0.92);
+  background: rgba(19, 36, 29, 0.92);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(166, 124, 82, 0.25);
 }
 
 /* Utilities */
@@ -459,8 +485,8 @@ button, input, select, textarea {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.35); }
-  50% { box-shadow: 0 0 28px rgba(245, 158, 11, 0.7); }
+  0%, 100% { box-shadow: 0 0 15px rgba(166, 124, 82, 0.35); }
+  50% { box-shadow: 0 0 28px rgba(166, 124, 82, 0.65); }
 }
 
 .animate-fade-in {

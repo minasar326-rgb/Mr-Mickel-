@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// ===============================================================
+// 🔒 Firebase Storage Security Rules: Mr. Michael Shehata LMS
+// Protection for lectures, videos, booklets, and student files
+// ===============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isTeacherAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email in [
+          'teacher@gmail.com',
+          'mrmichaelshehata@gmail.com',
+          'admin@themaster.com',
+          'saryanymina@gmail.com'
+        ] ||
+        request.auth.uid == 'teacher-admin' ||
+        request.auth.token.admin == true
+      );
+    }
+
+    // Public branding, logos, teacher portrait & public assets
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isTeacherAdmin();
+    }
+    
+    // Student avatar images (max 5MB, image only)
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if (
+        isAuthenticated() && 
+        request.auth.uid == userId && 
+        request.resource.size < 5 * 1024 * 1024 && 
+        request.resource.contentType.matches('image/.*')
+      ) || isTeacherAdmin();
+    }
+
+    // Protected Video Lectures & Courseware
+    match /lectures/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacherAdmin();
+    }
+
+    // Protected Booklets & Study PDF Guides
+    match /booklets/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacherAdmin();
+    }
+
+    // Default lockdown fallback: reads require auth, writes strictly teacher admin
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacherAdmin();
+    }
+  }
+}

@@ -60,27 +60,27 @@ async function buildIcons() {
   const masterSvgOverlay = Buffer.from(`
     <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <!-- Luxury Royal Background Gradient -->
+        <!-- Petrol Green & Deep Forest Background Gradient -->
         <radialGradient id="bgGradient" cx="50%" cy="46%" r="65%">
-          <stop offset="0%" stop-color="#18181D"/>
-          <stop offset="45%" stop-color="#111116"/>
-          <stop offset="85%" stop-color="#0A0A0D"/>
-          <stop offset="100%" stop-color="#050507"/>
+          <stop offset="0%" stop-color="#1F4D3A"/>
+          <stop offset="50%" stop-color="#143628"/>
+          <stop offset="85%" stop-color="#0E251C"/>
+          <stop offset="100%" stop-color="#081711"/>
         </radialGradient>
 
-        <!-- Ambient Core Glow -->
+        <!-- Ambient Matte Gold Glow -->
         <radialGradient id="centerGlow" cx="50%" cy="44%" r="48%">
-          <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.35"/>
-          <stop offset="50%" stop-color="#D97706" stop-opacity="0.18"/>
-          <stop offset="100%" stop-color="#0A0A0D" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#C5A880" stop-opacity="0.35"/>
+          <stop offset="50%" stop-color="#A67C52" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#0E251C" stop-opacity="0"/>
         </radialGradient>
 
-        <!-- Gold Luxury Rings Gradient -->
+        <!-- Matte Bronze & Gold Luxury Rings Gradient -->
         <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#FDE68A"/>
-          <stop offset="30%" stop-color="#F59E0B"/>
-          <stop offset="70%" stop-color="#D97706"/>
-          <stop offset="100%" stop-color="#B45309"/>
+          <stop offset="0%" stop-color="#E2D3BE"/>
+          <stop offset="30%" stop-color="#C5A880"/>
+          <stop offset="70%" stop-color="#A67C52"/>
+          <stop offset="100%" stop-color="#7D5936"/>
         </linearGradient>
 
         <!-- Subtle Top Glass Shine -->
@@ -107,20 +107,20 @@ async function buildIcons() {
       <circle cx="512" cy="480" r="460" fill="url(#centerGlow)"/>
 
       <!-- Outer Decorative Tech Ring (Inside Adaptive Safe Zone) -->
-      <circle cx="512" cy="460" r="366" fill="none" stroke="url(#goldGradient)" stroke-width="3" stroke-dasharray="14 10" opacity="0.45"/>
-      <circle cx="512" cy="460" r="356" fill="none" stroke="#D97706" stroke-width="2" opacity="0.3"/>
+      <circle cx="512" cy="460" r="366" fill="none" stroke="url(#goldGradient)" stroke-width="3" stroke-dasharray="14 10" opacity="0.55"/>
+      <circle cx="512" cy="460" r="356" fill="none" stroke="#556B2F" stroke-width="2" opacity="0.4"/>
 
       <!-- Inner Gold Frame Ring -->
-      <circle cx="512" cy="460" r="348" fill="#111827" stroke="url(#goldGradient)" stroke-width="12" filter="url(#shadow)"/>
-      <circle cx="512" cy="460" r="338" fill="none" stroke="#FDE68A" stroke-width="2" opacity="0.8"/>
+      <circle cx="512" cy="460" r="348" fill="#0E251C" stroke="url(#goldGradient)" stroke-width="12" filter="url(#shadow)"/>
+      <circle cx="512" cy="460" r="338" fill="none" stroke="#E2D3BE" stroke-width="2" opacity="0.8"/>
 
       <!-- Bottom Badge Backdrop in Safe Area (y ~ 730 to 810) -->
       <g filter="url(#shadow)">
-        <rect x="302" y="738" width="420" height="74" rx="37" fill="#0A0A0D" stroke="url(#goldGradient)" stroke-width="3.5"/>
+        <rect x="302" y="738" width="420" height="74" rx="37" fill="#081711" stroke="url(#goldGradient)" stroke-width="3.5"/>
         
         <!-- Left & Right Gold Star/Diamonds -->
-        <polygon points="340,775 348,767 356,775 348,783" fill="#F59E0B"/>
-        <polygon points="684,775 676,767 668,775 676,783" fill="#F59E0B"/>
+        <polygon points="340,775 348,767 356,775 348,783" fill="#C5A880"/>
+        <polygon points="684,775 676,767 668,775 676,783" fill="#C5A880"/>
 
         <!-- Text: THE MASTER -->
         <text x="512" y="785" 
@@ -149,21 +149,21 @@ async function buildIcons() {
           <svg width="1024" height="1024" viewBox="0 0 1024 1024">
             <defs>
               <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FDE68A"/>
-                <stop offset="30%" stop-color="#F59E0B"/>
-                <stop offset="70%" stop-color="#D97706"/>
-                <stop offset="100%" stop-color="#B45309"/>
+                <stop offset="0%" stop-color="#E2D3BE"/>
+                <stop offset="30%" stop-color="#C5A880"/>
+                <stop offset="70%" stop-color="#A67C52"/>
+                <stop offset="100%" stop-color="#7D5936"/>
               </linearGradient>
               <filter id="badgeShadow">
                 <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.85"/>
               </filter>
             </defs>
             <g filter="url(#badgeShadow)">
-              <rect x="302" y="738" width="420" height="74" rx="37" fill="#0B0F1D" stroke="url(#goldGrad2)" stroke-width="4"/>
+              <rect x="302" y="738" width="420" height="74" rx="37" fill="#081711" stroke="url(#goldGrad2)" stroke-width="4"/>
               
               <!-- Left and Right Accents -->
-              <polygon points="342,775 350,766 358,775 350,784" fill="#FDE68A"/>
-              <polygon points="682,775 674,766 666,775 674,784" fill="#FDE68A"/>
+              <polygon points="342,775 350,766 358,775 350,784" fill="#E2D3BE"/>
+              <polygon points="682,775 674,766 666,775 674,784" fill="#E2D3BE"/>
 
               <text x="512" y="786" 
                     font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" 
@@ -241,7 +241,7 @@ async function buildIcons() {
   // 7. Apple Touch Icon (180x180 PNG with solid dark background & no transparency)
   const appleTouchIcon = await sharp(masterBase)
     .resize(180, 180, { kernel: sharp.kernel.lanczos3 })
-    .flatten({ background: '#0B0F1D' })
+    .flatten({ background: '#0E251C' })
     .png()
     .toBuffer();
   fs.writeFileSync(path.resolve(rootDir, 'public/apple-touch-icon.png'), appleTouchIcon);
@@ -324,7 +324,7 @@ async function buildIcons() {
           width: s.width,
           height: s.height,
           channels: 4,
-          background: { r: 11, g: 15, b: 29, alpha: 1 } // #0B0F1D
+          background: { r: 14, g: 37, b: 28, alpha: 1 } // #0E251C Petrol Deep Forest
         }
       })
         .composite([{

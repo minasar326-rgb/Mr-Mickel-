@@ -41,6 +41,26 @@ export default function SecurityShield({ children }) {
     return () => clearInterval(watermarkInterval);
   }, []);
 
+  // 1.1 Screen recording API Blocker (intercept getDisplayMedia)
+  useEffect(() => {
+    if (role === 'instructor') return;
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getDisplayMedia = function() {
+        setIsBlackout(true);
+        try {
+          document.querySelectorAll('video, audio').forEach(el => el.pause());
+        } catch (_) {}
+        setTimeout(() => setIsBlackout(false), 3000);
+        addToast('🔒 محاولة تسجيل الشاشة محظورة لحماية المحتوى التعليمي.', 'warning', 3000);
+        return Promise.reject(new DOMException('Screen recording is disabled for educational integrity.', 'NotAllowedError'));
+      };
+      return () => {
+        navigator.mediaDevices.getDisplayMedia = originalGetDisplayMedia;
+      };
+    }
+  }, [role, addToast]);
+
   // Trigger Freeze function
   const triggerFreeze = useCallback((reason = 'DevTools detected') => {
     if (role === 'instructor') return;
@@ -326,7 +346,7 @@ export default function SecurityShield({ children }) {
             position: 'fixed',
             inset: 0,
             zIndex: 99999999,
-            backgroundColor: 'rgba(10, 15, 30, 0.98)',
+            backgroundColor: 'rgba(15, 36, 28, 0.98)',
             backdropFilter: 'blur(30px)',
             WebkitBackdropFilter: 'blur(30px)',
             display: 'flex',
@@ -343,7 +363,7 @@ export default function SecurityShield({ children }) {
             style={{
               maxWidth: '520px',
               width: '100%',
-              background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 1) 100%)',
+              background: 'linear-gradient(145deg, rgba(31, 77, 58, 0.98) 0%, rgba(15, 36, 28, 1) 100%)',
               border: '2px solid rgba(239, 68, 68, 0.5)',
               boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 50px rgba(239, 68, 68, 0.3)',
               borderRadius: '24px',
@@ -393,7 +413,7 @@ export default function SecurityShield({ children }) {
 
             <p style={{ color: '#CBD5E1', fontSize: '0.98rem', lineHeight: '1.7', margin: '0 0 1.8rem' }}>
               لحماية المحتوى التعليمي، الفيديوهات، وبنك الأسئلة الخاص بـ
-              <strong style={{ color: '#FBBF24', margin: '0 4px' }}>منصة مستر مايكل شحاته 🇬🇧</strong>
+              <strong style={{ color: '#C5A880', margin: '0 4px' }}>منصة مستر مايكل شحاته 🇬🇧</strong>
               ، تم إيقاف وتجميد تفاعل الصفحة تلقائياً.
               <br />
               <span style={{ color: '#94A3B8', fontSize: '0.88rem', display: 'block', marginTop: '8px' }}>
@@ -404,9 +424,9 @@ export default function SecurityShield({ children }) {
             <button
               onClick={handleReload}
               style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
+                background: 'linear-gradient(135deg, #1F4D3A 0%, #2D6A50 60%, #A67C52 100%)',
                 color: '#FFFFFF',
-                border: 'none',
+                border: '1px solid #A67C52',
                 borderRadius: '50px',
                 padding: '14px 32px',
                 fontSize: '1.05rem',
@@ -416,7 +436,7 @@ export default function SecurityShield({ children }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                boxShadow: '0 10px 25px rgba(245, 158, 11, 0.45)',
+                boxShadow: '0 10px 25px rgba(31, 77, 58, 0.45)',
                 width: '100%',
                 maxWidth: '300px'
               }}
@@ -459,7 +479,7 @@ export default function SecurityShield({ children }) {
           position: 'fixed',
           inset: 0,
           zIndex: 9999999,
-          background: 'rgba(15, 23, 42, 0.92)',
+          background: 'rgba(15, 36, 28, 0.94)',
           backdropFilter: 'blur(35px)',
           WebkitBackdropFilter: 'blur(35px)',
           display: 'flex',
@@ -472,11 +492,11 @@ export default function SecurityShield({ children }) {
           textAlign: 'center',
           padding: '2rem'
         }}>
-          <ShieldCheck size={56} color="#F59E0B" style={{ marginBottom: '1rem' }} />
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 900, margin: '0 0 0.5rem' }}>
+          <ShieldCheck size={56} color="#A67C52" style={{ marginBottom: '1rem' }} />
+          <h3 style={{ fontSize: '1.4rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#FCFBF7' }}>
             🔒 تم حجب الشاشة وإيقاف الفيديو مؤقتاً
           </h3>
-          <p style={{ color: '#94A3B8', fontSize: '0.95rem', maxWidth: '480px', margin: 0 }}>
+          <p style={{ color: '#D1D5DB', fontSize: '0.95rem', maxWidth: '480px', margin: 0 }}>
             لأسباب أمنية وحمايةً للفيديوهات ضد برامج التسجيل الخارجية، يتم إيقاف العرض أثناء مغادرة النافذة. انقر على الصفحة لاستئناف المشاهدة.
           </p>
         </div>
@@ -492,15 +512,15 @@ export default function SecurityShield({ children }) {
           left: globalWatermarkPos.left,
           pointerEvents: 'none',
           zIndex: 99999,
-          background: 'rgba(15, 23, 42, 0.5)',
+          background: 'rgba(15, 36, 28, 0.6)',
           backdropFilter: 'blur(3px)',
-          color: 'rgba(255, 255, 255, 0.6)',
+          color: 'rgba(252, 251, 247, 0.7)',
           padding: '5px 12px',
           borderRadius: '8px',
           fontSize: '0.78rem',
           fontWeight: 800,
           letterSpacing: '0.4px',
-          border: '1px solid rgba(255, 255, 255, 0.18)',
+          border: '1px solid rgba(166, 124, 82, 0.35)',
           textShadow: '0 1px 4px rgba(0,0,0,0.85)',
           transition: 'top 2.2s cubic-bezier(0.4, 0, 0.2, 1), left 2.2s cubic-bezier(0.4, 0, 0.2, 1)',
           userSelect: 'none'

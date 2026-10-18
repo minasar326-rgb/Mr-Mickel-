@@ -38,8 +38,8 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
     }}>
       {/* Top Banner Announcement */}
       <div style={{
-        background: 'linear-gradient(135deg, #0F0F13 0%, #17171C 50%, #242019 100%)',
-        color: '#FDE68A',
+        background: 'linear-gradient(135deg, #0A1712 0%, #13271E 50%, #1F4D3A 100%)',
+        color: '#E2D3BE',
         padding: '0.4rem 1rem',
         fontSize: '0.82rem',
         fontWeight: 600,
@@ -48,10 +48,10 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        borderBottom: '1px solid rgba(245, 158, 11, 0.35)'
+        borderBottom: '1px solid rgba(166, 124, 82, 0.35)'
       }}>
-        <Sparkles size={14} color="#FBBF24" />
-        <span>أهلاً بكم في المنصة التعليمية الرسمية لـ <strong style={{ color: '#FCD34D' }}>{teacherProfile?.name || 'مستر مايكل شحاتة'}</strong> • ابتدائي وإعدادي وثانوي! 🇬🇧</span>
+        <Sparkles size={14} color="#C5A880" />
+        <span>أهلاً بكم في المنصة التعليمية الرسمية لـ <strong style={{ color: '#FCFBF7' }}>{teacherProfile?.name || 'مستر مايكل شحاتة'}</strong> • ابتدائي وإعدادي وثانوي! 🇬🇧</span>
       </div>
 
       {/* Main Bar */}
@@ -73,13 +73,13 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               height: '46px',
               borderRadius: '12px',
               overflow: 'hidden',
-              background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 60%, #B45309 100%)',
+              background: 'linear-gradient(135deg, #1F4D3A 0%, #2A644C 60%, #A67C52 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.45)',
-              border: '2px solid #FCD34D',
+              boxShadow: '0 4px 15px rgba(31, 77, 58, 0.45)',
+              border: '2px solid #A67C52',
               flexShrink: 0,
               position: 'relative'
             }}>

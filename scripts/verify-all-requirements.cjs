@@ -111,10 +111,11 @@ assert(adminCenterContent.includes('إضافة سؤال جديد في نهاية
 assert(adminCenterContent.includes('ترتيب إلزامي: الموضوعي أولاً ثم المقالي'), 'Exam builder enforces canonical question sorting rule');
 assert(adminCenterContent.includes('strictlyOrderedQuestions'), 'Exam saver programmatically places objective questions before essay questions');
 
-// 10. Verify Standalone General Exam Engine & Personal Student Codes
-console.log('\n--- TEST GROUP 10: Standalone General Exam & Personalized Codes ---');
+// 10. Verify Standalone Comprehensive Exam Engine & Personal Student Codes
+console.log('\n--- TEST GROUP 10: Standalone Comprehensive Exam & Personalized Codes ---');
 const navbarContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/common/TeacherNavbar.jsx'), 'utf8');
-const generalExamPageContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/GeneralExamPage.jsx'), 'utf8');
+const comprehensiveExamsPageContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/ComprehensiveExamsPage.jsx'), 'utf8');
+const comprehensiveExamsSectionContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/ComprehensiveExamsSection.jsx'), 'utf8');
 const examModalContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/EnglishExamModal.jsx'), 'utf8');
 
 assert(teacherContextContent.includes('generalExams'), 'TeacherContext maintains generalExams state');
@@ -125,23 +126,26 @@ assert(teacherContextContent.includes('verifyAndRedeemGeneralExamCode'), 'Teache
 assert(teacherContextContent.includes('resetGeneralExamAttempt'), 'TeacherContext allows teacher to reopen attempt for a student');
 assert(teacherContextContent.includes('submitGeneralExam'), 'TeacherContext tracks general exam submission and grades');
 
-assert(navbarContent.includes("📝 الامتحان العام"), 'TeacherNavbar desktop navigation includes General Exam link');
-assert(navbarContent.includes("📝 الامتحان العام الشامل"), 'TeacherNavbar mobile drawer includes General Exam link');
-assert(appContent.includes("currentPage === 'general-exam'"), 'App.jsx routes general-exam page');
-assert(appContent.includes('GeneralExamPage'), 'App.jsx imports and mounts GeneralExamPage');
+assert(navbarContent.includes("📝 الامتحانات الشاملة"), 'TeacherNavbar desktop navigation includes Comprehensive Exams link');
+assert(appContent.includes("ComprehensiveExamsSection"), 'App.jsx imports and mounts ComprehensiveExamsSection');
+assert(appContent.includes("ComprehensiveExamsPage"), 'App.jsx imports and mounts ComprehensiveExamsPage');
+assert(appContent.includes("currentPage === 'comprehensive-exams'"), 'App.jsx routes comprehensive-exams page');
 
-assert(generalExamPageContent.includes('verifyAndRedeemGeneralExamCode'), 'GeneralExamPage gates access via personalized student codes');
-assert(generalExamPageContent.includes('isAlreadySubmitted'), 'GeneralExamPage restricts students strictly to one single attempt');
+assert(comprehensiveExamsSectionContent.includes('الامتحانات الشاملة (Comprehensive Assessments)'), 'ComprehensiveExamsSection renders dedicated section header');
+assert(comprehensiveExamsSectionContent.includes('دخول الامتحان الشامل بالكود الشخصي'), 'ComprehensiveExamsSection prompts students to enter with code');
+
+assert(comprehensiveExamsPageContent.includes('اختر الامتحان الشامل لبدء الاختبار'), 'ComprehensiveExamsPage displays independent exam cards');
+assert(comprehensiveExamsPageContent.includes('verifyAndRedeemGeneralExamCode'), 'ComprehensiveExamsPage gates access via personalized student codes');
+assert(comprehensiveExamsPageContent.includes('isAlreadySubmitted'), 'ComprehensiveExamsPage restricts students strictly to one single attempt');
 assert(examModalContent.includes('isGeneralExam'), 'EnglishExamModal accepts isGeneralExam prop');
 assert(examModalContent.includes('submitGeneralExam'), 'EnglishExamModal routes submission to general exam engine');
 
-assert(adminCenterContent.includes("id: 'general-exams'"), 'TeacherAdminCenter provides standalone general-exams tab');
-assert(adminCenterContent.includes("id: 'general-codes'"), 'TeacherAdminCenter provides standalone general-codes tab');
-assert(adminCenterContent.includes("activeTab === 'general-exams'"), 'TeacherAdminCenter renders standalone General Exams Studio');
-assert(adminCenterContent.includes("activeTab === 'general-codes'"), 'TeacherAdminCenter renders standalone General Exam Codes Studio');
+assert(adminCenterContent.includes("إدارة الامتحانات الشاملة"), 'TeacherAdminCenter provides standalone comprehensive-exams tab');
+assert(adminCenterContent.includes("أكواد الامتحانات الشاملة"), 'TeacherAdminCenter provides standalone comprehensive-codes tab');
+assert(adminCenterContent.includes("عرض نتائج ومحاولات الطلاب"), 'TeacherAdminCenter provides student results and attempts inspector');
 assert(teacherContextContent.includes('cancelGeneralExamCode'), 'TeacherContext provides cancelGeneralExamCode');
 assert(adminCenterContent.includes('cancelGeneralExamCode'), 'TeacherAdminCenter allows cancelling general exam code');
-assert(adminCenterContent.includes('توليد كود شخصي مخصص لطالب'), 'Admin center provides personalized student code generator');
+assert(adminCenterContent.includes('توليد كود الامتحان الشامل'), 'Admin center provides personalized student code generator');
 assert(adminCenterContent.includes('resetGeneralExamAttempt'), 'Admin center provides reset attempt button for teacher manual override');
 
 // 11. Verify Inline Lecture Exam Studio & Lecture Edit Mode
@@ -157,7 +161,14 @@ assert(adminCenterContent.includes('handleCancelEditLecture'), 'TeacherAdminCent
 assert(adminCenterContent.includes('تعديل المحاضرة والامتحان ✏️'), 'Lecture cards list has Edit Lecture & Exam button');
 assert(teacherContextContent.includes('updateLecture'), 'TeacherContext provides updateLecture function');
 
+// 12. Verify Complete Architectural Separation between Lecture Exams and Comprehensive Exams
+console.log('\n--- TEST GROUP 12: Separation of Lecture vs Comprehensive Exams ---');
+assert(adminCenterContent.includes('lecture-exam-inline-section'), 'Lecture exam is built inline inside lecture upload studio');
+assert(comprehensiveExamsPageContent.includes('قسم مستقل بالكامل • خارج المراحل والشهور والكورسات'), 'Comprehensive exams are strictly independent of stages/lectures');
+assert(adminCenterContent.includes('المرحلة التعليمية (لحفظ بيانات الطالب فقط)'), 'Stage is strictly metadata for student records in comprehensive codes');
+
 console.log('\n=====================================================');
-console.log('🎉 ALL 11 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
+console.log('🎉 ALL 12 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
 console.log('=====================================================');
+
 

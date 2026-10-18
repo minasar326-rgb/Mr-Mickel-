@@ -130,11 +130,11 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               🏆 لوحة أوائل المستر
             </button>
             <button 
-              onClick={() => onNavigate('general-exam')} 
-              className={`btn ${currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onNavigate('comprehensive-exams')} 
+              className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ fontSize: '0.9rem', fontWeight: 800 }}
             >
-              📝 الامتحان العام
+              📝 الامتحانات الشاملة
             </button>
             <button 
               onClick={() => onNavigate('booklets')} 
@@ -413,11 +413,11 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             🏆 لوحة أوائل المستر
           </button>
           <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('general-exam'); }} 
-            className={`btn ${currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => { setIsMobileMenuOpen(false); onNavigate('comprehensive-exams'); }} 
+            className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem', fontWeight: 800 }}
           >
-            📝 الامتحان العام الشامل
+            📝 الامتحانات الشاملة
           </button>
           <button 
             onClick={() => { setIsMobileMenuOpen(false); onNavigate('booklets'); }} 

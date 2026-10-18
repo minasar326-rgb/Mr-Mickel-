@@ -304,6 +304,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [customGenStudentName, setCustomGenStudentName] = useState('');
   const [customGenStudentStage, setCustomGenStudentStage] = useState('sec-3');
   const [selectedGenStageForBulk, setSelectedGenStageForBulk] = useState('sec-3');
+  const [viewingSubmissionsExamId, setViewingSubmissionsExamId] = useState(null);
 
   // Manual Grading Queue State
   const [activeGradingItem, setActiveGradingItem] = useState(null);
@@ -1481,8 +1482,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
             { id: 'sections', label: `📅 الشهور والكورسات (${sections.length})`, icon: BookOpen },
             { id: 'subscriptions', label: `🎫 إدارة الاشتراكات والمشتركين (${allStudentSubscriptions.length})`, icon: CreditCard },
             { id: 'exams', label: `📝 امتحانات المحاضرات والتصحيح ${pendingGradingSubmissions.length > 0 ? `(${pendingGradingSubmissions.length} 🔔)` : ''}`, icon: HelpCircle },
-            { id: 'general-exams', label: `🌟 الامتحانات العامة (${generalExams.length})`, icon: Trophy },
-            { id: 'general-codes', label: `🎟️ أكواد الامتحانات العامة (${generalExamCodes.length})`, icon: Key },
+            { id: 'general-exams', label: `🌟 إدارة الامتحانات الشاملة (${generalExams.length})`, icon: Trophy },
+            { id: 'general-codes', label: `🎟️ أكواد الامتحانات الشاملة (${generalExamCodes.length})`, icon: Key },
             { id: 'security', label: '🛡️ درع الحماية والأمان (Anti-Piracy)', icon: ShieldCheck },
             { id: 'finance', label: `💰 الخزينة (${totalCollectedRevenue.toLocaleString()} ج.م)`, icon: DollarSign },
             { id: 'profile', label: '👤 بيانات المستر', icon: Settings },
@@ -4185,9 +4186,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
         )}
 
         {/* ========================================================= */}
-        {/* TAB: STANDALONE GENERAL EXAMS STUDIO */}
+        {/* TAB: STANDALONE COMPREHENSIVE EXAMS STUDIO */}
         {/* ========================================================= */}
-        {activeTab === 'general-exams' && (
+        {(activeTab === 'general-exams' || activeTab === 'comprehensive-exams') && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
               {/* Header */}
@@ -4198,10 +4199,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </div>
                   <div>
                     <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, color: '#1F4D3A' }}>
-                      🌟 قسم الامتحانات العامة الشاملة (The Master Independent General Exams)
+                      🌟 إدارة الامتحانات الشاملة (The Master Comprehensive Exams Studio)
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
-                      امتحانات شاملة مستقلة تماماً لا تتبع أي مرحلة أو محاضرة، وتظهر مباشرة للطلاب في القائمة الرئيسية ولا يدخلها الطالب إلا بكود شخصي لمرة واحدة.
+                      امتحانات شاملة مستقلة تماماً لا تتبع أي مرحلة أو محاضرة، تظهر للطلاب في قسم مستقل وفي القائمة الرئيسية، وتُدار بأكواد دخول مخصصة ومحاولة واحدة فقط.
                     </p>
                   </div>
                 </div>
@@ -4213,7 +4214,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     style={{ gap: '6px', fontWeight: 700 }}
                   >
                     <Key size={16} />
-                    <span>🎟️ أكواد الطلاب ({generalExamCodes.length})</span>
+                    <span>🎟️ أكواد الامتحانات الشاملة ({generalExamCodes.length})</span>
                   </button>
 
                   <button
@@ -4222,7 +4223,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     style={{ gap: '8px', fontWeight: 800 }}
                   >
                     <Plus size={16} />
-                    <span>+ إنشاء امتحان عام جديد</span>
+                    <span>+ إضافة امتحان شامل جديد</span>
                   </button>
                 </div>
               </div>
@@ -4231,9 +4232,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
               {generalExams.length === 0 ? (
                 <div style={{ padding: '4rem 2rem', textAlign: 'center', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-lg)' }}>
                   <Trophy size={48} style={{ color: '#F59E0B', marginBottom: '1rem', opacity: 0.6 }} />
-                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 8px' }}>لم يتم إنشاء أي امتحان عام حتى الآن</h4>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 8px' }}>لم يتم إنشاء أي امتحان شامل حتى الآن</h4>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '500px', margin: '0 auto 1.5rem' }}>
-                    يمكنك إنشاء أول امتحان عام شامل لطلابك الآن، وتحديد المدة والدرجات وكتابة الأسئلة يدويًا.
+                    يمكنك إنشاء أول امتحان شامل لطلابك الآن، وتحديد المدة والدرجات وحالة الامتحان وكتابة الأسئلة يدويًا.
                   </p>
                   <button
                     onClick={() => handleOpenGeneralExamBuilder()}
@@ -4241,7 +4242,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     style={{ fontWeight: 800, gap: '6px' }}
                   >
                     <Plus size={16} />
-                    <span>إنشاء الامتحان العام الأول</span>
+                    <span>+ إضافة أول امتحان شامل الآن</span>
                   </button>
                 </div>
               ) : (
@@ -4250,101 +4251,212 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     const qCount = (gExam.questions || []).length;
                     const essayCount = (gExam.questions || []).filter(q => q.type === 'essay' || q.type === 'short_answer').length;
                     const codesForThisExam = generalExamCodes.filter(c => c.examId === gExam.id);
+                    const examKey = `general-${gExam.id}`;
+                    const submissionsForThisExam = examSubmissions[examKey] ? Object.values(examSubmissions[examKey]) : [];
 
                     return (
-                      <div
-                        key={gExam.id}
-                        className="card"
-                        style={{
-                          padding: '1.5rem',
-                          background: 'var(--bg-subtle)',
-                          border: '2px solid rgba(166, 124, 82, 0.45)',
-                          borderRadius: 'var(--radius-lg)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          boxShadow: '0 4px 15px rgba(31, 77, 58, 0.06)'
-                        }}
-                      >
-                        <div>
-                          <div className="flex-between" style={{ marginBottom: '8px' }}>
-                            <span className="badge badge-gold">امتحان عام شامل 🌟</span>
-                            <span className="badge" style={{ background: gExam.status === 'draft' ? '#F59E0B' : '#10B981', color: 'white', fontWeight: 800 }}>
-                              {gExam.status === 'draft' ? 'مسودة' : 'منشور للطلاب ✓'}
-                            </span>
+                      <React.Fragment key={gExam.id}>
+                        <div
+                          className="card"
+                          style={{
+                            padding: '1.5rem',
+                            background: 'var(--bg-subtle)',
+                            border: '2px solid rgba(166, 124, 82, 0.45)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 4px 15px rgba(31, 77, 58, 0.06)'
+                          }}
+                        >
+                          <div>
+                            <div className="flex-between" style={{ marginBottom: '8px' }}>
+                              <span className="badge badge-gold">امتحان شامل مستقل 🌟</span>
+                              <select
+                                value={gExam.status || 'published'}
+                                onChange={e => saveGeneralExam({ ...gExam, status: e.target.value })}
+                                className="input-control"
+                                style={{
+                                  fontSize: '0.75rem',
+                                  padding: '2px 8px',
+                                  height: '28px',
+                                  width: 'auto',
+                                  fontWeight: 800,
+                                  background: gExam.status === 'draft' ? '#FEF3C7' : gExam.status === 'suspended' ? '#FEE2E2' : '#D1FAE5',
+                                  color: gExam.status === 'draft' ? '#92400E' : gExam.status === 'suspended' ? '#991B1B' : '#065F46',
+                                  border: '1px solid var(--border-subtle)'
+                                }}
+                              >
+                                <option value="published">منشور للطلاب ✓</option>
+                                <option value="draft">مسودة 📁</option>
+                                <option value="suspended">موقوف مؤقتاً 🚫</option>
+                              </select>
+                            </div>
+
+                            <h4 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-primary)' }}>
+                              {gExam.title}
+                            </h4>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 1rem', lineHeight: '1.5' }}>
+                              {gExam.description || 'امتحان شامل لتقييم مستوى الطالب بكود مخصص.'}
+                            </p>
+
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                              <span className="badge" style={{ background: 'var(--bg-surface)' }}>⏱️ {gExam.timeMinutes || 45} دقيقة</span>
+                              <span className="badge" style={{ background: 'var(--bg-surface)' }}>❓ {qCount} سؤال</span>
+                              <span className="badge" style={{ background: 'var(--bg-surface)' }}>🎯 {gExam.totalMarks || 30} درجة</span>
+                              <span className="badge" style={{ background: 'var(--bg-surface)' }}>🔒 محاولة واحدة فقط</span>
+                              {essayCount > 0 && (
+                                <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>
+                                  ✍️ {essayCount} أسئلة مقالية
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <h4 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-primary)' }}>
-                            {gExam.title}
-                          </h4>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 1rem', lineHeight: '1.5' }}>
-                            {gExam.description || 'امتحان شامل لتقييم مستوى الطالب بكود مخصص.'}
-                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => handleOpenGeneralExamBuilder(gExam)}
+                                className="btn btn-primary btn-sm"
+                                style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+                              >
+                                <Edit size={14} />
+                                <span>تعديل الامتحان</span>
+                              </button>
 
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>⏱️ {gExam.timeMinutes || 45} دقيقة</span>
-                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>❓ {qCount} سؤال</span>
-                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>🎯 {gExam.totalMarks || 30} درجة</span>
-                            <span className="badge" style={{ background: 'var(--bg-surface)' }}>🔒 محاولة واحدة فقط</span>
-                            {essayCount > 0 && (
-                              <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>
-                                ✍️ {essayCount} أسئلة مقالية
+                              <button
+                                onClick={() => {
+                                  setPreviewExamPayload(gExam);
+                                  setIsPreviewModalOpen(true);
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ gap: '4px' }}
+                                title="معاينة كطالب"
+                              >
+                                <Eye size={14} />
+                                <span>معاينة</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`حذف الامتحان الشامل "${gExam.title}" نهائياً؟`)) {
+                                    deleteGeneralExam(gExam.id);
+                                  }
+                                }}
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: '#EF4444' }}
+                                title="حذف الامتحان"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setViewingSubmissionsExamId(viewingSubmissionsExamId === gExam.id ? null : gExam.id)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ width: '100%', gap: '6px', fontSize: '0.82rem', fontWeight: 800 }}
+                            >
+                              <Users size={14} />
+                              <span>{viewingSubmissionsExamId === gExam.id ? 'إخفاء نتائج ومحاولات الطلاب ✖' : `عرض نتائج ومحاولات الطلاب (${submissionsForThisExam.length}) 👥`}</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedGenExamIdForCode(gExam.id);
+                                setActiveTab('general-codes');
+                              }}
+                              className="btn btn-outline btn-sm"
+                              style={{ width: '100%', gap: '6px', fontSize: '0.8rem', fontWeight: 700 }}
+                            >
+                              <Key size={13} />
+                              <span>توليد أكواد لهذا الامتحان ({codesForThisExam.length} كود حالي)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expandable Submissions / Attempts Inspector */}
+                        {viewingSubmissionsExamId === gExam.id && (
+                          <div style={{
+                            gridColumn: '1 / -1',
+                            background: 'var(--bg-surface)',
+                            border: '2px solid var(--primary-500)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1.5rem',
+                            marginTop: '0.5rem',
+                            marginBottom: '1rem',
+                            boxShadow: '0 6px 20px rgba(0,0,0,0.06)'
+                          }}>
+                            <div className="flex-between" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+                              <h4 style={{ fontSize: '1.15rem', fontWeight: 900, margin: 0, color: 'var(--text-primary)' }}>
+                                📊 نتائج ومحاولات الطلاب في: {gExam.title}
+                              </h4>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                إجمالي الطلاب الذين أتموا الامتحان: {submissionsForThisExam.length} طالب
                               </span>
+                            </div>
+
+                            {submissionsForThisExam.length === 0 ? (
+                              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0', margin: 0, fontSize: '0.92rem' }}>
+                                لا توجد محاولات مسجلة حتى الآن لهذا الامتحان الشامل.
+                              </p>
+                            ) : (
+                              <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                  <thead>
+                                    <tr style={{ background: 'var(--bg-subtle)', borderBottom: '2px solid var(--border-subtle)' }}>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem' }}>اسم الطالب</th>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem' }}>الكود المستخدم</th>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem' }}>الدرجة المسجلة</th>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem' }}>حالة التصحيح</th>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem' }}>تاريخ المحاولة</th>
+                                      <th style={{ padding: '10px 14px', fontSize: '0.85rem', textAlign: 'center' }}>إجراءات</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {submissionsForThisExam.map((sub, sIdx) => {
+                                      const studentCodeObj = generalExamCodes.find(c => c.studentId === sub.studentId && c.examId === gExam.id);
+                                      return (
+                                        <tr key={sub.studentId || sIdx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                          <td style={{ padding: '10px 14px', fontWeight: 800 }}>{sub.studentName || 'طالب مسجل'}</td>
+                                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '0.85rem', color: '#1F4D3A' }}>
+                                            {sub.code || studentCodeObj?.code || '—'}
+                                          </td>
+                                          <td style={{ padding: '10px 14px' }}>
+                                            <strong style={{ fontSize: '1rem', color: 'var(--primary-700)' }}>
+                                              {sub.totalScore} / {sub.maxMarks}
+                                            </strong>
+                                          </td>
+                                          <td style={{ padding: '10px 14px' }}>
+                                            <span className={sub.status === 'pending_grading' ? 'badge badge-warning' : 'badge badge-success'} style={{ fontSize: '0.75rem' }}>
+                                              {sub.status === 'pending_grading' ? 'بانتظار تصحيح المقالي ⏳' : 'تم التصحيح والاعتماد ✓'}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '10px 14px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('ar-EG') : '—'}
+                                          </td>
+                                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => resetGeneralExamAttempt(sub.studentId, gExam.id)}
+                                              className="btn btn-ghost btn-sm"
+                                              style={{ color: '#D97706', fontSize: '0.78rem', gap: '4px', border: '1px solid rgba(217, 119, 6, 0.3)' }}
+                                              title="إعادة فتح محاولة جديدة للطالب"
+                                            >
+                                              <RotateCcw size={14} />
+                                              <span>إعادة فتح المحاولة 🔓</span>
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
                           </div>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleOpenGeneralExamBuilder(gExam)}
-                              className="btn btn-primary btn-sm"
-                              style={{ flex: 1, gap: '6px', fontWeight: 800 }}
-                            >
-                              <Edit size={14} />
-                              <span>تعديل الامتحان</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setPreviewExamPayload(gExam);
-                                setIsPreviewModalOpen(true);
-                              }}
-                              className="btn btn-secondary btn-sm"
-                              style={{ gap: '4px' }}
-                              title="معاينة كطالب"
-                            >
-                              <Eye size={14} />
-                              <span>معاينة</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`حذف الامتحان العام "${gExam.title}" نهائياً؟`)) {
-                                  deleteGeneralExam(gExam.id);
-                                }
-                              }}
-                              className="btn btn-ghost btn-sm"
-                              style={{ color: '#EF4444' }}
-                              title="حذف الامتحان"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              setSelectedGenExamIdForCode(gExam.id);
-                              setActiveTab('general-codes');
-                            }}
-                            className="btn btn-outline btn-sm"
-                            style={{ width: '100%', gap: '6px', fontSize: '0.8rem', fontWeight: 700 }}
-                          >
-                            <Key size={13} />
-                            <span>توليد أكواد لهذا الامتحان ({codesForThisExam.length} كود حالي)</span>
-                          </button>
-                        </div>
-                      </div>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </div>
@@ -4354,9 +4466,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
         )}
 
         {/* ========================================================= */}
-        {/* TAB: STANDALONE GENERAL EXAM CODES STUDIO */}
+        {/* TAB: STANDALONE COMPREHENSIVE EXAM CODES STUDIO */}
         {/* ========================================================= */}
-        {activeTab === 'general-codes' && (
+        {(activeTab === 'general-codes' || activeTab === 'comprehensive-codes') && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
               {/* Header */}
@@ -4367,10 +4479,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </div>
                   <div>
                     <h3 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, color: '#1F4D3A' }}>
-                      🎟️ أكواد الامتحانات العامة المخصصة (Personalized General Exam Codes)
+                      🎟️ أكواد الامتحانات الشاملة (Comprehensive Exam Codes Studio)
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
-                      توليد كود دخول مشفر ومخصص لكل طالب مربوط باسمه ومرحلته وامتحانه، لا يمكن لأي طالب آخر استخدامه، مع تتبع حالة الكود وإمكانية إلغائه أو إعادة فتحه.
+                      توليد كود دخول مشفر ومخصص لكل طالب مربوط باسمه ومرحلته وامتحانه، لا يمكن لأي طالب آخر استخدامه. المرحلة التعليمية هنا تُستخدم لحفظ بيانات الطالب فقط، ولا تجعل الامتحان الشامل تابعاً لأي مرحلة.
                     </p>
                   </div>
                 </div>
@@ -4392,7 +4504,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     style={{ gap: '6px', fontWeight: 800 }}
                   >
                     <Trophy size={16} />
-                    <span>🌟 إدارة الامتحانات العامة</span>
+                    <span>🌟 إدارة الامتحانات الشاملة</span>
                   </button>
                 </div>
               </div>
@@ -4416,10 +4528,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   alignItems: 'flex-end',
                   marginBottom: '1rem'
                 }}>
-                  {/* 1. Select General Exam */}
+                  {/* 1. Select Comprehensive Exam */}
                   <div>
                     <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
-                      1. اختيار الامتحان العام:
+                      1. اختيار الامتحان الشامل:
                     </label>
                     <select
                       value={selectedGenExamIdForCode || (generalExams[0]?.id || '')}
@@ -4476,7 +4588,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   {/* 4. Student Stage (for metadata/record keeping only) */}
                   <div>
                     <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
-                      4. المرحلة (لحفظ البيانات فقط):
+                      4. المرحلة التعليمية (لحفظ بيانات الطالب فقط):
                     </label>
                     <select
                       value={customGenStudentStage}
@@ -4510,7 +4622,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                           stageId: customGenStudentStage,
                           stageName: targetStageObj?.name || 'مرحلة ثانوية',
                           examId: targetExamId,
-                          examTitle: targetExam?.title || 'الامتحان العام الشامل'
+                          examTitle: targetExam?.title || 'الامتحان الشامل'
                         });
 
                         setCustomGenStudentName('');
@@ -4519,7 +4631,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       className="btn btn-primary"
                       style={{ width: '100%', fontWeight: 800, padding: '0.85rem' }}
                     >
-                      توليد الكود المخصص 🎟️
+                      توليد كود الامتحان الشامل 🎟️
                     </button>
                   </div>
                 </div>

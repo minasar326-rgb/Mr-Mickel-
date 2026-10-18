@@ -22,6 +22,8 @@ import StageLecturesPage from './components/stages/StageLecturesPage';
 import LecturePlayerRoom from './components/student/LecturePlayerRoom';
 import StudentPortal from './components/student/StudentPortal';
 import GeneralExamPage from './components/student/GeneralExamPage';
+import ComprehensiveExamsPage from './components/student/ComprehensiveExamsPage';
+import ComprehensiveExamsSection from './components/student/ComprehensiveExamsSection';
 
 // Teacher Management Component
 import TeacherAdminCenter from './components/teacher-admin/TeacherAdminCenter';
@@ -209,6 +211,10 @@ function AppContent() {
               onNavigate={handleNavigate}
               onOpenCodeModal={handleOpenCodeModal}
             />
+            <ComprehensiveExamsSection
+              onNavigate={handleNavigate}
+              onOpenCodeModal={handleOpenCodeModal}
+            />
             <AchieversLeaderboard />
             <BookletShowcase />
           </>
@@ -246,8 +252,9 @@ function AppContent() {
           />
         )}
 
-        {currentPage === 'general-exam' && (
-          <GeneralExamPage
+        {(currentPage === 'comprehensive-exams' || currentPage === 'general-exam') && (
+          <ComprehensiveExamsPage
+            initialExamId={pageParams.examId}
             onNavigate={handleNavigate}
             onOpenCodeModal={handleOpenCodeModal}
           />

@@ -578,14 +578,20 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
     const startDate = subscriptionData.startDate || subscriptionData.activatedAt || new Date().toISOString();
     const expirationDate = subscriptionData.expirationDate || subscriptionData.expiresAt;
 
+    const status = subscriptionData.status || 'active';
+    const isPaused = status === 'paused' || Boolean(subscriptionData.isPaused);
+    const isCancelled = status === 'cancelled' || Boolean(subscriptionData.isCancelled);
+
     const normalizedSubscription = {
       ...subscriptionData,
       userId: uid,
       courseId: stageId,
       stageId: stageId,
       targetId: stageId,
-      status: 'active',
-      subscribed: true,
+      status: status,
+      isPaused: isPaused,
+      isCancelled: isCancelled,
+      subscribed: !isPaused && !isCancelled,
       startDate: startDate,
       activatedAt: startDate,
       expirationDate: expirationDate,
@@ -632,6 +638,87 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
   } catch (error) {
     console.warn('Firebase subscription save error:', error.message);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update student subscription status (e.g. paused, resumed, extended, cancelled) across all cloud collections
+ */
+export async function updateStudentSubscriptionStatusInCloud(uid, targetId, statusUpdate) {
+  if (!uid || !targetId) return { success: false, error: 'Missing parameters' };
+  try {
+    const payload = {
+      ...statusUpdate,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Update students document
+    try {
+      await setDoc(doc(db, 'students', uid), {
+        subscriptions: {
+          [targetId]: payload
+        },
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {}
+
+    // Update users document
+    try {
+      await setDoc(doc(db, 'users', uid), {
+        subscriptions: {
+          [targetId]: payload
+        },
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {}
+
+    // Update top-level subscriptions document
+    try {
+      const subDocId = `${uid}_${targetId}`;
+      await setDoc(doc(db, 'subscriptions', subDocId), payload, { merge: true });
+    } catch (e) {}
+
+    // Update RTDB for instant push to active student clients
+    if (rtdb) {
+      try {
+        const rtdbPaths = [
+          `students/${uid}/subscriptions/${targetId}`,
+          `users/${uid}/subscriptions/${targetId}`,
+          `subscriptions/${uid}_${targetId}`
+        ];
+        for (const p of rtdbPaths) {
+          const currentSnap = await rtdbGet(rtdbRef(rtdb, p));
+          const existing = currentSnap.exists() ? currentSnap.val() : {};
+          await rtdbSet(rtdbRef(rtdb, p), { ...existing, ...payload });
+        }
+      } catch (e) {}
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('Firebase updateStudentSubscriptionStatusInCloud error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Record an audit log entry in Firestore & RTDB for subscription security
+ */
+export async function saveAuditLogToCloud(logEntry) {
+  if (!logEntry) return;
+  try {
+    const logId = logEntry.id || `log-${Date.now()}`;
+    await setDoc(doc(db, 'auditLogs', logId), {
+      ...logEntry,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+
+    if (rtdb) {
+      try {
+        await rtdbSet(rtdbRef(rtdb, `auditLogs/${logId}`), logEntry);
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('Audit log cloud save warning:', e.message);
   }
 }
 

@@ -28,6 +28,7 @@ import TeacherAdminCenter from './components/teacher-admin/TeacherAdminCenter';
 // Security Shield & Anti-Piracy Suite
 import SecurityShield from './components/common/SecurityShield';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import NotificationPermissionBanner from './components/common/NotificationPermissionBanner';
 
 function AppContent() {
   const { role, switchRole } = useAuth();
@@ -184,6 +185,9 @@ function AppContent() {
   return (
     <SecurityShield>
       <div className="app-container">
+        {/* External Push Notification Permission Banner */}
+        <NotificationPermissionBanner />
+
         {/* Teacher Navbar */}
         <TeacherNavbar
           onNavigate={handleNavigate}
@@ -367,9 +371,33 @@ function AppContent() {
 
             <div>
               <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1rem', color: 'white' }}>الدعم والمتابعة</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: '#94A3B8' }}>
-                <span>📞 الخط الساخن: {teacherProfile?.supportHotline || '01012345678'}</span>
-                <span>💬 واتساب المستر: {teacherProfile?.whatsappNumber || '01012345678'}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: '#94A3B8' }}>
+                {(() => {
+                  const unifiedPhone = teacherProfile?.whatsappNumber || teacherProfile?.supportHotline || '01012345678';
+                  const cleanPhone = unifiedPhone.replace(/[^0-9]/g, '');
+                  return (
+                    <>
+                      <a 
+                        href={`tel:${cleanPhone}`} 
+                        style={{ color: '#E2E8F0', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title="اتصال هاتفي مباشر بالخط الساخن"
+                      >
+                        <span>📞 الخط الساخن:</span>
+                        <strong style={{ color: '#FCD34D' }}>{unifiedPhone}</strong>
+                      </a>
+                      <a 
+                        href={`https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#E2E8F0', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title="محادثة واتساب مباشرة مع المستر وفريق الدعم"
+                      >
+                        <span>💬 واتساب المستر:</span>
+                        <strong style={{ color: '#34D399' }}>{unifiedPhone}</strong>
+                      </a>
+                    </>
+                  );
+                })()}
                 <span>🔒 نظام حماية المحتوى: علامة مائية ذكية ضد التسريب</span>
               </div>
             </div>

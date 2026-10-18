@@ -199,7 +199,7 @@ export default function AuthModal() {
         )}
 
         <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          🔒 محمي ومشفر بالكامل بواسطة Firebase & Google Authentication
+          🔒 تسجيل دخول رسمي ومؤمن ومشفر بحساب Google المعتمد
         </p>
       </div>
     </div>

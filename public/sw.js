@@ -73,3 +73,72 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// =========================================================================
+// Native Web Push Notifications & Background Alerts
+// =========================================================================
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = {
+        title: 'منصة مستر مايكل شحاتة التعليمية 🇬🇧',
+        body: event.data.text()
+      };
+    }
+  }
+
+  const title = data.title || 'منصة مستر مايكل شحاتة التعليمية (The Master) 🇬🇧';
+  const options = {
+    body: data.body || 'لديك تنبيه تعليمي أو محاضرة جديدة متاحة الآن!',
+    icon: data.icon || './icons/icon-192x192.png',
+    badge: data.badge || './favicon.png',
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.tag || 'ms-announcement',
+    renotify: true,
+    dir: 'rtl',
+    lang: 'ar',
+    data: {
+      url: data.url || './',
+      targetId: data.targetId || null,
+      timestamp: Date.now()
+    },
+    actions: [
+      { action: 'open', title: 'عرض المحتوى 📖' },
+      { action: 'dismiss', title: 'إغلاق' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  const targetUrl = event.notification.data?.url || './';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // If a window is already open, focus it
+      for (let client of windowClients) {
+        if ('focus' in client) {
+          if (client.url.includes(targetUrl) || targetUrl === './') {
+            return client.focus();
+          }
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

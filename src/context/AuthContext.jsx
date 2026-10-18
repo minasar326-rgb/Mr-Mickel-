@@ -353,9 +353,9 @@ export function AuthProvider({ children }) {
       } else if (error.code === 'auth/popup-blocked') {
         errorMsg = 'تم حظر النافذة المنبثقة من قِبل المتصفح. يمكنك استخدام زر "الدخول المباشر".';
       } else if (error.code === 'auth/unauthorized-domain') {
-        errorMsg = 'النطاق الحالي (pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev) غير مضاف في قائمة النطاقات المصرح بها (Authorized Domains) في Firebase Console.';
+        errorMsg = 'تعذر التحقق من نطاق الموقع حالياً. يرجى التواصل مع الدعم الفني أو المحاولة لاحقاً.';
       } else if (error.code === 'auth/operation-not-allowed') {
-        errorMsg = 'تسجيل الدخول عبر Google غير مفعّل في لوحة Firebase Console. يرجى تفعيل Google في صفحة Sign-in method.';
+        errorMsg = 'خدمة تسجيل الدخول بحساب Google قيد التحديث المؤقت. يرجى المحاولة بعد لحظات.';
       } else if (error.code === 'auth/network-request-failed') {
         errorMsg = 'تعذر الاتصال بخوادم Google. يرجى التحقق من اتصالك بالإنترنت.';
       }

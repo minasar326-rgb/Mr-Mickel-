@@ -547,7 +547,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               }}
             >
               <Trophy size={16} color="#A67C52" />
-              <span>المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧</span>
+              <span>{teacherProfile?.welcomeBadge || 'المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧'}</span>
             </div>
 
             {/* Main Headline */}
@@ -567,7 +567,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 WebkitTextFillColor: 'transparent'
               }}>{teacherName}</span>
               <br />
-              الدرجة النهائية في الإنجليزي مضمونة 🎯
+              {teacherProfile?.heroSlogan || 'الدرجة النهائية في الإنجليزي مضمونة 🎯'}
             </h1>
 
             <p 
@@ -580,7 +580,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 maxWidth: '580px'
               }}
             >
-              المنصة التعليمية الرسمية لمستر مايكل شحاتة لطلاب المرحلة الابتدائية والإعدادية والثانوية: شرح مبسط ومنظم، فيديوهات تعليمية، تدريبات مكثفة، بنوك أسئلة، اختبارات دورية ومتابعة شاملة للطلاب.
+              {teacherProfile?.heroDescription || teacherProfile?.aboutBio || 'المنصة التعليمية الرسمية لمستر مايكل شحاتة لطلاب المرحلة الابتدائية والإعدادية والثانوية: شرح مبسط ومنظم، فيديوهات تعليمية، تدريبات مكثفة، بنوك أسئلة، اختبارات دورية ومتابعة شاملة للطلاب.'}
             </p>
 
             {/* Main CTAs & Replay Intro Button */}
@@ -708,8 +708,12 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 <Trophy size={24} />
               </div>
               <div>
-                <strong style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'block' }}>+1,420 طالب</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>الدرجة النهائية 50/50 في الثانوية</span>
+                <strong style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'block' }}>
+                  {teacherProfile?.statBadgeNumber || '+1,420 طالب'}
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {teacherProfile?.statBadgeText || 'الدرجة النهائية 50/50 في الثانوية'}
+                </span>
               </div>
             </div>
 
@@ -744,8 +748,12 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 <MessageCircle size={24} />
               </div>
               <div>
-                <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', display: 'block' }}>دعم ومتابعة أسبوعية</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>تقارير واتساب مباشرة لأولياء الأمور</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', display: 'block' }}>
+                  {teacherProfile?.supportBadgeTitle || 'دعم ومتابعة أسبوعية'}
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {teacherProfile?.supportBadgeText || 'تقارير واتساب مباشرة لأولياء الأمور'}
+                </span>
               </div>
             </div>
           </div>

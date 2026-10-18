@@ -29,7 +29,9 @@ import {
   fetchCodeFromCloud,
   markCodeAsUsedInCloud,
   syncAnnouncementToCloud,
-  deleteAnnouncementFromCloud
+  deleteAnnouncementFromCloud,
+  updateStudentSubscriptionStatusInCloud,
+  saveAuditLogToCloud
 } from '../services/firestoreSync';
 import {
   saveMediaFilePermanently,
@@ -1111,7 +1113,7 @@ export function TeacherProvider({ children }) {
         const updatedStudent = { ...std, finance: updatedFinance, teacherNotes: notes || std.teacherNotes };
         saveStudentToFirestore(updatedStudent);
 
-        addToast(`تم تسجيل سداد (${numAmount} ج.م) ومزامنته مع سحابة Firebase بنجاح! 💵`, 'success');
+        addToast(`تم تسجيل سداد (${numAmount} ج.م) وحفظ السجل المالي سحابياً بنجاح! 💵`, 'success');
         return updatedStudent;
       }
       return std;
@@ -2399,6 +2401,7 @@ export function TeacherProvider({ children }) {
     let studentTargetName = '';
     let studentTargetPhone = '';
     let targetDisplayTitle = '';
+    let updatedSubObj = null;
 
     setStudents(prev => prev.map(std => {
       if (std.id === studentId || std.code === studentId) {
@@ -2407,15 +2410,16 @@ export function TeacherProvider({ children }) {
         const currentSubs = { ...(std.subscriptions || {}) };
         if (currentSubs[targetId]) {
           targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
-          currentSubs[targetId] = {
+          updatedSubObj = {
             ...currentSubs[targetId],
             status: 'paused',
             isPaused: true,
             pauseReason: reason,
             pausedAt: new Date().toISOString()
           };
+          currentSubs[targetId] = updatedSubObj;
         } else {
-          currentSubs[targetId] = {
+          updatedSubObj = {
             targetId,
             targetTitle: `اشتراك ${targetId}`,
             status: 'paused',
@@ -2423,6 +2427,7 @@ export function TeacherProvider({ children }) {
             pauseReason: reason,
             pausedAt: new Date().toISOString()
           };
+          currentSubs[targetId] = updatedSubObj;
         }
         const updated = { ...std, subscriptions: currentSubs };
         saveStudentToFirestore(updated).catch(() => {});
@@ -2431,6 +2436,12 @@ export function TeacherProvider({ children }) {
       return std;
     }));
 
+    // Cloud update for the subscription
+    if (updatedSubObj) {
+      updateStudentSubscriptionStatusInCloud(studentId, targetId, updatedSubObj).catch(() => {});
+    }
+
+    // Invalidate local active student cache immediately if target student is currently active
     const currentUid = currentUser?.uid || currentUser?.id;
     if (currentUid === studentId) {
       try {
@@ -2441,7 +2452,23 @@ export function TeacherProvider({ children }) {
           saved.subscriptions[targetId].pauseReason = reason;
           localStorage.setItem('madarek_user', JSON.stringify(saved));
         }
+
+        // Also update ms_unlocked_with_expiry
+        const expDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        if (expDict[targetId]) {
+          expDict[targetId].status = 'paused';
+          expDict[targetId].isPaused = true;
+          expDict[targetId].pauseReason = reason;
+          localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expDict));
+        }
       } catch (e) {}
+
+      // Trigger re-render of current user state
+      if (currentUser && currentUser.subscriptions && currentUser.subscriptions[targetId]) {
+        currentUser.subscriptions[targetId].status = 'paused';
+        currentUser.subscriptions[targetId].isPaused = true;
+        currentUser.subscriptions[targetId].pauseReason = reason;
+      }
     }
 
     const logEntry = {
@@ -2458,6 +2485,7 @@ export function TeacherProvider({ children }) {
       date: new Date().toISOString()
     };
     setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    saveAuditLogToCloud(logEntry).catch(() => {});
     addToast(`تم إيقاف اشتراك الطالب (${studentTargetName || studentId}) مؤقتاً بنجاح ⏸️`, 'info');
   };
 
@@ -2465,6 +2493,7 @@ export function TeacherProvider({ children }) {
     let studentTargetName = '';
     let studentTargetPhone = '';
     let targetDisplayTitle = '';
+    let updatedSubObj = null;
 
     setStudents(prev => prev.map(std => {
       if (std.id === studentId || std.code === studentId) {
@@ -2474,12 +2503,13 @@ export function TeacherProvider({ children }) {
         if (currentSubs[targetId]) {
           targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
           const { isPaused, pauseReason, ...rest } = currentSubs[targetId];
-          currentSubs[targetId] = {
+          updatedSubObj = {
             ...rest,
             status: 'active',
             isPaused: false,
             resumedAt: new Date().toISOString()
           };
+          currentSubs[targetId] = updatedSubObj;
         }
         const updated = { ...std, subscriptions: currentSubs };
         saveStudentToFirestore(updated).catch(() => {});
@@ -2487,6 +2517,37 @@ export function TeacherProvider({ children }) {
       }
       return std;
     }));
+
+    if (updatedSubObj) {
+      updateStudentSubscriptionStatusInCloud(studentId, targetId, updatedSubObj).catch(() => {});
+    }
+
+    const currentUid = currentUser?.uid || currentUser?.id;
+    if (currentUid === studentId) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('madarek_user') || '{}');
+        if (saved && saved.subscriptions && saved.subscriptions[targetId]) {
+          saved.subscriptions[targetId].status = 'active';
+          saved.subscriptions[targetId].isPaused = false;
+          delete saved.subscriptions[targetId].pauseReason;
+          localStorage.setItem('madarek_user', JSON.stringify(saved));
+        }
+
+        const expDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        if (expDict[targetId]) {
+          expDict[targetId].status = 'active';
+          expDict[targetId].isPaused = false;
+          delete expDict[targetId].pauseReason;
+          localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expDict));
+        }
+      } catch (e) {}
+
+      if (currentUser && currentUser.subscriptions && currentUser.subscriptions[targetId]) {
+        currentUser.subscriptions[targetId].status = 'active';
+        currentUser.subscriptions[targetId].isPaused = false;
+        delete currentUser.subscriptions[targetId].pauseReason;
+      }
+    }
 
     const logEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -2502,6 +2563,7 @@ export function TeacherProvider({ children }) {
       date: new Date().toISOString()
     };
     setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    saveAuditLogToCloud(logEntry).catch(() => {});
     addToast(`تمت إعادة تفعيل اشتراك الطالب (${studentTargetName || studentId}) بنجاح ▶️`, 'success');
   };
 
@@ -2509,6 +2571,7 @@ export function TeacherProvider({ children }) {
     let studentTargetName = '';
     let targetDisplayTitle = '';
     let newExpiryDateStr = '';
+    let updatedSubObj = null;
 
     setStudents(prev => prev.map(std => {
       if (std.id === studentId || std.code === studentId) {
@@ -2523,7 +2586,7 @@ export function TeacherProvider({ children }) {
           const newExpTime = baseTime + Number(additionalDays) * 24 * 60 * 60 * 1000;
           newExpiryDateStr = new Date(newExpTime).toISOString();
 
-          currentSubs[targetId] = {
+          updatedSubObj = {
             ...currentSubs[targetId],
             status: 'active',
             isPaused: false,
@@ -2532,6 +2595,7 @@ export function TeacherProvider({ children }) {
             durationDays: (Number(currentSubs[targetId].durationDays) || 30) + Number(additionalDays),
             extendedAt: new Date().toISOString()
           };
+          currentSubs[targetId] = updatedSubObj;
         }
         const updated = { ...std, subscriptions: currentSubs };
         saveStudentToFirestore(updated).catch(() => {});
@@ -2539,6 +2603,40 @@ export function TeacherProvider({ children }) {
       }
       return std;
     }));
+
+    if (updatedSubObj) {
+      updateStudentSubscriptionStatusInCloud(studentId, targetId, updatedSubObj).catch(() => {});
+    }
+
+    const currentUid = currentUser?.uid || currentUser?.id;
+    if (currentUid === studentId && newExpiryDateStr) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('madarek_user') || '{}');
+        if (saved && saved.subscriptions && saved.subscriptions[targetId]) {
+          saved.subscriptions[targetId].expirationDate = newExpiryDateStr;
+          saved.subscriptions[targetId].expiresAt = newExpiryDateStr;
+          saved.subscriptions[targetId].status = 'active';
+          saved.subscriptions[targetId].isPaused = false;
+          localStorage.setItem('madarek_user', JSON.stringify(saved));
+        }
+
+        const expDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        if (expDict[targetId]) {
+          expDict[targetId].expirationDate = newExpiryDateStr;
+          expDict[targetId].expiresAt = newExpiryDateStr;
+          expDict[targetId].status = 'active';
+          expDict[targetId].isPaused = false;
+          localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expDict));
+        }
+      } catch (e) {}
+
+      if (currentUser && currentUser.subscriptions && currentUser.subscriptions[targetId]) {
+        currentUser.subscriptions[targetId].expirationDate = newExpiryDateStr;
+        currentUser.subscriptions[targetId].expiresAt = newExpiryDateStr;
+        currentUser.subscriptions[targetId].status = 'active';
+        currentUser.subscriptions[targetId].isPaused = false;
+      }
+    }
 
     const logEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -2553,12 +2651,14 @@ export function TeacherProvider({ children }) {
       date: new Date().toISOString()
     };
     setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    saveAuditLogToCloud(logEntry).catch(() => {});
     addToast(`تم تمديد اشتراك الطالب (${studentTargetName || studentId}) بنجاح لمدة ${additionalDays} يوم ⏳`, 'success');
   };
 
   const cancelStudentSubscription = (studentId, targetId, reason = 'إلغاء نهائي من قِبل الإدارة') => {
     let studentTargetName = '';
     let targetDisplayTitle = '';
+    let updatedSubObj = null;
 
     setStudents(prev => prev.map(std => {
       if (std.id === studentId || std.code === studentId) {
@@ -2566,13 +2666,14 @@ export function TeacherProvider({ children }) {
         const currentSubs = { ...(std.subscriptions || {}) };
         if (currentSubs[targetId]) {
           targetDisplayTitle = currentSubs[targetId].targetTitle || targetId;
-          currentSubs[targetId] = {
+          updatedSubObj = {
             ...currentSubs[targetId],
             status: 'cancelled',
             isCancelled: true,
             cancelReason: reason,
             cancelledAt: new Date().toISOString()
           };
+          currentSubs[targetId] = updatedSubObj;
         }
         const updated = { ...std, subscriptions: currentSubs };
         saveStudentToFirestore(updated).catch(() => {});
@@ -2580,6 +2681,37 @@ export function TeacherProvider({ children }) {
       }
       return std;
     }));
+
+    if (updatedSubObj) {
+      updateStudentSubscriptionStatusInCloud(studentId, targetId, updatedSubObj).catch(() => {});
+    }
+
+    const currentUid = currentUser?.uid || currentUser?.id;
+    if (currentUid === studentId) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('madarek_user') || '{}');
+        if (saved && saved.subscriptions && saved.subscriptions[targetId]) {
+          saved.subscriptions[targetId].status = 'cancelled';
+          saved.subscriptions[targetId].isCancelled = true;
+          saved.subscriptions[targetId].cancelReason = reason;
+          localStorage.setItem('madarek_user', JSON.stringify(saved));
+        }
+
+        const expDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        if (expDict[targetId]) {
+          expDict[targetId].status = 'cancelled';
+          expDict[targetId].isCancelled = true;
+          expDict[targetId].cancelReason = reason;
+          localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expDict));
+        }
+      } catch (e) {}
+
+      if (currentUser && currentUser.subscriptions && currentUser.subscriptions[targetId]) {
+        currentUser.subscriptions[targetId].status = 'cancelled';
+        currentUser.subscriptions[targetId].isCancelled = true;
+        currentUser.subscriptions[targetId].cancelReason = reason;
+      }
+    }
 
     const logEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -2594,6 +2726,7 @@ export function TeacherProvider({ children }) {
       date: new Date().toISOString()
     };
     setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    saveAuditLogToCloud(logEntry).catch(() => {});
     addToast(`تم إلغاء اشتراك الطالب (${studentTargetName || studentId}) نهائياً`, 'info');
   };
 
@@ -2617,6 +2750,14 @@ export function TeacherProvider({ children }) {
       return std;
     }));
 
+    const currentUid = currentUser?.uid || currentUser?.id;
+    if (currentUid === studentId) {
+      if (currentUser) {
+        currentUser.isFrozen = isNowFrozen;
+        currentUser.freezeReason = isNowFrozen ? reason : null;
+      }
+    }
+
     const logEntry = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       action: isNowFrozen ? 'freeze' : 'unfreeze',
@@ -2630,6 +2771,7 @@ export function TeacherProvider({ children }) {
       date: new Date().toISOString()
     };
     setSubscriptionAuditLogs(prev => [logEntry, ...prev]);
+    saveAuditLogToCloud(logEntry).catch(() => {});
     addToast(isNowFrozen ? `تم تجميد حساب الطالب (${studentTargetName}) بالكامل ❄️` : `تم فك تجميد حساب الطالب (${studentTargetName}) 🔓`, 'info');
   };
 

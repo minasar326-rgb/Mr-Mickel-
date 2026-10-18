@@ -19,6 +19,7 @@ import { saveMediaFilePermanently, updateMediaCloudUrl } from '../../services/pe
 import { generatePlatformIconsSuite, generateMasterIconCanvas, loadImage } from '../../services/iconGenerator';
 import ChangePasswordModal from './ChangePasswordModal';
 import TeacherAvatar3D from '../common/TeacherAvatar3D';
+import { dispatchExternalNotification } from '../../services/pushNotificationService';
 
 export default function TeacherAdminCenter({ onNavigate }) {
   const { 
@@ -119,6 +120,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [profileWhatsapp, setProfileWhatsapp] = useState(teacherProfile.whatsappNumber || '');
   const [profileAvatar, setProfileAvatar] = useState(teacherProfile.avatar || '');
   const [profileStudents, setProfileStudents] = useState(teacherProfile.totalStudents || 18500);
+  const [profileWelcomeBadge, setProfileWelcomeBadge] = useState(teacherProfile.welcomeBadge || 'المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧');
+  const [profileHeroSlogan, setProfileHeroSlogan] = useState(teacherProfile.heroSlogan || 'الدرجة النهائية في الإنجليزي مضمونة 🎯');
+  const [profileHeroDescription, setProfileHeroDescription] = useState(teacherProfile.heroDescription || 'المنصة التعليمية الرسمية لمستر مايكل شحاتة لطلاب المرحلة الابتدائية والإعدادية والثانوية: شرح مبسط ومنظم، فيديوهات تعليمية، تدريبات مكثفة، بنوك أسئلة، اختبارات دورية ومتابعة شاملة للطلاب.');
+  const [profileStatBadgeNumber, setProfileStatBadgeNumber] = useState(teacherProfile.statBadgeNumber || '+1,420 طالب');
+  const [profileStatBadgeText, setProfileStatBadgeText] = useState(teacherProfile.statBadgeText || 'الدرجة النهائية 50/50 في الثانوية');
+  const [profileSupportBadgeTitle, setProfileSupportBadgeTitle] = useState(teacherProfile.supportBadgeTitle || 'دعم ومتابعة أسبوعية');
+  const [profileSupportBadgeText, setProfileSupportBadgeText] = useState(teacherProfile.supportBadgeText || 'تقارير واتساب مباشرة لأولياء الأمور');
   const [appIconPreview, setAppIconPreview] = useState(null);
   const [isGeneratingIcons, setIsGeneratingIcons] = useState(false);
 
@@ -240,6 +248,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
   // Broadcast State
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
+  const [annAudience, setAnnAudience] = useState('all'); // 'all' | 'stage' | 'student'
+  const [annTargetStage, setAnnTargetStage] = useState('sec-3');
+  const [annTargetStudent, setAnnTargetStudent] = useState('');
+  const [annSendAsPush, setAnnSendAsPush] = useState(true);
 
   // -------------------------------------------------------------
   // Student Subscriptions State (التحكم في اشتراكات الطلاب)
@@ -364,7 +376,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
         setUploadProgress(100);
         setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true }));
         await updateMediaCloudUrl(mediaKey, res.downloadUrl);
-        addToast(`✅ تم رفع وحفظ الفيديو بنجاح على سحابة Cloudflare R2 فائقة السرعة! ☁️🎬`, 'success', 6000);
+        addToast(`✅ تم حفظ وتأمين فيديو المحاضرة بنجاح على السحابة التعليمية! ☁️🎬`, 'success', 5000);
       }
     }).catch((r2Err) => {
       console.warn('Cloudflare R2 notice, trying Firebase fallback:', r2Err);
@@ -441,7 +453,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
       setNewBkTitle(file.name.replace(/\.[^/.]+$/, ''));
     }
     setIsUploadingBk(true);
-    addToast(`جاري رفع ملف المذكرة (${file.name}) إلى سحابة Cloudflare... 📄☁️`, 'info');
+    addToast(`جاري حفظ وتأمين ملف المذكرة (${file.name}) على السحابة التعليمية... 📄☁️`, 'info');
 
     try {
       const res = await uploadFileToR2(file, 'booklets/pdfs');
@@ -499,12 +511,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
   };
 
   // -------------------------------------------------------------
-  // Treasury & Financial Computations (Real Ledger & Distinct Sources)
+  // Treasury & Financial Computations (Strictly Paid Redeemed Codes - No Unintegrated Online/Unused/Gift)
   // -------------------------------------------------------------
-  const realCashTransactions = transactions.filter(t => !t.isGift && t.status === 'completed');
-  const totalCollectedRevenue = realCashTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const codesRevenue = transactions.filter(t => t.paymentMethod === 'code' && !t.isGift && t.status === 'completed').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const onlineRevenue = transactions.filter(t => ['vodafone', 'fawry', 'card'].includes(t.paymentMethod) && t.status === 'completed').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const paidRedeemedCodesTransactions = transactions.filter(t => t.paymentMethod === 'code' && !t.isGift && t.status === 'completed');
+  const totalCollectedRevenue = paidRedeemedCodesTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const codesRevenue = totalCollectedRevenue;
+  const totalPaidCodesCount = paidRedeemedCodesTransactions.length;
   const giftCodesCount = transactions.filter(t => t.isGift).length;
   const totalPendingDues = students.reduce((sum, s) => sum + (Number(s.finance?.dueAmount) || 0), 0);
   const totalExpectedRevenue = totalCollectedRevenue + totalPendingDues;
@@ -977,9 +989,16 @@ export default function TeacherAdminCenter({ onNavigate }) {
       aboutBio: profileBio,
       whatsappNumber: profileWhatsapp,
       avatar: finalAvatar,
-      totalStudents: Number(profileStudents)
+      totalStudents: Number(profileStudents),
+      welcomeBadge: profileWelcomeBadge,
+      heroSlogan: profileHeroSlogan,
+      heroDescription: profileHeroDescription,
+      statBadgeNumber: profileStatBadgeNumber,
+      statBadgeText: profileStatBadgeText,
+      supportBadgeTitle: profileSupportBadgeTitle,
+      supportBadgeText: profileSupportBadgeText
     });
-    addToast('تم حفظ وتحديث بيانات المعلم بنجاح ✅', 'success', 2500);
+    addToast('تم حفظ وتحديث بيانات المعلم ونصوص الصفحة الرئيسية بنجاح ✅', 'success', 2500);
   };
 
   const handleUploadLecture = async (e) => {
@@ -1137,10 +1156,38 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setGenCodeCustomCode('');
   };
 
-  const handleBroadcastSubmit = (e) => {
+  const handleBroadcastSubmit = async (e) => {
     e.preventDefault();
     if (!annTitle.trim() || !annContent.trim()) return;
-    postAnnouncement(annTitle, annContent);
+
+    let audienceDetails = 'الكل';
+    if (annAudience === 'stage') {
+      const stg = stages.find(s => s.id === annTargetStage);
+      audienceDetails = stg ? stg.name : 'مرحلة دراسية';
+    } else if (annAudience === 'student') {
+      const std = students.find(s => s.id === annTargetStudent);
+      audienceDetails = std ? `طالب: ${std.name}` : 'طالب محدد';
+    }
+
+    const fullContent = annAudience === 'all' 
+      ? annContent.trim() 
+      : `[موجه إلى: ${audienceDetails}]\n${annContent.trim()}`;
+
+    postAnnouncement(annTitle.trim(), fullContent);
+
+    if (annSendAsPush) {
+      await dispatchExternalNotification({
+        title: annTitle.trim(),
+        body: annContent.trim(),
+        url: './',
+        tag: `ms-ann-${Date.now()}`,
+        targetAudience: annAudience
+      });
+      addToast('تم إرسال التنبيه ونشر الإشعار الخارجي (Push Notification) بنجاح 🔔📲', 'success');
+    } else {
+      addToast('تم نشر التنبيه بنجاح داخل المنصة 📢', 'success');
+    }
+
     setAnnTitle('');
     setAnnContent('');
   };
@@ -1231,12 +1278,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <strong style={{ fontSize: '1.05rem', color: '#92400E' }}>سحابة Google Firebase مهيأة ومتصلة بنجاح 🔥</strong>
-                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>مشروع: mr-mi-586d2</span>
-                <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>Cloud Firestore Live</span>
+                <strong style={{ fontSize: '1.05rem', color: '#92400E' }}>السحابة التعليمية وقواعد البيانات مؤمنة ومتصلة بنجاح ☁️</strong>
+                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>النظام السحابي: نشط ومحمي</span>
+                <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>مزامنة سحابية مباشرة Live</span>
               </div>
               <span style={{ fontSize: '0.82rem', color: '#78350F' }}>
-                Cloud Firestore Database (Active) • Storage Bucket (mr-mi-586d2.firebasestorage.app) • مزامنة تلقائية فورية
+                قواعد البيانات السحابية (نشطة) • مساحة التخزين السحابية التعليمية • المزامنة التلقائية مفعلة
               </span>
             </div>
           </div>
@@ -1247,7 +1294,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
             style={{ gap: '8px', fontWeight: 800, padding: '0.75rem 1.4rem', boxShadow: '0 4px 15px rgba(217, 119, 6, 0.3)' }}
           >
             <Cloud size={18} />
-            <span>⚡ مزامنة كاملة للبيانات سحابياً مع Firebase</span>
+            <span>⚡ مزامنة كاملة لبيانات المنصة سحابياً</span>
           </button>
         </div>
 
@@ -1266,7 +1313,6 @@ export default function TeacherAdminCenter({ onNavigate }) {
             { id: 'subscriptions', label: `🎫 إدارة الاشتراكات والمشتركين (${allStudentSubscriptions.length})`, icon: CreditCard },
             { id: 'exams', label: `📝 الامتحانات والتصحيح اليدوي ${pendingGradingSubmissions.length > 0 ? `(${pendingGradingSubmissions.length} 🔔)` : ''}`, icon: HelpCircle },
             { id: 'security', label: '🛡️ درع الحماية والأمان (Anti-Piracy)', icon: ShieldCheck },
-            { id: 'students', label: `👥 سجل ومتابعة الطلاب (${students.length})`, icon: Users },
             { id: 'finance', label: `💰 الخزينة (${totalCollectedRevenue.toLocaleString()} ج.م)`, icon: DollarSign },
             { id: 'profile', label: '👤 بيانات المستر', icon: Settings },
             { id: 'stages', label: `🎓 المراحل (${stages.length})`, icon: BookOpen },
@@ -2977,182 +3023,6 @@ export default function TeacherAdminCenter({ onNavigate }) {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 4: STUDENTS MANAGEMENT & FINANCE */}
-        {/* ========================================================= */}
-        {activeTab === 'students' && (
-          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="card" style={{ padding: '1.25rem', background: 'var(--bg-surface)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'center' }}>
-                <div style={{ position: 'relative' }}>
-                  <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
-                    type="text"
-                    placeholder="بحث باسم الطالب، كود الطالب، أو الهاتف..."
-                    value={studentSearch}
-                    onChange={e => setStudentSearch(e.target.value)}
-                    className="input-control"
-                    style={{ paddingRight: '38px' }}
-                  />
-                </div>
-                <div>
-                  <select value={selectedStageFilter} onChange={e => setSelectedStageFilter(e.target.value)} className="input-control">
-                    <option value="all">كل الصفوف والمراحل</option>
-                    {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <select value={selectedPayFilter} onChange={e => setSelectedPayFilter(e.target.value)} className="input-control">
-                    <option value="all">كل حالات السداد</option>
-                    <option value="paid">مسدد بالكامل ✓</option>
-                    <option value="partial">مسدد جزء / متبقي</option>
-                    <option value="unpaid">لم يسدد / متأخرات ⚠️</option>
-                  </select>
-                </div>
-                <div>
-                  <select value={selectedGroupFilter} onChange={e => setSelectedGroupFilter(e.target.value)} className="input-control">
-                    <option value="all">كل المجموعات (سنتر وأونلاين)</option>
-                    <option value="center">طلاب السنتر 🏢</option>
-                    <option value="online">طلاب الأونلاين 💻</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-              <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>سجل الطلاب والاشتراكات</h3>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>المعروض: {filteredStudents.length} من {students.length} طالب</span>
-                </div>
-                <button onClick={() => setIsAddStudentModalOpen(true)} className="btn btn-primary btn-sm" style={{ gap: '6px' }}>
-                  <Plus size={16} />
-                  <span>إضافة طالب جديد</span>
-                </button>
-              </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.88rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '0.75rem' }}>بيانات الطالب</th>
-                      <th style={{ padding: '0.75rem' }}>المرحلة والمجموعة</th>
-                      <th style={{ padding: '0.75rem' }}>المصاريف والفلوس</th>
-                      <th style={{ padding: '0.75rem' }}>التقدم والواجب</th>
-                      <th style={{ padding: '0.75rem' }}>الحالة</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'center' }}>إجراءات المتابعة والشهادة</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.map(std => {
-                      const pay = std.finance || { paidAmount: 0, dueAmount: 250, paymentStatus: 'unpaid' };
-                      const hw = std.homeworkStatus?.['lec-s3-01'];
-
-                      return (
-                        <tr key={std.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '0.85rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <img src={std.avatar} alt={std.name} style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover' }} />
-                              <div>
-                                <strong style={{ display: 'block', fontSize: '0.95rem' }}>{std.name}</strong>
-                                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--primary-600)', fontWeight: 700 }}>{std.code}</span>
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>📱 {std.phone}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{ padding: '0.85rem' }}>
-                            {(() => {
-                              const subs = std.subscriptions ? Object.values(std.subscriptions) : [];
-                              const primarySub = subs[0] || std.subscription || null;
-                              const startDate = primarySub?.startDate || std.startDate;
-                              const expiresAt = primarySub?.expiresAt || primarySub?.expirationDate || std.expiresAt || std.expirationDate;
-                              const isSubActive = expiresAt ? new Date(expiresAt).getTime() > Date.now() : (std.subscriptionStatus === 'active' || std.isActive);
-                              const startDateFormatted = startDate ? new Date(startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
-                              const expiresAtFormatted = expiresAt ? new Date(expiresAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
-
-                              return (
-                                <div>
-                                  <span style={{ fontWeight: 800, display: 'block', color: 'var(--text-primary)' }}>{std.stageName || primarySub?.targetTitle || 'المرحلة الدراسية'}</span>
-                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block' }}>
-                                    {std.groupType === 'center' ? `🏢 ${std.centerName}` : '💻 أونلاين VIP'}
-                                  </span>
-                                  {expiresAt ? (
-                                    <div style={{ marginTop: '4px', fontSize: '0.74rem', lineHeight: '1.4' }}>
-                                      <span style={{ 
-                                        display: 'inline-block',
-                                        padding: '1px 6px',
-                                        borderRadius: '4px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        background: isSubActive ? '#DCFCE7' : '#FEE2E2',
-                                        color: isSubActive ? '#166534' : '#991B1B',
-                                        marginBottom: '2px'
-                                      }}>
-                                        {isSubActive ? '✓ اشتراك نشط' : '⚠️ اشتراك منتهي'}
-                                      </span>
-                                      {startDateFormatted && <span style={{ color: 'var(--text-muted)', display: 'block' }}>بدأ: {startDateFormatted}</span>}
-                                      <span style={{ color: isSubActive ? 'var(--primary-700)' : '#EF4444', fontWeight: 700, display: 'block' }}>ينتهي: {expiresAtFormatted}</span>
-                                    </div>
-                                  ) : (
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>🔒 بدون اشتراك نشط</span>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </td>
-                          <td style={{ padding: '0.85rem' }}>
-                            <div style={{ marginBottom: '4px' }}>
-                              {pay.paymentStatus === 'paid' ? <span className="badge badge-success">✓ مسدد {pay.paidAmount} ج.م</span> : <span className="badge badge-error">⚠️ متبقي {pay.dueAmount} ج.م</span>}
-                            </div>
-                            <button onClick={() => { setActivePaymentStudent(std); setPayAmountInput(String(pay.dueAmount || 250)); }} className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', padding: '2px 6px', color: 'var(--primary-600)' }}>
-                              💵 سداد دفعة
-                            </button>
-                          </td>
-                          <td style={{ padding: '0.85rem' }}>
-                            <span style={{ fontSize: '0.8rem', display: 'block' }}>إتمام: <strong>{std.progress || '100%'}</strong></span>
-                            <span style={{ fontSize: '0.75rem', color: hw?.status === 'submitted' ? 'var(--success)' : 'var(--error)' }}>{hw?.status === 'submitted' ? '✓ تم الواجب' : '⚠️ لم يسلم'}</span>
-                          </td>
-                          <td style={{ padding: '0.85rem' }}>
-                            <button onClick={() => toggleStudentStatus(std.id)} className={`btn btn-sm ${std.isActive ? 'btn-ghost' : 'btn-secondary'}`} style={{ fontSize: '0.72rem', padding: '2px 8px', color: std.isActive ? 'var(--success)' : 'var(--error)' }}>
-                              {std.isActive ? 'نشط ✓' : '🔒 مجمد'}
-                            </button>
-                          </td>
-                          <td style={{ padding: '0.85rem', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                              <button onClick={() => setActiveCertificateStudent(std)} className="btn btn-ghost btn-sm" title="إصدار شهادة تقدير معتمدة"><Award size={16} color="#D97706" /></button>
-                              <button onClick={() => setActiveCardStudent(std)} className="btn btn-ghost btn-sm" title="كارنيه الطالب QR"><QrCode size={16} color="var(--primary-600)" /></button>
-                              <button onClick={() => setActiveProfileStudent(std)} className="btn btn-ghost btn-sm" title="ملف الطالب 360"><Eye size={16} /></button>
-                              <button onClick={() => setActiveReportStudent(std)} className="btn btn-ghost btn-sm" title="تقرير أداء واتساب"><MessageCircle size={16} color="#059669" /></button>
-                              <button 
-                                onClick={() => {
-                                  const lecId = prompt(`اختر معرف المحاضرة أو عنوانها لفتحها للطالب (${std.name}):\n(مثال: lec-s3-02 أو الصق معرف المحاضرة)`, 'lec-s3-02');
-                                  if (lecId && lecId.trim()) {
-                                    const reason = prompt('اذكر سبب الفتح الاستثنائي:', 'موافقة المستر - عذر مرضي / استثنائي');
-                                    overrideUnlockLecture(lecId.trim(), std.id, reason || 'موافقة المستر يدوياً');
-                                  }
-                                }} 
-                                className="btn btn-ghost btn-sm" 
-                                title="فتح محاضرة استثنائياً للطالب (تجاوز شروط المشاهدة/الامتحان)"
-                              >
-                                <Unlock size={16} color="#10B981" />
-                              </button>
-                              {pay.dueAmount > 0 && <button onClick={() => setActiveReminderStudent(std)} className="btn btn-ghost btn-sm" title="تذكير بالمصاريف"><DollarSign size={16} color="#D97706" /></button>}
-                              <button onClick={() => { if (window.confirm(`حذف الطالب "${std.name}"؟`)) deleteStudent(std.id); }} className="btn btn-ghost btn-sm" style={{ color: '#EF4444' }}><Trash2 size={16} /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 5: FINANCE & DUES DASHBOARD */}
-        {/* ========================================================= */}
-        {/* ========================================================= */}
         {/* TAB 5: ADVANCED TREASURY & FINANCIAL LEDGER */}
         {/* ========================================================= */}
         {activeTab === 'finance' && (
@@ -3161,38 +3031,91 @@ export default function TeacherAdminCenter({ onNavigate }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1.25rem' }}>
               <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid var(--success)', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="flex-between" style={{ marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>💵 إجمالي الإيرادات الفعلية</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>💵 إجمالي الإيرادات الفعلية للأكواد</span>
                   <span className="badge badge-success">نقدي محصل</span>
                 </div>
                 <strong style={{ fontSize: '2.1rem', color: 'var(--success)', display: 'block' }}>{totalCollectedRevenue.toLocaleString()} ج.م</strong>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>من العمليات الناجحة (دفع إلكتروني + كروت مدفوعة)</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>صافي مبيعات كروت الشحن وأكواد التفعيل المدفوعة والمشحونة فعليًا</span>
               </div>
 
               <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #F59E0B', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="flex-between" style={{ marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎟️ مبيعات كروت الشحن</span>
-                  <span className="badge badge-primary">أكواد تفعيل</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎟️ الأكواد المدفوعة المشحونة</span>
+                  <span className="badge badge-primary">مفعلة بنجاح</span>
                 </div>
-                <strong style={{ fontSize: '2.1rem', color: '#D97706', display: 'block' }}>{codesRevenue.toLocaleString()} ج.م</strong>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>إجمالي مبيعات أكواد الشحن المسبقة الدفع</span>
+                <strong style={{ fontSize: '2.1rem', color: '#D97706', display: 'block' }}>{totalPaidCodesCount} كود</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>أكواد مدفوعة تم شحنها وتفعيل محتواها للطلاب</span>
               </div>
 
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #D97706', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #10B981', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="flex-between" style={{ marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>📱 الدفع الإلكتروني المباشر</span>
-                  <span className="badge" style={{ background: '#FEF3C7', color: '#92400E' }}>فودافون / فوري</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎁 أكواد الهدايا المفعلة</span>
+                  <span className="badge badge-gold">معفاة تماماً</span>
                 </div>
-                <strong style={{ fontSize: '2.1rem', color: '#B45309', display: 'block' }}>{onlineRevenue.toLocaleString()} ج.م</strong>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>تحصيلات المحافظ والبطاقات البنكية</span>
+                <strong style={{ fontSize: '2.1rem', color: '#059669', display: 'block' }}>{giftCodesCount} كود</strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>أكواد هدايا مجانية مستبعدة تماماً من حساب الإيرادات المالية</span>
               </div>
 
-              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #F59E0B', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', borderRight: '5px solid #6366F1', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="flex-between" style={{ marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>🎁 الأكواد المجانية / الهدايا</span>
-                  <span className="badge badge-gold">معفاة</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>👥 إجمالي الطلاب المشتركين</span>
+                  <span className="badge" style={{ background: '#EEF2FF', color: '#4338CA' }}>مشتركون</span>
                 </div>
-                <strong style={{ fontSize: '2.1rem', color: '#D97706', display: 'block' }}>{giftCodesCount} كود</strong>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>مستبعدة تماماً من حساب الإيرادات الفعلية لمنع الوهم</span>
+                <strong style={{ fontSize: '2.1rem', color: '#4F46E5', display: 'block' }}>
+                  {new Set(paidRedeemedCodesTransactions.map(t => t.userId)).size} طالب
+                </strong>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>عدد الطلاب الفعليين الذين شحنوا أكواد اشتراك</span>
+              </div>
+            </div>
+
+            {/* Revenue by Stage Grid */}
+            <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>🎓 إيرادات المنصة مفصلة حسب المراحل الدراسية</h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>توزيع دخل كروت الشحن لكل مرحلة دراسية على حدة</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                {stages.map(stg => {
+                  const stageTx = paidRedeemedCodesTransactions.filter(t => t.stageId === stg.id || (t.stageName && t.stageName.includes(stg.name)));
+                  const stageRev = stageTx.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+                  const stageCodesCount = stageTx.length;
+                  const stageStudentsCount = new Set(stageTx.map(t => t.userId)).size;
+
+                  return (
+                    <div key={stg.id} style={{
+                      padding: '1.25rem',
+                      borderRadius: '14px',
+                      background: 'var(--bg-subtle)',
+                      border: '1.5px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)'
+                    }}>
+                      <div>
+                        <div className="flex-between" style={{ marginBottom: '8px' }}>
+                          <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>{stg.badge || 'مرحلة دراسية'}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{stageCodesCount} كود مشحون</span>
+                        </div>
+                        <strong style={{ fontSize: '1.05rem', display: 'block', marginBottom: '4px', color: 'var(--text-primary)' }}>{stg.name}</strong>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', marginTop: '10px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>الطلاب المشتركون</span>
+                          <strong style={{ fontSize: '0.92rem' }}>{stageStudentsCount} طالب</strong>
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>إجمالي الإيراد</span>
+                          <strong style={{ fontSize: '1.2rem', color: 'var(--success)' }}>{stageRev.toLocaleString()} ج.م</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -3201,13 +3124,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
               <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>📊 إيرادات المنصة مفصلة حسب الشهور والكورسات</h3>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>توزيع دخل المنصة على كل شهر وكورس بشكل منفصل ودقيق</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>توزيع دخل المنصة على كل شهر وكورس بناءً على الأكواد المشحونة</span>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
                 {sections.map(sec => {
-                  const secTx = transactions.filter(t => t.targetId === sec.id && !t.isGift && t.status === 'completed');
+                  const secTx = paidRedeemedCodesTransactions.filter(t => t.targetId === sec.id);
                   const secRev = secTx.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
                   const secStudentsCount = new Set(secTx.map(t => t.userId)).size;
 
@@ -3252,16 +3175,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
               <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>📜 سجل المعاملات المالية والخزينة (Transaction Ledger)</h3>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>إجمالي الحركات المسجلة: {transactions.length} معاملة (مع منع الاحتساب المزدوج)</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>سجل شحن وتفعيل الكروت المحصلة: {transactions.filter(t => t.paymentMethod === 'code').length} عملية شحن</span>
                 </div>
 
                 {/* Filter pills */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {[
-                    { id: 'all', label: `الكل (${transactions.length})` },
-                    { id: 'code', label: `كروت شحن (${transactions.filter(t => t.paymentMethod === 'code').length})` },
-                    { id: 'online', label: `دفع إلكتروني (${transactions.filter(t => ['vodafone', 'fawry', 'card'].includes(t.paymentMethod)).length})` },
-                    { id: 'gift', label: `أكواد هدايا (${transactions.filter(t => t.isGift).length})` }
+                    { id: 'all', label: `الكل (${transactions.filter(t => t.paymentMethod === 'code').length})` },
+                    { id: 'code', label: `أكواد مدفوعة (${paidRedeemedCodesTransactions.length})` },
+                    { id: 'gift', label: `أكواد هدايا معفاة (${giftCodesCount})` }
                   ].map(flt => (
                     <button
                       key={flt.id}
@@ -3291,9 +3213,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   </thead>
                   <tbody>
                     {transactions
+                      .filter(t => t.paymentMethod === 'code')
                       .filter(t => {
-                        if (txFilterMethod === 'code') return t.paymentMethod === 'code' && !t.isGift;
-                        if (txFilterMethod === 'online') return ['vodafone', 'fawry', 'card'].includes(t.paymentMethod);
+                        if (txFilterMethod === 'code') return !t.isGift && t.status === 'completed';
                         if (txFilterMethod === 'gift') return t.isGift;
                         return true;
                       })
@@ -3537,8 +3459,127 @@ export default function TeacherAdminCenter({ onNavigate }) {
               </div>
 
 
+              {/* Dynamic Hero Section Customization */}
+              <div style={{
+                gridColumn: 'span 2',
+                padding: '1.25rem',
+                borderRadius: '16px',
+                background: 'var(--bg-subtle)',
+                border: '1.5px solid var(--border-subtle)',
+                margin: '0.5rem 0'
+              }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 1rem', color: '#1F4D3A' }}>
+                  🎯 نصوص الواجهة والبانر الرئيسي (النصوص بجوار صورة المستر بالصفحة الرئيسية)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      شارة الترحيب العلوية (Welcome Badge):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileWelcomeBadge} 
+                      onChange={e => setProfileWelcomeBadge(e.target.value)} 
+                      className="input-control" 
+                      placeholder="المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      الشعار التحفيزي بجوار الصورة (Hero Slogan):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileHeroSlogan} 
+                      onChange={e => setProfileHeroSlogan(e.target.value)} 
+                      className="input-control" 
+                      placeholder="الدرجة النهائية في الإنجليزي مضمونة 🎯"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      إجمالي الطلاب المسجلين:
+                    </label>
+                    <input 
+                      type="number" 
+                      value={profileStudents} 
+                      onChange={e => setProfileStudents(e.target.value)} 
+                      className="input-control" 
+                      placeholder="18500"
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      الوصف التعريفي للبانر الرئيسي (Hero Description):
+                    </label>
+                    <textarea 
+                      value={profileHeroDescription} 
+                      onChange={e => setProfileHeroDescription(e.target.value)} 
+                      className="input-control" 
+                      style={{ height: '70px' }} 
+                      placeholder="المنصة التعليمية الرسمية لمستر مايكل شحاتة..."
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      رقم إحصائية التفوق (Stat Badge Number):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileStatBadgeNumber} 
+                      onChange={e => setProfileStatBadgeNumber(e.target.value)} 
+                      className="input-control" 
+                      placeholder="+1,420 طالب"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      عنوان إحصائية التفوق (Stat Badge Text):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileStatBadgeText} 
+                      onChange={e => setProfileStatBadgeText(e.target.value)} 
+                      className="input-control" 
+                      placeholder="الدرجة النهائية 50/50 في الثانوية"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      عنوان كارت المتابعة (Support Badge Title):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileSupportBadgeTitle} 
+                      onChange={e => setProfileSupportBadgeTitle(e.target.value)} 
+                      className="input-control" 
+                      placeholder="دعم ومتابعة أسبوعية"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                      وصف كارت المتابعة (Support Badge Text):
+                    </label>
+                    <input 
+                      type="text" 
+                      value={profileSupportBadgeText} 
+                      onChange={e => setProfileSupportBadgeText(e.target.value)} 
+                      className="input-control" 
+                      placeholder="تقارير واتساب مباشرة لأولياء الأمور"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نبذة المستر:</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نبذة المستر (Bio):</label>
                 <textarea value={profileBio} onChange={e => setProfileBio(e.target.value)} className="input-control" style={{ height: '100px' }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
@@ -3645,7 +3686,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     >
                       <FileUp size={18} color="var(--primary-600)" />
                       <span style={{ fontWeight: 800, color: newBkDownloadUrl ? '#065F46' : undefined }}>
-                        {isUploadingBk ? 'جاري الرفع لـ Cloudflare... ⏳' : newBkFile ? `ملف: ${newBkFile.name} (${newBkFileSize})` : 'اختر ملف PDF من جهازك'}
+                        {isUploadingBk ? 'جاري الحفظ والتأمين سحابياً... ⏳' : newBkFile ? `ملف: ${newBkFile.name} (${newBkFileSize})` : 'اختر ملف PDF من جهازك'}
                       </span>
                     </button>
                   </div>
@@ -3672,7 +3713,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 {newBkDownloadUrl && (
                   <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '8px 14px', borderRadius: '8px', color: '#065F46', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <CheckCircle2 size={16} color="#059669" />
-                    <span>تم رفع وتجهيز المذكرة سحابياً بنجاح على Cloudflare! جاهزة للتحميل من قِبل الطلاب.</span>
+                    <span>تم حفظ وتأمين المذكرة بنجاح على السحابة التعليمية! جاهزة للتنزيل من قِبل الطلاب.</span>
                   </div>
                 )}
 
@@ -4214,21 +4255,189 @@ export default function TeacherAdminCenter({ onNavigate }) {
         {activeTab === 'broadcast' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 1rem' }}>إرسال تنبيه عاجل لجميع الطلاب 📢</h3>
+              <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0, color: '#1F4D3A' }}>
+                    📢 إرسال التنبيهات والإشعارات الخارجية للطلاب (Web Push & Broadcast)
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                    أرسل تنبيهات فورية تظهر داخل الموقع أو مباشرة كإشعارات خارجية على شاشات هواتف وحواسيب الطلاب.
+                  </p>
+                </div>
+                <span className="badge badge-primary" style={{ padding: '6px 14px', fontWeight: 800 }}>
+                  Push Notifications جاهز 📲
+                </span>
+              </div>
+
               <form onSubmit={handleBroadcastSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>عنوان التنبيه:</label>
-                  <input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} className="input-control" required />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      عنوان التنبيه أو المحاضرة:
+                    </label>
+                    <input 
+                      type="text" 
+                      value={annTitle} 
+                      onChange={e => setAnnTitle(e.target.value)} 
+                      className="input-control" 
+                      placeholder="مثال: تم رفع محاضرة القواعد الجديدة + امتحان الأسبوع" 
+                      required 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      الجمهور المستهدف:
+                    </label>
+                    <select 
+                      value={annAudience} 
+                      onChange={e => setAnnAudience(e.target.value)} 
+                      className="input-control"
+                    >
+                      <option value="all">📢 جميع الطلاب المسجلين بالمنصة (الكل)</option>
+                      <option value="stage">🎓 طلاب مرحلة دراسية محددة</option>
+                      <option value="student">👤 طالب محدد بالاسم</option>
+                    </select>
+                  </div>
                 </div>
+
+                {annAudience === 'stage' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      اختر المرحلة الدراسية المستهدفة:
+                    </label>
+                    <select 
+                      value={annTargetStage} 
+                      onChange={e => setAnnTargetStage(e.target.value)} 
+                      className="input-control"
+                    >
+                      {stages.map(stg => (
+                        <option key={stg.id} value={stg.id}>{stg.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {annAudience === 'student' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      اختر الطالب المستهدف:
+                    </label>
+                    <select 
+                      value={annTargetStudent} 
+                      onChange={e => setAnnTargetStudent(e.target.value)} 
+                      className="input-control"
+                    >
+                      <option value="">-- اختر الطالب من القائمة --</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.code || s.phone}) - {s.stageName}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نص الرسالة:</label>
-                  <textarea value={annContent} onChange={e => setAnnContent(e.target.value)} className="input-control" style={{ height: '100px' }} required />
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                    نص التنبيه والتعليمات:
+                  </label>
+                  <textarea 
+                    value={annContent} 
+                    onChange={e => setAnnContent(e.target.value)} 
+                    className="input-control" 
+                    style={{ height: '110px' }} 
+                    placeholder="اكتب رسالة التنبيه التي ستصل للطلاب..."
+                    required 
+                  />
                 </div>
-                <button type="submit" className="btn btn-primary btn-lg" style={{ gap: '8px' }}>
+
+                {/* External Push Notification Checkbox Option */}
+                <div style={{
+                  padding: '1rem',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(31, 77, 58, 0.08) 0%, rgba(166, 124, 82, 0.08) 100%)',
+                  border: '1.5px solid rgba(31, 77, 58, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="sendAsPushCheck"
+                    checked={annSendAsPush}
+                    onChange={e => setAnnSendAsPush(e.target.checked)}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#1F4D3A' }}
+                  />
+                  <label htmlFor="sendAsPushCheck" style={{ cursor: 'pointer', fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    📲 إرسال كإشعار خارجي للأجهزة (Push Notification)
+                    <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>
+                      يظهر الإشعار في شريط إشعارات الهاتف أو سطح مكتب الحاسوب حتى وإن كان المتصفح مصغراً.
+                    </span>
+                  </label>
+                </div>
+
+                <button type="submit" className="btn btn-primary btn-lg" style={{ gap: '8px', alignSelf: 'flex-start' }}>
                   <Send size={18} />
-                  <span>إرسال التنبيه فوراً</span>
+                  <span>إرسال التنبيه ونشر الإشعار الآن</span>
                 </button>
               </form>
+            </div>
+
+            {/* Announcements History List */}
+            <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>
+                  📜 سجل التنبيهات المنشورة سابقاً ({announcements.length})
+                </h4>
+              </div>
+
+              {announcements.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                  لا توجد تنبيهات منشورة حالياً.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {announcements.map((ann, aIdx) => (
+                    <div key={ann.id || aIdx} style={{
+                      padding: '1.25rem',
+                      borderRadius: '12px',
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '1rem'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <span className="badge badge-primary">تنبيه رسمي 📢</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {ann.date || 'اليوم'}
+                          </span>
+                        </div>
+                        <strong style={{ fontSize: '1.05rem', display: 'block', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                          {ann.title}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>
+                          {ann.content}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`حذف التنبيه "${ann.title}"؟`)) {
+                            deleteAnnouncement(ann.id);
+                          }
+                        }}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#EF4444' }}
+                        title="حذف التنبيه"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

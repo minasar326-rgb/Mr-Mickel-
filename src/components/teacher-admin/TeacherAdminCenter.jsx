@@ -162,13 +162,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [isFreeLecture, setIsFreeLecture] = useState(false);
   const [lecturePrice, setLecturePrice] = useState('70 ج.م');
   const [videoSourceType, setVideoSourceType] = useState('file'); // 'file' | 'url'
-  const [videoUrl, setVideoUrl] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+  const [videoUrl, setVideoUrl] = useState('');
   const [videoFileName, setVideoFileName] = useState('');
   const [videoFileSize, setVideoFileSize] = useState('');
   const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
-  const [duration, setDuration] = useState('1:40:00');
+  const [duration, setDuration] = useState('1:30:00');
   const [thumbnailPreview, setThumbnailPreview] = useState('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
-  const [pdfTitle, setPdfTitle] = useState('مذكرة The Master الشاملة - الوحدة 4.pdf');
+  const [pdfTitle, setPdfTitle] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfDownloadUrl, setPdfDownloadUrl] = useState('');
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);

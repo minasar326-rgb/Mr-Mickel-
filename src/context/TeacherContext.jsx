@@ -1350,6 +1350,47 @@ export function TeacherProvider({ children }) {
     return newLec;
   };
 
+  const updateLecture = async (lectureId, updatedData) => {
+    if (!lectureId) return;
+    let updatedLec = null;
+
+    setLectures(prev => {
+      const updated = prev.map(lec => {
+        if (lec.id === lectureId) {
+          updatedLec = {
+            ...lec,
+            ...updatedData,
+            updatedAt: new Date().toISOString()
+          };
+          return updatedLec;
+        }
+        return lec;
+      });
+      try {
+        localStorage.setItem('ms_lectures', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (updatedLec) {
+      await persistCollectionLocally(STORES.LECTURES, [updatedLec]);
+      await saveLectureToFirestore(updatedLec);
+    }
+
+    if (updatedData.exam) {
+      setExamsData(prev => {
+        const updatedExams = { ...prev, [lectureId]: updatedData.exam };
+        try {
+          localStorage.setItem('ms_exams_data', JSON.stringify(updatedExams));
+        } catch (e) {}
+        return updatedExams;
+      });
+    }
+
+    addToast(`تم حفظ وتحديث المحاضرة (${updatedLec?.title || ''}) وامتحانها بنجاح! 💾`, 'success');
+    return updatedLec;
+  };
+
   const deleteLecture = async (lectureId) => {
     const targetLecture = lectures.find(l => l.id === lectureId);
     const updated = lectures.filter(l => l.id !== lectureId);
@@ -3513,6 +3554,7 @@ export function TeacherProvider({ children }) {
         generateStudentReceiptWhatsApp,
         updateTeacherProfile,
         uploadNewLecture,
+        updateLecture,
         deleteLecture,
         addStage,
         deleteStage,

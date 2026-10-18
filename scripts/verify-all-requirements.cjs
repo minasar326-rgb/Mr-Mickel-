@@ -144,6 +144,20 @@ assert(adminCenterContent.includes('cancelGeneralExamCode'), 'TeacherAdminCenter
 assert(adminCenterContent.includes('توليد كود شخصي مخصص لطالب'), 'Admin center provides personalized student code generator');
 assert(adminCenterContent.includes('resetGeneralExamAttempt'), 'Admin center provides reset attempt button for teacher manual override');
 
+// 11. Verify Inline Lecture Exam Studio & Lecture Edit Mode
+console.log('\n--- TEST GROUP 11: Inline Lecture Exam Studio & Lecture Edit Mode ---');
+assert(adminCenterContent.includes('id="lecture-exam-inline-section"'), 'Lecture form contains inline lecture exam section');
+assert(adminCenterContent.includes('هل تريد إضافة امتحان لهذه المحاضرة؟'), 'Lecture form asks user if they want to add an exam');
+assert(adminCenterContent.includes('نعم، أريد إضافة امتحان'), 'Toggle option for adding exam is present');
+assert(adminCenterContent.includes('لا، بدون امتحان (فيديو ومذكرة فقط)'), 'Toggle option for no exam is present');
+assert(adminCenterContent.includes('إحصائيات وهيكل امتحان المحاضرة (مباشر)'), 'Live 5-metric counter dashboard is present in inline exam editor');
+assert(adminCenterContent.includes('➕ إضافة سؤال جديد في نهاية الامتحان (أسفل آخر سؤال)'), 'Add question toolbar is at bottom of inline exam editor');
+assert(adminCenterContent.includes('handleStartEditLecture'), 'TeacherAdminCenter provides handleStartEditLecture to edit existing lectures');
+assert(adminCenterContent.includes('handleCancelEditLecture'), 'TeacherAdminCenter provides handleCancelEditLecture');
+assert(adminCenterContent.includes('تعديل المحاضرة والامتحان ✏️'), 'Lecture cards list has Edit Lecture & Exam button');
+assert(teacherContextContent.includes('updateLecture'), 'TeacherContext provides updateLecture function');
+
 console.log('\n=====================================================');
-console.log('🎉 ALL 10 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
+console.log('🎉 ALL 11 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
 console.log('=====================================================');
+

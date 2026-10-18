@@ -28,7 +28,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
     transactions, recordTransaction, toggleCodeStatus,
     addStudent, updateStudent, deleteStudent, toggleStudentStatus, recordPayment,
     generatePaymentReminderWhatsApp, generateStudentReceiptWhatsApp, generateParentWhatsAppReport,
-    updateTeacherProfile, uploadNewLecture, deleteLecture,
+    updateTeacherProfile, uploadNewLecture, updateLecture, deleteLecture,
     addStage, deleteStage,
     addBooklet, deleteBooklet,
     addAchiever, deleteAchiever,
@@ -150,6 +150,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   }, [profileAvatar]);
 
   // Lecture Form State
+  const [editingLectureId, setEditingLectureId] = useState(null);
   const [stageId, setStageId] = useState(stages[0]?.id || 'sec-3');
   const [unitNumber, setUnitNumber] = useState('Unit 4');
   const [title, setTitle] = useState('');
@@ -957,13 +958,14 @@ export default function TeacherAdminCenter({ onNavigate }) {
     const calculatedTotal = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
     const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay' || q.type === 'short_answer');
 
+    const targetLectureId = editingExamLectureId || editingLectureId || 'temp-lecture';
     const payload = {
-      id: `preview-${editingExamLectureId}`,
-      lectureId: editingExamLectureId,
-      title: bldExamTitle || 'معاينة الامتحان',
+      id: `preview-${targetLectureId}`,
+      lectureId: targetLectureId,
+      title: bldExamTitle || (title ? `امتحان: ${title}` : 'معاينة الامتحان'),
       timeMinutes: Number(bldExamDuration) || 25,
       totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
-      passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
+      passingMarks: Number(bldExamPassMarks) || Math.ceil(((Number(bldExamTotalMarks) || calculatedTotal) * 0.5)),
       showResult: bldExamShowResult,
       showCorrectAnswers: bldExamShowCorrectAnswers,
       hasManualGrading,
@@ -1109,6 +1111,71 @@ export default function TeacherAdminCenter({ onNavigate }) {
     addToast('تم حفظ وتحديث بيانات المعلم ونصوص الصفحة الرئيسية بنجاح ✅', 'success', 2500);
   };
 
+  const handleStartEditLecture = (lec) => {
+    if (!lec) return;
+    setEditingLectureId(lec.id);
+    setTitle(lec.title || '');
+    setSubtitle(lec.subtitle || '');
+    setStageId(lec.stageId || 'sec-3');
+    setLectureSectionId(lec.sectionId || '');
+    setUnitNumber(lec.unitNumber || 'Unit 4');
+    setIsFreeLecture(Boolean(lec.isFree));
+    setLecturePrice(lec.price || '70 ج.م');
+    setVideoUrl(lec.videoUrl || '');
+    setVideoFileName(lec.videoFileName || '');
+    setVideoFileSize(lec.videoFileSize || '');
+    setThumbnailPreview(lec.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
+    setDuration(lec.duration || '1:30:00');
+    setPdfTitle(lec.pdfBooklet?.title || 'مذكرة The Master الشاملة.pdf');
+    setPdfDownloadUrl(lec.pdfBooklet?.downloadUrl || lec.pdfBooklet?.url || '');
+
+    const linkedExam = lec.exam || (examsData && examsData[lec.id]);
+    if (linkedExam && Array.isArray(linkedExam.questions) && linkedExam.questions.length > 0) {
+      setHasLectureExam(true);
+      setBldExamTitle(linkedExam.title || `امتحان: ${lec.title}`);
+      setBldExamDuration(linkedExam.timeMinutes || 25);
+      setBldExamTotalMarks(linkedExam.totalMarks || 20);
+      setBldExamPassMarks(linkedExam.passingMarks || 10);
+      setBldExamMaxAttempts(linkedExam.maxAttempts || 2);
+      setBldExamShowResult(linkedExam.showResult !== false);
+      setBldExamShowCorrectAnswers(linkedExam.showCorrectAnswers !== false);
+      setBldExamIsDraft(linkedExam.status === 'draft');
+      setBldExamQuestions(linkedExam.questions);
+    } else {
+      setHasLectureExam(false);
+      setBldExamTitle(`امتحان: ${lec.title}`);
+      setBldExamQuestions([]);
+    }
+
+    const formEl = document.getElementById('lecture-upload-studio-form');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 300, behavior: 'smooth' });
+    }
+    addToast(`تم فتح محاضرة (${lec.title}) في وضع التعديل ✏️`, 'info');
+  };
+
+  const handleCancelEditLecture = () => {
+    setEditingLectureId(null);
+    setTitle('');
+    setSubtitle('');
+    setLectureSectionId('');
+    setUnitNumber('Unit 4');
+    setIsFreeLecture(false);
+    setLecturePrice('70 ج.م');
+    setVideoUrl('');
+    setVideoFileName('');
+    setVideoFileSize('');
+    setThumbnailPreview('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
+    setDuration('1:30:00');
+    setPdfTitle('مذكرة The Master الشاملة.pdf');
+    setPdfDownloadUrl('');
+    setHasLectureExam(false);
+    setBldExamQuestions([]);
+    addToast('تم إلغاء التعديل والعودة للوضع الافتراضي', 'info');
+  };
+
   const handleUploadLecture = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -1124,7 +1191,40 @@ export default function TeacherAdminCenter({ onNavigate }) {
     const targetStage = stages.find(s => s.id === stageId) || stages[0];
     const cleanVideoUrl = (videoUrl && !videoUrl.startsWith('blob:')) ? videoUrl : '';
 
-    await uploadNewLecture({
+    let examPayload = null;
+    if (hasLectureExam) {
+      if (bldExamQuestions.length === 0) {
+        addToast('لقد اخترت تفعيل امتحان للمحاضرة! يرجى إضافة سؤال واحد على الأقل داخل الامتحان.', 'error');
+        return;
+      }
+
+      // Rule 6: Strictly sort questions so MCQ, Multi, and True/False appear FIRST, then Essay & Short answer questions
+      const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf');
+      const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer');
+      const strictlyOrderedQuestions = [...objectiveQuestions, ...subjectiveQuestions];
+
+      const calculatedTotal = strictlyOrderedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+      const totalMarksToSave = Number(bldExamTotalMarks) || calculatedTotal;
+      const passMarksToSave = Number(bldExamPassMarks) || Math.ceil(totalMarksToSave * 0.5);
+
+      examPayload = {
+        id: editingLectureId ? (lectures.find(l => l.id === editingLectureId)?.exam?.id || `exam-${editingLectureId}`) : `exam-${Date.now()}`,
+        lectureId: editingLectureId || null,
+        title: (bldExamTitle || `امتحان: ${title}`).trim(),
+        timeMinutes: Number(bldExamDuration) || 25,
+        totalMarks: totalMarksToSave,
+        passingMarks: passMarksToSave,
+        maxAttempts: Number(bldExamMaxAttempts) || 2,
+        showResult: bldExamShowResult,
+        showCorrectAnswers: bldExamShowCorrectAnswers,
+        status: bldExamIsDraft ? 'draft' : 'published',
+        questions: strictlyOrderedQuestions,
+        createdAt: new Date().toISOString(),
+        hasManualQuestions: subjectiveQuestions.length > 0
+      };
+    }
+
+    const lecturePayload = {
       stageId: targetStage?.id || stageId,
       stageName: targetStage?.name || 'المرحلة الدراسية',
       sectionId: lectureSectionId || '',
@@ -1140,16 +1240,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
       isFree: isFreeLecture,
       price: isFreeLecture ? 'مجاناً' : lecturePrice,
       homeworkRequired: true,
-      examRequired: hasLectureExam,
-      exam: hasLectureExam ? {
-        id: `exam-${Date.now()}`,
-        title: `امتحان: ${title}`,
-        timeMinutes: Number(lectureExamDuration) || 25,
-        totalMarks: Number(lectureExamTotalMarks) || 20,
-        passingMarks: Number(lectureExamPassMarks) || 14,
-        maxAttempts: Number(lectureExamMaxAttempts) || 2,
-        questions: lectureExamQuestions
-      } : null,
+      examRequired: Boolean(hasLectureExam),
+      exam: examPayload,
       pdfBooklet: { 
         title: pdfTitle, 
         size: pdfFile ? `${(pdfFile.size / (1024 * 1024)).toFixed(1)} MB` : '5.2 MB', 
@@ -1159,7 +1251,14 @@ export default function TeacherAdminCenter({ onNavigate }) {
       },
       vocabList: [{ word: 'Extraordinary', ipa: '/ɪkˈstrɔː.dɪn.ər.i/', arabic: 'استثنائي / خارق للعادة', example: 'She showed extraordinary commitment.' }],
       grammarRules: [{ title: 'قاعدة الوحدة الجديدة', rule: 'تطبيق عملي لأهم نقاط الجرامر.', example: 'Hard work leads to success.' }]
-    });
+    };
+
+    if (editingLectureId) {
+      await updateLecture(editingLectureId, lecturePayload);
+      setEditingLectureId(null);
+    } else {
+      await uploadNewLecture(lecturePayload);
+    }
 
     setTitle('');
     setSubtitle('');
@@ -1170,6 +1269,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setLocalMediaKey(null);
     setPdfFile(null);
     setPdfDownloadUrl('');
+    setHasLectureExam(false);
+    setBldExamQuestions([]);
     setUploadProgress(0);
     setUploadDetails({ percent: 0, transferredMB: '0', totalMB: '0', isCloudReady: false, localSaved: false });
   };
@@ -1440,7 +1541,42 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 </div>
               </div>
 
-              <form onSubmit={handleUploadLecture} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
+              {editingLectureId && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                  border: '2px solid #F59E0B',
+                  borderRadius: '12px',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Edit size={24} color="#D97706" />
+                    <div>
+                      <strong style={{ fontSize: '1.1rem', color: '#92400E', display: 'block' }}>
+                        ✏️ أنت الآن في وضع تعديل المحاضرة: «{title || 'المحاضرة'}»
+                      </strong>
+                      <span style={{ fontSize: '0.82rem', color: '#B45309' }}>
+                        يمكنك تعديل بيانات المحاضرة وامتحانها المرفق مباشرة، ثم الضغط على "حفظ تعديلات المحاضرة والامتحان" بالأسفل.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelEditLecture}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontWeight: 800, background: '#FFF' }}
+                  >
+                    إلغاء وضع التعديل ✕
+                  </button>
+                </div>
+              )}
+
+              <form id="lecture-upload-studio-form" onSubmit={handleUploadLecture} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                     <div>
@@ -1717,141 +1853,6 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     </div>
                   </div>
 
-                  {/* Optional Lecture Exam Section */}
-                    <div style={{
-                      background: 'var(--bg-subtle)',
-                      borderRadius: 'var(--radius-lg)',
-                      padding: '1.25rem',
-                      border: '1px solid var(--border-subtle)',
-                      marginTop: '0.5rem'
-                    }}>
-                      <div className="flex-between" style={{ marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div>
-                          <strong style={{ fontSize: '0.95rem', display: 'block' }}>هل تريد إضافة امتحان إلكتروني لهذه المحاضرة؟</strong>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            في حال تفعيل الامتحان، لن تفتح المحاضرة التالية للطالب إلا بعد اجتيازه بنسبة 50% فأكثر.
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setHasLectureExam(true)}
-                            className={`btn btn-sm ${hasLectureExam ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ fontWeight: 800 }}
-                          >
-                            نعم، إضافة امتحان ✓
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setHasLectureExam(false)}
-                            className={`btn btn-sm ${!hasLectureExam ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ fontWeight: 800 }}
-                          >
-                            لا، بدون امتحان
-                          </button>
-                        </div>
-                      </div>
-
-                      {hasLectureExam && (
-                        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>مدة الامتحان (دقيقة):</label>
-                              <input
-                                type="number"
-                                min="5"
-                                max="180"
-                                value={lectureExamDuration}
-                                onChange={e => setLectureExamDuration(Number(e.target.value))}
-                                className="input-control"
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>الدرجة الكلية:</label>
-                              <input
-                                type="number"
-                                min="5"
-                                max="100"
-                                value={lectureExamTotalMarks}
-                                onChange={e => setLectureExamTotalMarks(Number(e.target.value))}
-                                className="input-control"
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>درجة النجاح (50%+):</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max={lectureExamTotalMarks}
-                                value={lectureExamPassMarks}
-                                onChange={e => setLectureExamPassMarks(Number(e.target.value))}
-                                className="input-control"
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>أقصى محاولات:</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={lectureExamMaxAttempts}
-                                onChange={e => setLectureExamMaxAttempts(Number(e.target.value))}
-                                className="input-control"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Quick question preview / add */}
-                          <div style={{ background: 'var(--bg-surface)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                            <div className="flex-between" style={{ marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>بنك أسئلة المحاضرة ({lectureExamQuestions.length} أسئلة مجهزة)</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextQNum = lectureExamQuestions.length + 1;
-                                  setLectureExamQuestions(prev => [
-                                    ...prev,
-                                    {
-                                      id: `q-${Date.now()}`,
-                                      type: "mcq",
-                                      question: `Question ${nextQNum}: Choose the correct answer:`,
-                                      options: ["Option A", "Option B", "Option C", "Option D"],
-                                      correctAnswer: 0,
-                                      points: 2,
-                                      explanation: "توضيح الإجابة الصحيحة."
-                                    }
-                                  ]);
-                                  addToast('تمت إضافة سؤال جديد للامتحان ✍️', 'success');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                              >
-                                + إضافة سؤال
-                              </button>
-                            </div>
-
-                            <div style={{ maxHeight: '110px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {lectureExamQuestions.map((q, qIdx) => (
-                                <div key={q.id || qIdx} style={{ fontSize: '0.76rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                                    {qIdx + 1}. {q.question} ({q.type === 'tf' ? 'صح/خطأ' : 'اختيارات'})
-                                  </span>
-                                  {lectureExamQuestions.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setLectureExamQuestions(prev => prev.filter((_, idx) => idx !== qIdx))}
-                                      style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}
-                                    >
-                                      ✕
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1919,11 +1920,770 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       className="input-control"
                     />
                   </div>
+                </div>
 
-                  <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', gap: '8px', marginTop: 'auto' }}>
-                    <Upload size={18} />
-                    <span>نشر المحاضرة والفيديو الآن لجميع الطلاب 🚀</span>
+                {/* ========================================================= */}
+                {/* INLINE LECTURE EXAM SECTION (Full Width Spanning 1 / -1) */}
+                {/* ========================================================= */}
+                <div
+                  id="lecture-exam-inline-section"
+                  style={{
+                    gridColumn: '1 / -1',
+                    background: 'var(--bg-subtle)',
+                    border: hasLectureExam ? '2px solid var(--primary-500)' : '1px dashed var(--border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem',
+                    marginTop: '0.5rem',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {/* Header & Toggle Question */}
+                  <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '10px',
+                        background: hasLectureExam ? 'var(--primary-gradient)' : 'var(--bg-surface)',
+                        color: hasLectureExam ? '#fff' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        <FileText size={22} />
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, color: 'var(--text-primary)' }}>
+                          امتحان المحاضرة (Lecture Exam) 📝
+                        </h4>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                          هل تريد إضافة امتحان تقييمي لهذه المحاضرة لضمان فهم الطلاب؟
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Toggle Choice: هل تريد إضافة امتحان لهذه المحاضرة؟ (نعم / لا) */}
+                    <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-surface)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasLectureExam(true);
+                          if (bldExamQuestions.length === 0) {
+                            handleAddQuestionToBuilder('mcq');
+                          }
+                        }}
+                        className={`btn btn-sm ${hasLectureExam ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ fontWeight: 800, gap: '6px' }}
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>نعم، أريد إضافة امتحان ✍️</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHasLectureExam(false)}
+                        className={`btn btn-sm ${!hasLectureExam ? 'btn-secondary' : 'btn-ghost'}`}
+                        style={{ fontWeight: 800, gap: '6px' }}
+                      >
+                        <X size={16} />
+                        <span>لا، بدون امتحان (فيديو ومذكرة فقط) 🚫</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* If NO Exam: Explanatory note */}
+                  {!hasLectureExam && (
+                    <div style={{
+                      padding: '1.25rem',
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <AlertCircle size={22} style={{ color: '#2563EB', flexShrink: 0 }} />
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        <strong style={{ color: '#2563EB', display: 'block', marginBottom: '2px' }}>
+                          نظام فتح المحاضرات عند عدم وجود امتحان:
+                        </strong>
+                        يكفي أن يشاهد الطالب <strong>50%</strong> من مدة هذه المحاضرة لفتح المحاضرة التالية مباشرة وبشكل تلقائي دون أي قيود امتحانات.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If YES Exam: Render Full Inline Editor */}
+                  {hasLectureExam && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      {/* Rule 12 Info Banner */}
+                      <div style={{
+                        padding: '1rem 1.25rem',
+                        background: 'rgba(245, 158, 11, 0.08)',
+                        border: '1px solid rgba(245, 158, 11, 0.25)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <ShieldAlert size={22} style={{ color: '#D97706', flexShrink: 0 }} />
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          <strong style={{ color: '#D97706', display: 'block', marginBottom: '2px' }}>
+                            شروط فك القفل التلقائي للمحاضرة التالية:
+                          </strong>
+                          لن يتمكن الطالب من فتح المحاضرة التالية إلا بعد <strong>مشاهدة 50% على الأقل</strong> من فيديو المحاضرة الحالية، و<strong>الحصول على أكثر من 50%</strong> في هذا الامتحان.
+                        </div>
+                      </div>
+
+                      {/* Exam General Settings Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '1rem',
+                        background: 'var(--bg-surface)',
+                        padding: '1.25rem',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                            عنوان الامتحان:
+                          </label>
+                          <input
+                            type="text"
+                            value={bldExamTitle}
+                            onChange={e => setBldExamTitle(e.target.value)}
+                            placeholder={title ? `امتحان: ${title}` : 'امتحان المحاضرة الشامل'}
+                            className="input-control"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                            مدة الامتحان (بالدقائق):
+                          </label>
+                          <input
+                            type="number"
+                            min="5"
+                            max="180"
+                            value={bldExamDuration}
+                            onChange={e => setBldExamDuration(e.target.value)}
+                            className="input-control"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                            أقصى عدد محاولات للطالب:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={bldExamMaxAttempts}
+                            onChange={e => setBldExamMaxAttempts(e.target.value)}
+                            className="input-control"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '6px' }}>
+                            حالة النشر:
+                          </label>
+                          <select
+                            value={bldExamIsDraft ? 'draft' : 'published'}
+                            onChange={e => setBldExamIsDraft(e.target.value === 'draft')}
+                            className="input-control"
+                          >
+                            <option value="published">🚀 منشور للطلاب مباشرة</option>
+                            <option value="draft">📁 مسودة (غير متاح للطلاب حتى الآن)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Display & Feedback Options */}
+                      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', padding: '0.5rem 0.25rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <input
+                            type="checkbox"
+                            checked={bldExamShowResult}
+                            onChange={e => setBldExamShowResult(e.target.checked)}
+                            style={{ accentColor: 'var(--primary-600)', width: '16px', height: '16px' }}
+                          />
+                          <span>إظهار الدرجة للطالب فور إنهاء الامتحان</span>
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <input
+                            type="checkbox"
+                            checked={bldExamShowCorrectAnswers}
+                            onChange={e => setBldExamShowCorrectAnswers(e.target.checked)}
+                            style={{ accentColor: 'var(--primary-600)', width: '16px', height: '16px' }}
+                          />
+                          <span>إظهار الإجابات الصحيحة والنموذجية بعد التصحيح</span>
+                        </label>
+                      </div>
+
+                      {/* Live Fixed Statistics Counter Dashboard */}
+                      {(() => {
+                        const totalQ = bldExamQuestions.length;
+                        const mcqCount = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi').length;
+                        const tfCount = bldExamQuestions.filter(q => q.type === 'tf').length;
+                        const essayCount = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer').length;
+                        const totalMarks = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+
+                        return (
+                          <div style={{
+                            background: 'var(--primary-gradient-subtle, rgba(31, 77, 58, 0.06))',
+                            border: '1.5px solid rgba(31, 77, 58, 0.25)',
+                            borderRadius: '12px',
+                            padding: '1rem 1.25rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem'
+                          }}>
+                            <div className="flex-between" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--primary-700)' }}>
+                                  📊 إحصائيات وهيكل امتحان المحاضرة (مباشر):
+                                </span>
+                                <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
+                                  ترتيب تلقائي: الموضوعي أولاً ثم المقالي
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                يتحدث العداد فورياً أثناء كتابة وتعديل الأسئلة
+                              </span>
+                            </div>
+
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                              gap: '0.75rem'
+                            }}>
+                              <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>إجمالي الأسئلة</span>
+                                <strong style={{ fontSize: '1.2rem', color: 'var(--primary-700)' }}>{totalQ}</strong>
+                              </div>
+
+                              <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>اختيار من متعدد</span>
+                                <strong style={{ fontSize: '1.2rem', color: '#0284C7' }}>{mcqCount}</strong>
+                              </div>
+
+                              <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>صح أو خطأ (T/F)</span>
+                                <strong style={{ fontSize: '1.2rem', color: '#10B981' }}>{tfCount}</strong>
+                              </div>
+
+                              <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>مقالي وإجابة قصيرة</span>
+                                <strong style={{ fontSize: '1.2rem', color: '#D97706' }}>{essayCount}</strong>
+                              </div>
+
+                              <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1.5px solid var(--primary-500)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>مجموع الدرجات</span>
+                                <strong style={{ fontSize: '1.2rem', color: 'var(--primary-800)' }}>{totalMarks} درجة</strong>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Questions List */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {bldExamQuestions.length === 0 ? (
+                          <div style={{
+                            padding: '2.5rem',
+                            textAlign: 'center',
+                            background: 'var(--bg-surface)',
+                            borderRadius: '12px',
+                            border: '1px dashed var(--border-subtle)',
+                            color: 'var(--text-muted)'
+                          }}>
+                            <FileText size={40} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                            <p style={{ fontWeight: 700, margin: '0 0 6px' }}>لا توجد أسئلة مضافة حتى الآن في هذا الامتحان</p>
+                            <span style={{ fontSize: '0.85rem' }}>اختر نوع السؤال من الأزرار بالأسفل لإضافته يدوياً وتحديد خياراته ودرجته</span>
+                          </div>
+                        ) : (
+                          bldExamQuestions.map((q, qIdx) => (
+                            <div
+                              key={q.id || qIdx}
+                              style={{
+                                background: 'var(--bg-surface)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '12px',
+                                padding: '1.25rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                              }}
+                            >
+                              {/* Question Header Bar */}
+                              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '8px',
+                                    background: 'var(--primary-600)',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 800,
+                                    fontSize: '0.85rem'
+                                  }}>
+                                    {qIdx + 1}
+                                  </span>
+
+                                  <span className={
+                                    q.type === 'essay' ? 'badge badge-gold' :
+                                    q.type === 'short_answer' ? 'badge badge-warning' :
+                                    q.type === 'multi' ? 'badge badge-primary' :
+                                    q.type === 'tf' ? 'badge badge-secondary' : 'badge badge-success'
+                                  } style={{ fontSize: '0.75rem' }}>
+                                    {q.type === 'mcq' ? 'اختيار من متعدد (إجابة واحدة)' :
+                                     q.type === 'multi' ? 'اختيار من متعدد (أكثر من إجابة)' :
+                                     q.type === 'tf' ? 'صح أو خطأ' :
+                                     q.type === 'essay' ? 'سؤال مقالي (تصحيح يدوي)' : 'إجابة قصيرة (تصحيح يدوي)'}
+                                  </span>
+
+                                  {(q.type === 'essay' || q.type === 'short_answer') && (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-600)', fontWeight: 700 }}>
+                                      ⚠️ يتطلب تصحيح يدوي لفك القفل
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>الدرجة:</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="50"
+                                      value={q.points || 2}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, points: Number(val) } : item));
+                                      }}
+                                      className="input-control"
+                                      style={{ width: '65px', height: '32px', textAlign: 'center', fontWeight: 800 }}
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveQuestion(qIdx, 'up')}
+                                    disabled={qIdx === 0}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '4px 8px' }}
+                                    title="تحريك لأعلى"
+                                  >
+                                    <ArrowUp size={16} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveQuestion(qIdx, 'down')}
+                                    disabled={qIdx === bldExamQuestions.length - 1}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '4px 8px' }}
+                                    title="تحريك لأسفل"
+                                  >
+                                    <ArrowDown size={16} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteQuestion(qIdx)}
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ padding: '4px 8px', color: '#EF4444' }}
+                                    title="حذف هذا السؤال"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Question Text & Image Section */}
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                                  نص السؤال (أو اتركه فارغاً واكتفِ بالصورة):
+                                </label>
+                                <textarea
+                                  value={q.question || ''}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, question: val } : item));
+                                  }}
+                                  placeholder="اكتب السؤال باللغة الإنجليزية أو العربية هنا..."
+                                  className="input-control"
+                                  style={{ height: '70px' }}
+                                />
+                              </div>
+
+                              {/* Question Image Attachment */}
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExamQImageInputIdx(qIdx);
+                                      examQImageInputRef.current.click();
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ fontSize: '0.78rem', gap: '6px' }}
+                                  >
+                                    <Image size={15} />
+                                    <span>{q.questionImage ? 'تغيير صورة السؤال 🖼️' : 'إرفاق صورة للسؤال 🖼️'}</span>
+                                  </button>
+
+                                  {q.questionImage && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, questionImage: '' } : item));
+                                      }}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ fontSize: '0.75rem', color: '#EF4444' }}
+                                    >
+                                      إزالة الصورة ✖
+                                    </button>
+                                  )}
+                                </div>
+
+                                {q.questionImage && (
+                                  <div style={{ marginTop: '8px', maxWidth: '320px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                                    <img src={q.questionImage} alt="Question Attachment" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', background: '#000' }} />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Choices / Options for MCQ, Multi, TF */}
+                              {(q.type === 'mcq' || q.type === 'multi' || q.type === 'tf') && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
+                                  <label style={{ fontSize: '0.82rem', fontWeight: 800, display: 'block', marginBottom: '4px' }}>
+                                    خيارات الإجابة (حدد الإجابة الصحيحة):
+                                  </label>
+
+                                  {(q.options || []).map((opt, optIdx) => {
+                                    const isCorrect = q.type === 'multi' 
+                                      ? (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(optIdx))
+                                      : (q.correctAnswer === optIdx);
+
+                                    return (
+                                      <div key={optIdx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-surface)', padding: '8px 12px', borderRadius: '8px', border: isCorrect ? '1.5px solid var(--success)' : '1px solid var(--border-subtle)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          {/* Radio / Checkbox for correct answer */}
+                                          {q.type === 'multi' ? (
+                                            <input
+                                              type="checkbox"
+                                              checked={isCorrect}
+                                              onChange={e => {
+                                                setBldExamQuestions(prev => prev.map((item, i) => {
+                                                  if (i !== qIdx) return item;
+                                                  const currentArr = Array.isArray(item.correctAnswer) ? [...item.correctAnswer] : [];
+                                                  const nextArr = e.target.checked 
+                                                    ? [...currentArr, optIdx]
+                                                    : currentArr.filter(idx => idx !== optIdx);
+                                                  return { ...item, correctAnswer: nextArr };
+                                                }));
+                                              }}
+                                              style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
+                                              title="تحديد كإجابة صحيحة"
+                                            />
+                                          ) : (
+                                            <input
+                                              type="radio"
+                                              name={`inline_correct_${q.id || qIdx}`}
+                                              checked={isCorrect}
+                                              onChange={() => {
+                                                setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, correctAnswer: optIdx } : item));
+                                              }}
+                                              style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
+                                              title="تحديد كإجابة صحيحة"
+                                            />
+                                          )}
+
+                                          <input
+                                            type="text"
+                                            value={opt}
+                                            disabled={q.type === 'tf'}
+                                            onChange={e => {
+                                              const val = e.target.value;
+                                              setBldExamQuestions(prev => prev.map((item, i) => {
+                                                if (i !== qIdx) return item;
+                                                const newOpts = [...item.options];
+                                                newOpts[optIdx] = val;
+                                                return { ...item, options: newOpts };
+                                              }));
+                                            }}
+                                            className="input-control"
+                                            style={{ flex: 1, height: '36px', fontSize: '0.85rem' }}
+                                            placeholder={`نص الاختيار ${optIdx + 1}`}
+                                          />
+
+                                          {/* Option Image Upload Button */}
+                                          {q.type !== 'tf' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setActiveOptUploadTarget({ qIdx, optIdx });
+                                                examOptImageInputRef.current.click();
+                                              }}
+                                              className="btn btn-ghost btn-sm"
+                                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                              title="إرفاق صورة لهذا الاختيار"
+                                            >
+                                              <Image size={15} />
+                                            </button>
+                                          )}
+
+                                          {/* Delete option button if > 2 */}
+                                          {q.type !== 'tf' && (q.options?.length || 0) > 2 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setBldExamQuestions(prev => prev.map((item, i) => {
+                                                  if (i !== qIdx) return item;
+                                                  const newOpts = item.options.filter((_, idx) => idx !== optIdx);
+                                                  const newImages = (item.optionImages || []).filter((_, idx) => idx !== optIdx);
+                                                  return { ...item, options: newOpts, optionImages: newImages };
+                                                }));
+                                              }}
+                                              className="btn btn-ghost btn-sm"
+                                              style={{ color: '#EF4444', padding: '4px 8px' }}
+                                            >
+                                              <X size={15} />
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {/* Option image preview if attached */}
+                                        {q.optionImages?.[optIdx] && (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '26px' }}>
+                                            <img src={q.optionImages[optIdx]} alt={`Option ${optIdx + 1}`} style={{ height: '50px', borderRadius: '4px', objectFit: 'contain', background: '#000' }} />
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setBldExamQuestions(prev => prev.map((item, i) => {
+                                                  if (i !== qIdx) return item;
+                                                  const newImages = [...(item.optionImages || [])];
+                                                  newImages[optIdx] = '';
+                                                  return { ...item, optionImages: newImages };
+                                                }));
+                                              }}
+                                              className="btn btn-ghost btn-sm"
+                                              style={{ color: '#EF4444', fontSize: '0.72rem' }}
+                                            >
+                                              إزالة صورة الاختيار
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+
+                                  {q.type !== 'tf' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setBldExamQuestions(prev => prev.map((item, i) => {
+                                          if (i !== qIdx) return item;
+                                          return {
+                                            ...item,
+                                            options: [...(item.options || []), `اختيار جديد ${(item.options?.length || 0) + 1}`],
+                                            optionImages: [...(item.optionImages || []), '']
+                                          };
+                                        }));
+                                      }}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ alignSelf: 'flex-start', fontSize: '0.78rem', marginTop: '4px' }}
+                                    >
+                                      + إضافة اختيار إضافي
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Model Answer for Essay & Short Answer */}
+                              {(q.type === 'essay' || q.type === 'short_answer') && (
+                                <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, marginBottom: '4px' }}>
+                                    نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
+                                  </label>
+                                  <textarea
+                                    value={q.modelAnswer || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, modelAnswer: val } : item));
+                                    }}
+                                    placeholder="اكتب المعايير أو الإجابة النموذجية الاسترشادية لتسهيل تقييم إجابة الطالب..."
+                                    className="input-control"
+                                    style={{ height: '65px' }}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Rationale / Explanation */}
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+                                  شرح الإجابة النموذجية وتوضيح القاعدة (يظهر للطالب بعد إعلان النتيجة):
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.explanation || ''}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, explanation: val } : item));
+                                  }}
+                                  placeholder="توضيح سبب صحة الإجابة أو القاعدة اللغوية..."
+                                  className="input-control"
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Add Question Toolbar (Positioned at the BOTTOM of the questions list) */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem',
+                        background: 'var(--bg-surface)',
+                        padding: '1.25rem',
+                        borderRadius: '12px',
+                        border: '2px dashed var(--primary-500)',
+                        marginTop: '0.5rem'
+                      }}>
+                        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                          <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--primary-700)' }}>
+                            ➕ إضافة سؤال جديد في نهاية الامتحان (أسفل آخر سؤال):
+                          </h4>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            اختر نوع السؤال لإضافته في نهاية القائمة مباشرة
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestionToBuilder('mcq')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.82rem', gap: '6px' }}
+                          >
+                            <Plus size={14} /> <span>+ اختيار من متعدد (إجابة واحدة)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestionToBuilder('multi')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.82rem', gap: '6px' }}
+                          >
+                            <Plus size={14} /> <span>+ اختيار من متعدد (أكثر من إجابة)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestionToBuilder('tf')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.82rem', gap: '6px' }}
+                          >
+                            <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestionToBuilder('essay')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.82rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)', fontWeight: 800 }}
+                          >
+                            <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي) ✍️</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestionToBuilder('short_answer')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.82rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)', fontWeight: 800 }}
+                          >
+                            <Plus size={14} /> <span>+ إجابة قصيرة (تصحيح يدوي) 📝</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Preview Exam Button */}
+                      {bldExamQuestions.length > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <button
+                            type="button"
+                            onClick={handleOpenPreviewModal}
+                            className="btn btn-secondary btn-md"
+                            style={{ gap: '8px', fontWeight: 800 }}
+                          >
+                            <Eye size={16} />
+                            <span>👁️ معاينة الامتحان كطالب قبل حفظ ونشر المحاضرة</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ========================================================= */}
+                {/* FORM ACTION BUTTONS BAR (Spanning 1 / -1 Full Width) */}
+                {/* ========================================================= */}
+                <div style={{
+                  gridColumn: '1 / -1',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'center',
+                  paddingTop: '1rem',
+                  borderTop: '2px solid var(--border-subtle)',
+                  marginTop: '0.5rem'
+                }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-lg"
+                    style={{
+                      flex: 1,
+                      gap: '8px',
+                      padding: '1rem 1.75rem',
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      background: editingLectureId ? 'var(--accent-gradient, #4f46e5)' : 'var(--primary-gradient)'
+                    }}
+                  >
+                    <Upload size={20} />
+                    <span>
+                      {editingLectureId 
+                        ? '💾 حفظ وتثبيت تعديلات المحاضرة والامتحان الآن' 
+                        : (hasLectureExam ? '🚀 نشر المحاضرة والامتحان الآن لجميع الطلاب' : '🚀 نشر المحاضرة والفيديو الآن لجميع الطلاب')}
+                    </span>
                   </button>
+
+                  {editingLectureId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditLecture}
+                      className="btn btn-ghost btn-lg"
+                      style={{
+                        padding: '1rem 1.5rem',
+                        fontSize: '0.95rem',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      إلغاء التعديل ✖
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
@@ -2021,7 +2781,17 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditLecture(lec)}
+                        className="btn btn-primary btn-sm"
+                        style={{ gap: '4px', background: 'var(--accent-gradient, #4f46e5)', color: '#fff' }}
+                        title="تعديل بيانات المحاضرة والامتحان المرتبط بها داخل نفس الصفحة"
+                      >
+                        <Edit size={14} />
+                        <span>تعديل المحاضرة والامتحان ✏️</span>
+                      </button>
                       <button
                         onClick={() => onNavigate('lecture-room', { lectureId: lec.id })}
                         className="btn btn-secondary btn-sm"

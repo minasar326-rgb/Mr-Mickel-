@@ -17,6 +17,8 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     examResults,
     getSubscriptionStatus,
     isLectureUnlocked,
+    canAccessLecture,
+    videoWatchProgress,
     unlockedLectureIds,
     sections
   } = useTeacher();
@@ -68,11 +70,13 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   // Render a lecture card
   const renderLectureCard = (lec) => {
-    const isUnlocked = isStageSubscribed || isLectureUnlocked(lec, stage.id);
+    const accessCheck = canAccessLecture ? canAccessLecture(lec, stage.id) : { allowed: isStageSubscribed || isLectureUnlocked(lec, stage.id) };
+    const isUnlocked = accessCheck.allowed;
     const lecSub = getSubscriptionStatus(lec.id);
     const isCompleted = completedLectureIds.includes(lec.id);
     const hw = homeworkSubmissions[lec.id];
     const exam = examResults[lec.id];
+    const watchProg = videoWatchProgress?.[lec.id] || { percent: 0 };
 
     return (
       <div
@@ -86,9 +90,13 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
           background: 'var(--bg-surface)',
           border: isUnlocked 
             ? '2px solid #10B981' 
+            : accessCheck.isProgressionLocked 
+            ? '2px solid #F59E0B'
             : '1px solid rgba(239, 68, 68, 0.3)',
           boxShadow: isUnlocked 
             ? '0 8px 25px rgba(16, 185, 129, 0.15)' 
+            : accessCheck.isProgressionLocked
+            ? '0 8px 25px rgba(245, 158, 11, 0.15)'
             : 'var(--shadow-sm)',
           transition: 'transform 0.2s ease, box-shadow 0.2s ease'
         }}
@@ -111,7 +119,16 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800,
               boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
             }}>
-              {lec.isFree ? '🟢 محاضرة مجانية' : '✓ متاح ضمن اشتراكك 🟢'}
+              {lec.isFree ? '🟢 محاضرة مجانية' : '✓ متاح للمشاهدة 🟢'}
+            </span>
+          ) : accessCheck.isProgressionLocked ? (
+            <span style={{ 
+              position: 'absolute', top: '12px', left: '12px', 
+              background: '#D97706', color: 'white', padding: '4px 10px', 
+              borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+            }}>
+              ⏳ تفتح بالتدريج
             </span>
           ) : (
             <span style={{ 
@@ -127,7 +144,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
             <div style={{
               position: 'absolute',
               inset: 0,
-              background: 'rgba(0, 0, 0, 0.65)',
+              background: accessCheck.isProgressionLocked ? 'rgba(15, 23, 42, 0.78)' : 'rgba(0, 0, 0, 0.65)',
               backdropFilter: 'blur(2px)',
               display: 'flex',
               flexDirection: 'column',
@@ -138,9 +155,13 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               padding: '1rem',
               textAlign: 'center'
             }}>
-              <Lock size={30} color="#F87171" />
-              <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>المحاضرة مقفلة</span>
-              <span style={{ fontSize: '0.76rem', color: '#CBD5E1' }}>اشحن كود تفعيل المحاضرة أو الشهر لفتحها فوراً</span>
+              <Lock size={28} color={accessCheck.isProgressionLocked ? '#FBBF24' : '#F87171'} />
+              <span style={{ fontSize: '0.9rem', fontWeight: 800, color: accessCheck.isProgressionLocked ? '#FDE68A' : 'white' }}>
+                {accessCheck.isProgressionLocked ? 'مقفلة: يلزم إنهاء المحاضرة السابقة ⏳' : 'المحاضرة مقفلة'}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#CBD5E1', maxWidth: '90%' }}>
+                {accessCheck.reason || 'اشحن كود تفعيل المحاضرة أو الشهر لفتحها فوراً'}
+              </span>
             </div>
           )}
         </div>
@@ -154,6 +175,24 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
               {lec.subtitle}
             </p>
+
+            {/* Watch Progress Indicator */}
+            {watchProg.percent > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '3px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>نسبة المشاهدة الفعلية:</span>
+                  <strong style={{ color: watchProg.percent >= 50 ? '#10B981' : '#F59E0B' }}>{watchProg.percent}%</strong>
+                </div>
+                <div style={{ height: '5px', width: '100%', background: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min(100, watchProg.percent)}%`,
+                    background: watchProg.percent >= 50 ? '#10B981' : '#F59E0B',
+                    transition: 'width 0.3s'
+                  }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Status Badges Row */}
@@ -172,7 +211,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               </span>
             )}
             {lec.isFree && <span className="badge badge-success">✓ مجانية للجميع</span>}
-            {isCompleted && <span className="badge badge-success">✓ تمت المشاهدة</span>}
+            {isCompleted && <span className="badge badge-success">✓ تمت المشاهدة (50%+)</span>}
             {hw?.status === 'submitted' && <span className="badge badge-primary">📝 تم تسليم الواجب</span>}
             {exam && <span className="badge badge-gold">🏆 الامتحان: {exam.score}/{exam.total}</span>}
           </div>
@@ -194,6 +233,23 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                 <Play size={16} fill="currentColor" />
                 <span>مشاهدة المحاضرة والواجبات الآن ▶️</span>
               </button>
+            ) : accessCheck.isProgressionLocked && accessCheck.prevLecture ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  onClick={() => onNavigate('lecture-room', { lectureId: accessCheck.prevLecture.id })}
+                  className="btn btn-warning"
+                  style={{
+                    width: '100%',
+                    gap: '8px',
+                    fontWeight: 800,
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: 'white'
+                  }}
+                >
+                  <Play size={16} fill="currentColor" />
+                  <span>أكمل المحاضرة السابقة أولاً (50%+) ⏳</span>
+                </button>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <a

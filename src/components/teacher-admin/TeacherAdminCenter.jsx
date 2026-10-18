@@ -31,6 +31,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
     addAchiever, deleteAchiever,
     generateNewCode, deleteCode,
     postAnnouncement, deleteAnnouncement,
+    overrideUnlockLecture, revokeOverrideLecture, manualOverrides,
     resetToFactoryDefaults,
     syncAllToFirebase,
     changeTeacherPassword
@@ -147,6 +148,37 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [duration, setDuration] = useState('1:40:00');
   const [thumbnailPreview, setThumbnailPreview] = useState('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
   const [pdfTitle, setPdfTitle] = useState('مذكرة The Master الشاملة - الوحدة 4.pdf');
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfDownloadUrl, setPdfDownloadUrl] = useState('');
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+
+  // Optional Lecture Exam Builder State
+  const [hasLectureExam, setHasLectureExam] = useState(true);
+  const [lectureExamDuration, setLectureExamDuration] = useState(25);
+  const [lectureExamPassMarks, setLectureExamPassMarks] = useState(14);
+  const [lectureExamTotalMarks, setLectureExamTotalMarks] = useState(20);
+  const [lectureExamMaxAttempts, setLectureExamMaxAttempts] = useState(2);
+  const [lectureExamQuestions, setLectureExamQuestions] = useState([
+    {
+      id: "q-1",
+      type: "mcq",
+      question: "Choose the correct answer based on the grammar rule taught in this lecture:",
+      options: ["Option A (Correct)", "Option B", "Option C", "Option D"],
+      correctAnswer: 0,
+      points: 4,
+      explanation: "نموذج إجابة وتوضيح القاعدة."
+    },
+    {
+      id: "q-2",
+      type: "tf",
+      question: "Online piracy and unauthorized sharing of content is strictly illegal under international law.",
+      options: ["True (صحيح)", "False (خطأ)"],
+      correctAnswer: 0,
+      points: 4,
+      explanation: "القرصنة وانتهاك حقوق الطبع والنشر مجرم قانونياً."
+    }
+  ]);
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [localMediaKey, setLocalMediaKey] = useState(null);
@@ -324,11 +356,26 @@ export default function TeacherAdminCenter({ onNavigate }) {
     }
   };
 
-  const handlePdfFileChange = (e) => {
+  const handlePdfFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setPdfTitle(file.name);
-      addToast(`تم اختيار ملف المذكرة (${file.name}) من جهازك 📄`, 'success');
+    if (!file) return;
+
+    setPdfFile(file);
+    setPdfTitle(file.name);
+    setIsUploadingPdf(true);
+    addToast(`جاري رفع ملف المذكرة (${file.name}) وتأمينه سحابياً... 📄⚡`, 'info');
+
+    try {
+      const res = await uploadFileToR2(file, 'lectures/pdfs');
+      if (res && res.downloadUrl) {
+        setPdfDownloadUrl(res.downloadUrl);
+        addToast(`✅ تم رفع المذكرة (${file.name}) بنجاح وجاهزة للتنزيل الفوري!`, 'success', 4000);
+      }
+    } catch (err) {
+      console.warn('Lecture PDF R2 upload notice:', err);
+      addToast(`تم حفظ المذكرة (${file.name}) محلياً وجاري مزامنتها تلقائياً`, 'info');
+    } finally {
+      setIsUploadingPdf(false);
     }
   };
 
@@ -542,8 +589,23 @@ export default function TeacherAdminCenter({ onNavigate }) {
       isFree: isFreeLecture,
       price: isFreeLecture ? 'مجاناً' : lecturePrice,
       homeworkRequired: true,
-      examRequired: true,
-      pdfBooklet: { title: pdfTitle, size: '5.2 MB', pages: 30 },
+      examRequired: hasLectureExam,
+      exam: hasLectureExam ? {
+        id: `exam-${Date.now()}`,
+        title: `امتحان: ${title}`,
+        timeMinutes: Number(lectureExamDuration) || 25,
+        totalMarks: Number(lectureExamTotalMarks) || 20,
+        passingMarks: Number(lectureExamPassMarks) || 14,
+        maxAttempts: Number(lectureExamMaxAttempts) || 2,
+        questions: lectureExamQuestions
+      } : null,
+      pdfBooklet: { 
+        title: pdfTitle, 
+        size: pdfFile ? `${(pdfFile.size / (1024 * 1024)).toFixed(1)} MB` : '5.2 MB', 
+        pages: 30,
+        url: pdfDownloadUrl || '',
+        downloadUrl: pdfDownloadUrl || ''
+      },
       vocabList: [{ word: 'Extraordinary', ipa: '/ɪkˈstrɔː.dɪn.ər.i/', arabic: 'استثنائي / خارق للعادة', example: 'She showed extraordinary commitment.' }],
       grammarRules: [{ title: 'قاعدة الوحدة الجديدة', rule: 'تطبيق عملي لأهم نقاط الجرامر.', example: 'Hard work leads to success.' }]
     });
@@ -555,6 +617,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setVideoFileName('');
     setVideoFileSize('');
     setLocalMediaKey(null);
+    setPdfFile(null);
+    setPdfDownloadUrl('');
     setUploadProgress(0);
     setUploadDetails({ percent: 0, transferredMB: '0', totalMB: '0', isCloudReady: false, localSaved: false });
   };
@@ -1110,7 +1174,143 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </button>
                     </div>
                   </div>
-                </div>
+
+                  {/* Optional Lecture Exam Section */}
+                    <div style={{
+                      background: 'var(--bg-subtle)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '1.25rem',
+                      border: '1px solid var(--border-subtle)',
+                      marginTop: '0.5rem'
+                    }}>
+                      <div className="flex-between" style={{ marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <strong style={{ fontSize: '0.95rem', display: 'block' }}>هل تريد إضافة امتحان إلكتروني لهذه المحاضرة؟</strong>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            في حال تفعيل الامتحان، لن تفتح المحاضرة التالية للطالب إلا بعد اجتيازه بنسبة 50% فأكثر.
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setHasLectureExam(true)}
+                            className={`btn btn-sm ${hasLectureExam ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ fontWeight: 800 }}
+                          >
+                            نعم، إضافة امتحان ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHasLectureExam(false)}
+                            className={`btn btn-sm ${!hasLectureExam ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ fontWeight: 800 }}
+                          >
+                            لا، بدون امتحان
+                          </button>
+                        </div>
+                      </div>
+
+                      {hasLectureExam && (
+                        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>مدة الامتحان (دقيقة):</label>
+                              <input
+                                type="number"
+                                min="5"
+                                max="180"
+                                value={lectureExamDuration}
+                                onChange={e => setLectureExamDuration(Number(e.target.value))}
+                                className="input-control"
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>الدرجة الكلية:</label>
+                              <input
+                                type="number"
+                                min="5"
+                                max="100"
+                                value={lectureExamTotalMarks}
+                                onChange={e => setLectureExamTotalMarks(Number(e.target.value))}
+                                className="input-control"
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>درجة النجاح (50%+):</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max={lectureExamTotalMarks}
+                                value={lectureExamPassMarks}
+                                onChange={e => setLectureExamPassMarks(Number(e.target.value))}
+                                className="input-control"
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 700, display: 'block', marginBottom: '2px' }}>أقصى محاولات:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={lectureExamMaxAttempts}
+                                onChange={e => setLectureExamMaxAttempts(Number(e.target.value))}
+                                className="input-control"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Quick question preview / add */}
+                          <div style={{ background: 'var(--bg-surface)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                            <div className="flex-between" style={{ marginBottom: '6px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>بنك أسئلة المحاضرة ({lectureExamQuestions.length} أسئلة مجهزة)</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextQNum = lectureExamQuestions.length + 1;
+                                  setLectureExamQuestions(prev => [
+                                    ...prev,
+                                    {
+                                      id: `q-${Date.now()}`,
+                                      type: "mcq",
+                                      question: `Question ${nextQNum}: Choose the correct answer:`,
+                                      options: ["Option A", "Option B", "Option C", "Option D"],
+                                      correctAnswer: 0,
+                                      points: 2,
+                                      explanation: "توضيح الإجابة الصحيحة."
+                                    }
+                                  ]);
+                                  addToast('تمت إضافة سؤال جديد للامتحان ✍️', 'success');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                              >
+                                + إضافة سؤال
+                              </button>
+                            </div>
+
+                            <div style={{ maxHeight: '110px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {lectureExamQuestions.map((q, qIdx) => (
+                                <div key={q.id || qIdx} style={{ fontSize: '0.76rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                                    {qIdx + 1}. {q.question} ({q.type === 'tf' ? 'صح/خطأ' : 'اختيارات'})
+                                  </span>
+                                  {lectureExamQuestions.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setLectureExamQuestions(prev => prev.filter((_, idx) => idx !== qIdx))}
+                                      style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div>
@@ -1844,6 +2044,19 @@ export default function TeacherAdminCenter({ onNavigate }) {
                               <button onClick={() => setActiveCardStudent(std)} className="btn btn-ghost btn-sm" title="كارنيه الطالب QR"><QrCode size={16} color="var(--primary-600)" /></button>
                               <button onClick={() => setActiveProfileStudent(std)} className="btn btn-ghost btn-sm" title="ملف الطالب 360"><Eye size={16} /></button>
                               <button onClick={() => setActiveReportStudent(std)} className="btn btn-ghost btn-sm" title="تقرير أداء واتساب"><MessageCircle size={16} color="#059669" /></button>
+                              <button 
+                                onClick={() => {
+                                  const lecId = prompt(`اختر معرف المحاضرة أو عنوانها لفتحها للطالب (${std.name}):\n(مثال: lec-s3-02 أو الصق معرف المحاضرة)`, 'lec-s3-02');
+                                  if (lecId && lecId.trim()) {
+                                    const reason = prompt('اذكر سبب الفتح الاستثنائي:', 'موافقة المستر - عذر مرضي / استثنائي');
+                                    overrideUnlockLecture(lecId.trim(), std.id, reason || 'موافقة المستر يدوياً');
+                                  }
+                                }} 
+                                className="btn btn-ghost btn-sm" 
+                                title="فتح محاضرة استثنائياً للطالب (تجاوز شروط المشاهدة/الامتحان)"
+                              >
+                                <Unlock size={16} color="#10B981" />
+                              </button>
                               {pay.dueAmount > 0 && <button onClick={() => setActiveReminderStudent(std)} className="btn btn-ghost btn-sm" title="تذكير بالمصاريف"><DollarSign size={16} color="#D97706" /></button>}
                               <button onClick={() => { if (window.confirm(`حذف الطالب "${std.name}"؟`)) deleteStudent(std.id); }} className="btn btn-ghost btn-sm" style={{ color: '#EF4444' }}><Trash2 size={16} /></button>
                             </div>

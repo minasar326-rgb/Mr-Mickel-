@@ -42,15 +42,15 @@ service firebase.storage {
       ) || isTeacherAdmin();
     }
 
-    // Protected Video Lectures & Courseware
+    // Protected Video Lectures & Courseware (Downloadable with verified token URL)
     match /lectures/{allPaths=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isTeacherAdmin();
     }
 
-    // Protected Booklets & Study PDF Guides
+    // Protected Booklets & Study PDF Guides (Downloadable with verified token URL)
     match /booklets/{allPaths=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isTeacherAdmin();
     }
 

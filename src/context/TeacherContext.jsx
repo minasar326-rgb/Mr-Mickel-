@@ -679,6 +679,26 @@ export function TeacherProvider({ children }) {
     };
   });
 
+  // 11b. Genuine Video Watch Progress (Tracking actual watched time & percentage)
+  const [videoWatchProgress, setVideoWatchProgress] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_video_watch_progress');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      "lec-s3-01": { watchedSeconds: 3150, duration: 6300, percent: 100, completed: true }
+    };
+  });
+
+  // 11c. Teacher Manual Student Overrides ({ [lectureId]: { [studentUid]: { unlocked: true, reason, date } } })
+  const [manualOverrides, setManualOverrides] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_manual_overrides');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {};
+  });
+
   // 12. Announcements
   const [announcements, setAnnouncements] = useState(() => {
     const saved = localStorage.getItem('ms_announcements');
@@ -821,6 +841,8 @@ export function TeacherProvider({ children }) {
       localStorage.setItem('ms_completed_lectures', JSON.stringify(completedLectureIds));
       localStorage.setItem('ms_homeworks', JSON.stringify(homeworkSubmissions));
       localStorage.setItem('ms_exam_results', JSON.stringify(examResults));
+      localStorage.setItem('ms_video_watch_progress', JSON.stringify(videoWatchProgress));
+      localStorage.setItem('ms_manual_overrides', JSON.stringify(manualOverrides));
       localStorage.setItem('ms_announcements', JSON.stringify(announcements));
     } catch (e) {
       console.warn('localStorage sync notice:', e.message);
@@ -837,7 +859,7 @@ export function TeacherProvider({ children }) {
     } catch (idbErr) {
       console.warn('IndexedDB background sync notice:', idbErr);
     }
-  }, [teacherProfile, stages, lectures, booklets, topAchievers, accessCodes, students, unlockedLectureIds, completedLectureIds, homeworkSubmissions, examResults, announcements]);
+  }, [teacherProfile, stages, lectures, booklets, topAchievers, accessCodes, students, unlockedLectureIds, completedLectureIds, homeworkSubmissions, examResults, videoWatchProgress, manualOverrides, announcements]);
 
   // Add New Student
   const addStudent = (studentData) => {
@@ -1423,55 +1445,156 @@ export function TeacherProvider({ children }) {
     }
   };
 
-  const isLectureUnlocked = (lecture, stageId) => {
-    if (!lecture) return false;
-    // 1. Teacher in instructor role has full access
-    if (role === 'instructor') return true;
+  /**
+   * Evaluates sequential lecture progression:
+   * Rule 1: Requires subscription or free status.
+   * Rule 2: Instructor has full access.
+   * Rule 3: Manual override by teacher grants instant access.
+   * Rule 4: First lecture in a section/stage is always open if subscribed.
+   * Rule 5: Subsequent lectures require >= 50% genuine watch time of previous lecture.
+   * Rule 6: If previous lecture has an exam, student must have passed with > 50%.
+   */
+  const canAccessLecture = (lecture, stageId) => {
+    if (!lecture) return { allowed: false, reason: 'المحاضرة غير موجودة' };
 
-    // 2. Free lectures are always accessible to everyone
-    if (lecture.isFree) return true;
+    // 1. Instructor role bypasses all locks
+    if (role === 'instructor') {
+      return { allowed: true, isTeacherOverride: true, reason: 'حساب المعلم (وصول كامل)' };
+    }
 
-    // 3. Paid lectures strictly require logged-in student with matching UID
     const currentUid = currentUser?.uid || currentUser?.id;
-    if (!currentUser || !currentUid || currentUid === 'guest') {
-      return false;
+
+    // 2. Teacher manual override for this student
+    if (currentUid && manualOverrides[lecture.id]?.[currentUid]?.unlocked) {
+      return {
+        allowed: true,
+        isTeacherOverride: true,
+        reason: manualOverrides[lecture.id][currentUid].reason || 'تم فتح المحاضرة استثنائياً بواسطة المستر'
+      };
     }
 
-    // 4. Section subscription check (Month or Course)
-    if (lecture.sectionId) {
-      const secSub = getSubscriptionStatus(lecture.sectionId);
-      if (secSub.isSubscribed && !secSub.isExpired) return true;
+    // 3. Subscription check
+    const isFree = Boolean(lecture.isFree);
+    let hasSubscription = isFree;
+
+    if (!isFree) {
+      if (!currentUser || !currentUid || currentUid === 'guest') {
+        return {
+          allowed: false,
+          requiresAuth: true,
+          reason: 'يجب تسجيل الدخول بحساب Google أولاً لتفعيل المحاضرة'
+        };
+      }
+
+      // Check section subscription (month or course)
+      if (lecture.sectionId) {
+        const secSub = getSubscriptionStatus(lecture.sectionId);
+        if (secSub.isSubscribed && !secSub.isExpired) hasSubscription = true;
+      }
+
+      // Direct lecture subscription
+      if (!hasSubscription) {
+        const lecSub = getSubscriptionStatus(lecture.id);
+        if (lecSub.isSubscribed && !lecSub.isExpired) hasSubscription = true;
+      }
+
+      // Stage-level subscription
+      if (!hasSubscription) {
+        const rawStageId = stageId || lecture.stageId;
+        const targetStageId = normalizeStageId(rawStageId);
+        const stageSub = getSubscriptionStatus(targetStageId) || getSubscriptionStatus(rawStageId);
+        if (stageSub.isSubscribed && !stageSub.isExpired) hasSubscription = true;
+      }
+
+      // All-access VIP
+      if (!hasSubscription) {
+        const allSub = getSubscriptionStatus('all-access');
+        if (allSub.isSubscribed && !allSub.isExpired) hasSubscription = true;
+      }
+
+      if (!hasSubscription) {
+        return {
+          allowed: false,
+          requiresSubscription: true,
+          reason: 'المحاضرة تتطلب الاشتراك في الشهر أو شحن كود تفعيل المحاضرة'
+        };
+      }
     }
 
-    // 5. Direct lecture subscription check
-    const lecSub = getSubscriptionStatus(lecture.id);
-    if (lecSub.isSubscribed && !lecSub.isExpired) return true;
+    // 4. Sequential progression check within the same month/course/stage
+    // Find cohort of lectures sharing the same section (or stage if no section)
+    const cohort = (lectures || [])
+      .filter(l => {
+        if (lecture.sectionId) {
+          return l.sectionId === lecture.sectionId;
+        }
+        return (l.stageId === lecture.stageId || normalizeStageId(l.stageId) === normalizeStageId(lecture.stageId)) && !l.sectionId;
+      })
+      .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
-    // 6. Stage-level subscription check for THIS student UID
-    const rawStageId = stageId || lecture.stageId;
-    const targetStageId = normalizeStageId(rawStageId);
+    const currIdx = cohort.findIndex(l => l.id === lecture.id);
 
-    if (targetStageId) {
-      const stageSub = getSubscriptionStatus(targetStageId);
-      if (stageSub.isSubscribed && !stageSub.isExpired) return true;
+    // If it's the first lecture in the section or not found in cohort, it is unlocked immediately!
+    if (currIdx <= 0) {
+      return { allowed: true, reason: 'المحاضرة الأولى مفتوحة ضمن اشتراكك' };
     }
 
-    if (rawStageId && rawStageId !== targetStageId) {
-      const rawStageSub = getSubscriptionStatus(rawStageId);
-      if (rawStageSub.isSubscribed && !rawStageSub.isExpired) return true;
+    // Inspect previous lecture in sequence
+    const prevLec = cohort[currIdx - 1];
+    const prevProg = videoWatchProgress[prevLec.id] || { percent: 0, watchedSeconds: 0 };
+    const prevWatchPercent = prevProg.percent || 0;
+
+    // Condition 1: Must watch at least 50% of the previous lecture
+    if (prevWatchPercent < 50) {
+      return {
+        allowed: false,
+        isProgressionLocked: true,
+        reason: `يجب مشاهدة 50% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
+        prevLecture: prevLec,
+        prevWatchPercent,
+        missing: 'watch'
+      };
     }
 
-    if (lecture.stageId && lecture.stageId !== rawStageId && lecture.stageId !== targetStageId) {
-      const lecStageSub = getSubscriptionStatus(lecture.stageId);
-      if (lecStageSub.isSubscribed && !lecStageSub.isExpired) return true;
+    // Condition 2: If previous lecture had an exam, student must have passed with > 50%
+    const prevExam = prevLec.exam || (examsData && examsData[prevLec.id]);
+    const prevExamRequired = prevLec.examRequired !== false && Boolean(prevExam);
+
+    if (prevExamRequired) {
+      const prevResult = examResults[prevLec.id];
+      if (!prevResult) {
+        return {
+          allowed: false,
+          isProgressionLocked: true,
+          reason: `يجب اجتياز امتحان المحاضرة السابقة (${prevLec.title}) بنسبة تتجاوز 50% لفتح هذه المحاضرة.`,
+          prevLecture: prevLec,
+          prevWatchPercent,
+          missing: 'exam_not_taken'
+        };
+      }
+
+      const scoreNum = Number(prevResult.score) || 0;
+      const totalNum = Number(prevResult.total) || 20;
+      const examPercent = totalNum > 0 ? Math.round((scoreNum / totalNum) * 100) : 0;
+
+      if (examPercent <= 50) {
+        return {
+          allowed: false,
+          isProgressionLocked: true,
+          reason: `لم تجتز امتحان المحاضرة السابقة (${prevLec.title}) بنجاح (درجتك: ${examPercent}%). يجب الحصول على أكثر من 50% لفتح المحاضرة التالية.`,
+          prevLecture: prevLec,
+          prevWatchPercent,
+          prevExamPercent: examPercent,
+          missing: 'exam_failed'
+        };
+      }
     }
 
-    // 7. All-access bundle check for THIS student UID
-    const allSub = getSubscriptionStatus('all-access');
-    if (allSub.isSubscribed && !allSub.isExpired) return true;
+    return { allowed: true, reason: 'مكتملة المتطلبات والمشاهدة' };
+  };
 
-    // Otherwise: locked
-    return false;
+  const isLectureUnlocked = (lecture, stageId) => {
+    return canAccessLecture(lecture, stageId).allowed;
   };
 
   const redeemCode = async (codeStr) => {
@@ -1947,6 +2070,85 @@ export function TeacherProvider({ children }) {
     }
   };
 
+  /**
+   * Genuine playback progress tracker:
+   * Saves elapsed watched seconds without skipping cheats.
+   * Auto-marks lecture completed when reaching 50%.
+   */
+  const updateLectureWatchProgress = (lectureId, watchedSeconds, totalDuration) => {
+    if (!lectureId || !totalDuration || totalDuration <= 0) return;
+    const cleanSeconds = Math.max(0, Math.floor(watchedSeconds));
+    const cleanTotal = Math.max(1, Math.floor(totalDuration));
+    const percent = Math.min(100, Math.round((cleanSeconds / cleanTotal) * 100));
+
+    setVideoWatchProgress(prev => {
+      const prevEntry = prev[lectureId] || { percent: 0, watchedSeconds: 0 };
+      // Only advance progress, never downgrade
+      if (percent <= prevEntry.percent && cleanSeconds <= prevEntry.watchedSeconds) {
+        return prev;
+      }
+      const updated = {
+        ...prev,
+        [lectureId]: {
+          watchedSeconds: Math.max(cleanSeconds, prevEntry.watchedSeconds || 0),
+          duration: cleanTotal,
+          percent: Math.max(percent, prevEntry.percent || 0),
+          completed: percent >= 50 || prevEntry.completed || false,
+          lastUpdated: new Date().toISOString()
+        }
+      };
+      try {
+        localStorage.setItem('ms_video_watch_progress', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (percent >= 50 && !completedLectureIds.includes(lectureId)) {
+      markLectureComplete(lectureId);
+    }
+  };
+
+  /**
+   * Teacher manual override: instantly unlocks a lecture for a specific student with a logged reason.
+   */
+  const overrideUnlockLecture = (lectureId, studentUid, reason = 'موافقة المستر يدوياً') => {
+    if (!lectureId || !studentUid) return;
+    setManualOverrides(prev => {
+      const lectureEntry = prev[lectureId] || {};
+      const updated = {
+        ...prev,
+        [lectureId]: {
+          ...lectureEntry,
+          [studentUid]: {
+            unlocked: true,
+            reason,
+            unlockedAt: new Date().toISOString(),
+            byTeacher: teacherProfile.name
+          }
+        }
+      };
+      try {
+        localStorage.setItem('ms_manual_overrides', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    addToast(`تم فتح المحاضرة استثنائياً للطالب بنجاح 🔓 (${reason})`, 'success');
+  };
+
+  const revokeOverrideLecture = (lectureId, studentUid) => {
+    if (!lectureId || !studentUid) return;
+    setManualOverrides(prev => {
+      const lectureEntry = { ...(prev[lectureId] || {}) };
+      delete lectureEntry[studentUid];
+      const updated = { ...prev, [lectureId]: lectureEntry };
+      try {
+        localStorage.setItem('ms_manual_overrides', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    addToast('تم إلغاء الفتح الاستثنائي للمحاضرة 🔒', 'info');
+  };
+
   return (
     <TeacherContext.Provider
       value={{
@@ -1962,6 +2164,12 @@ export function TeacherProvider({ children }) {
         completedLectureIds,
         homeworkSubmissions,
         examResults,
+        videoWatchProgress,
+        manualOverrides,
+        updateLectureWatchProgress,
+        overrideUnlockLecture,
+        revokeOverrideLecture,
+        canAccessLecture,
         announcements,
         addStudent,
         updateStudent,

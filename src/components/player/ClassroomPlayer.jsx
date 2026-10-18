@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { flashcardsData } from '../../data/flashcardsData';
 import QuizRunner from './QuizRunner';
 import CertificateModal from '../common/CertificateModal';
+import { downloadPdfFile } from '../../services/pdfDownloader';
 import { 
   Play, Pause, RotateCcw, FastForward, Volume2, VolumeX, Maximize, 
   CheckCircle2, ArrowRight, ArrowLeft, Bot, Sparkles, Terminal, FileText, 
@@ -842,7 +843,17 @@ export default function ClassroomPlayer({ courseId, onNavigate }) {
                       </div>
                     </div>
                     <button
-                      onClick={() => addToast('جاري بدء تحميل الملف المرفق...', 'success')}
+                      onClick={async () => {
+                        addToast(`جاري تنزيل ملف (${res.name})... 📄`, 'info');
+                        const resResult = await downloadPdfFile({
+                          title: res.name,
+                          lectureData: { title: currentLesson?.title || course.title, stageName: course.title },
+                          studentInfo: { name: currentUser?.name || 'طالب المنصة', uid: currentUser?.uid }
+                        });
+                        if (resResult.success) {
+                          addToast(`تم تنزيل (${res.name}) بنجاح ✓`, 'success');
+                        }
+                      }}
                       className="btn btn-secondary btn-sm"
                     >
                       تحميل

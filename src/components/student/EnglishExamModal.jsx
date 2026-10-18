@@ -6,10 +6,11 @@ import { X, Trophy, CheckCircle2, AlertCircle, HelpCircle, ArrowLeft, ArrowRight
 import confetti from 'canvas-confetti';
 
 export default function EnglishExamModal({ isOpen, onClose, lectureId }) {
-  const { submitExam } = useTeacher();
+  const { submitExam, lectures } = useTeacher();
   const { addToast } = useToast();
 
-  const exam = examsData[lectureId] || examsData['lec-s3-01'];
+  const currentLecture = (lectures || []).find(l => l.id === lectureId);
+  const exam = currentLecture?.exam || examsData[lectureId] || examsData['lec-s3-01'];
 
   const [currentStep, setCurrentStep] = useState(0); // index across all questions
   const [selectedAnswers, setSelectedAnswers] = useState({});

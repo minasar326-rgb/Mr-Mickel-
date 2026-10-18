@@ -1,11 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
-import { BookOpen, Download, FileText, CheckCircle2, Sparkles, Eye, ShieldCheck } from 'lucide-react';
+import { downloadPdfFile } from '../../services/pdfDownloader';
+import { BookOpen, Download, FileText, CheckCircle2, Sparkles, Eye, ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function BookletShowcase() {
   const { booklets, teacherProfile } = useTeacher();
   const { addToast } = useToast();
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadBooklet = async (bk) => {
+    if (downloadingId) return;
+    setDownloadingId(bk.id);
+    addToast(`جاري تحضير وتنزيل (${bk.title})... 📄⚡`, 'info');
+
+    try {
+      const res = await downloadPdfFile({
+        url: bk.downloadUrl && bk.downloadUrl !== '#' ? bk.downloadUrl : null,
+        title: bk.title,
+        lectureData: { title: bk.title, stageName: 'مذكرات The Master المعتمدة' }
+      });
+      if (res.success) {
+        addToast(`✅ تم تنزيل مذكرة (${bk.title}) بصيغة PDF بنجاح!`, 'success', 5000);
+      } else {
+        addToast(`تعذر تنزيل المذكرة: ${res.error || 'يرجى مراجعة الاتصال'}`, 'error');
+      }
+    } catch (e) {
+      addToast('حدث خطأ أثناء تنزيل المذكرة', 'error');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <section style={{ padding: '4.5rem 0', background: 'var(--bg-surface)', borderTop: '1px solid var(--border-subtle)' }}>
@@ -82,29 +107,29 @@ export default function BookletShowcase() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {booklet.downloadUrl && booklet.downloadUrl !== '#' ? (
-                    <a
-                      href={booklet.downloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download={`${booklet.title || 'مذكرة-شرح'}.pdf`}
-                      className="btn btn-primary btn-sm"
-                      style={{ flex: 1, gap: '6px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => addToast(`جاري فتح وتحميل (${booklet.title})...`, 'success')}
-                    >
-                      <Download size={16} />
-                      <span>تحميل المذكرة PDF</span>
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => addToast(`المذكرة متوفرة في السنتر أو سيتم رفع الرابط قريباً من لوحة المستر`, 'info')}
-                      className="btn btn-primary btn-sm"
-                      style={{ flex: 1, gap: '6px' }}
-                    >
-                      <Download size={16} />
-                      <span>تحميل المذكرة PDF</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDownloadBooklet(booklet)}
+                    disabled={downloadingId === booklet.id}
+                    className="btn btn-primary btn-sm"
+                    style={{ 
+                      flex: 1, 
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      fontWeight: 700
+                    }}
+                  >
+                    {downloadingId === booklet.id ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>جاري التنزيل...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} />
+                        <span>تحميل المذكرة PDF 📥</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

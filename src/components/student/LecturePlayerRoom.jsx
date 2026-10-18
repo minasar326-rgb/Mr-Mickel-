@@ -3,14 +3,29 @@ import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import EnglishExamModal from './EnglishExamModal';
+import { downloadPdfFile } from '../../services/pdfDownloader';
 import { 
   Play, Pause, RotateCcw, FastForward, Volume2, VolumeX, Maximize, 
   CheckCircle2, ArrowRight, ArrowLeft, Volume1, Mic, MicOff, Download, 
-  FileText, Upload, HelpCircle, Award, Eye, Sparkles, BookOpen, AlertCircle, Clock, Image, X, Lock, Key, MessageCircle
+  FileText, Upload, HelpCircle, Award, Eye, Sparkles, BookOpen, AlertCircle, Clock, Image, X, Lock, Key, MessageCircle, Loader2
 } from 'lucide-react';
 
 export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeModal }) {
-  const { teacherProfile, stages, lectures, markLectureComplete, submitHomework, homeworkSubmissions, examResults, resolveVideoSource, isLectureUnlocked, getSubscriptionStatus } = useTeacher();
+  const { 
+    teacherProfile, 
+    stages, 
+    lectures, 
+    markLectureComplete, 
+    submitHomework, 
+    homeworkSubmissions, 
+    examResults, 
+    resolveVideoSource, 
+    isLectureUnlocked, 
+    canAccessLecture,
+    getSubscriptionStatus,
+    videoWatchProgress,
+    updateLectureWatchProgress 
+  } = useTeacher();
   const { currentUser, role, openAuthModal } = useAuth();
   const { addToast } = useToast();
 
@@ -18,19 +33,8 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const currentStage = (stages || []).find(s => s.id === lecture?.stageId);
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  const canonStageId = normalizeStageId ? normalizeStageId(lecture?.stageId) : lecture?.stageId;
-  const stageSub1 = getSubscriptionStatus ? getSubscriptionStatus(lecture?.stageId) : {};
-  const stageSub2 = getSubscriptionStatus && canonStageId ? getSubscriptionStatus(canonStageId) : {};
-  const stageSub3 = getSubscriptionStatus ? getSubscriptionStatus('all-access') : {};
-  const stageSub = (stageSub1?.isSubscribed && !stageSub1?.isExpired) ? stageSub1 
-    : ((stageSub2?.isSubscribed && !stageSub2?.isExpired) ? stageSub2 
-    : ((stageSub3?.isSubscribed && !stageSub3?.isExpired) ? stageSub3 : stageSub1));
-
-  const isStageSubscribed = stageSub?.isSubscribed && !stageSub?.isExpired;
-  const isFree = Boolean(lecture?.isFree);
-  const isInstructor = role === 'instructor';
-  const isUnlocked = isLectureUnlocked ? isLectureUnlocked(lecture, lecture?.stageId) : false;
-  const isAllowedToWatch = isFree || isInstructor || isStageSubscribed || isUnlocked;
+  const accessCheck = canAccessLecture ? canAccessLecture(lecture, lecture?.stageId) : { allowed: true };
+  const isAllowedToWatch = accessCheck.allowed;
 
   // Video State
   const videoRef = useRef(null);
@@ -42,6 +46,20 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState(
     lecture?.videoUrl && !lecture.videoUrl.startsWith('blob:') ? lecture.videoUrl : ''
   );
+
+  // PDF Download State
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  // Genuine Video Watch Tracker (anti-skipping)
+  const watchedSecondsSetRef = useRef(new Set());
+  const lastPlaybackTimeRef = useRef(0);
+
+  // Re-initialize tracker when switching lectures
+  useEffect(() => {
+    watchedSecondsSetRef.current = new Set();
+    lastPlaybackTimeRef.current = 0;
+  }, [lecture?.id]);
 
   // Resolve persistent video URL from IndexedDB or Cloud
   useEffect(() => {
@@ -91,7 +109,61 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   }, []);
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+    if (!videoRef.current) return;
+    const curr = videoRef.current.currentTime;
+    const dur = videoRef.current.duration || duration || 1;
+    setCurrentTime(curr);
+
+    // Continuous Genuine Playback Detection:
+    // Only register seconds if playback progressed naturally (delta between 0.1s and 1.8s)
+    const prev = lastPlaybackTimeRef.current;
+    const delta = curr - prev;
+    if (delta > 0 && delta < 1.8) {
+      const secondBucket = Math.floor(curr);
+      watchedSecondsSetRef.current.add(secondBucket);
+
+      // Periodically sync progress every 5 unique seconds
+      if (watchedSecondsSetRef.current.size % 5 === 0 && updateLectureWatchProgress) {
+        updateLectureWatchProgress(lecture.id, watchedSecondsSetRef.current.size, dur);
+      }
+    }
+    lastPlaybackTimeRef.current = curr;
+  };
+
+  const handleDownloadLecturePdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    setDownloadProgress(20);
+    addToast('جاري تحضير وتنزيل مذكرة الشرح والتدريبات (PDF)... 📄⚡', 'info', 3000);
+
+    try {
+      const result = await downloadPdfFile({
+        url: lecture.pdfBooklet?.downloadUrl || lecture.pdfBooklet?.url,
+        title: lecture.pdfBooklet?.title || `مذكرة_${lecture.title}`,
+        lectureData: {
+          title: lecture.title,
+          stageName: currentStage?.name || lecture.stageName || 'المرحلة الدراسية',
+          unitNumber: lecture.unitNumber
+        },
+        studentInfo: {
+          name: currentUser?.name || 'طالب مسجل',
+          uid: currentUser?.uid || currentUser?.id
+        },
+        onProgress: (p) => setDownloadProgress(p)
+      });
+
+      if (result.success) {
+        addToast(`✅ تم تنزيل مذكرة (${result.fileName}) بنجاح بصيغة PDF عالية الدقة!`, 'success', 5000);
+      } else {
+        addToast(`تعذر تنزيل الملف: ${result.error || 'يرجى مراجعة الاتصال بالإنترنت'}`, 'error');
+      }
+    } catch (err) {
+      console.warn('PDF download error:', err);
+      addToast('حدث خطأ أثناء تنزيل الملف، يرجى المحاولة مرة أخرى', 'error');
+    } finally {
+      setIsDownloadingPdf(false);
+      setDownloadProgress(0);
+    }
   };
 
   const handleLoadedMetadata = () => {
@@ -249,6 +321,47 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                   >
                     <span>تسجيل الدخول باستخدام Google 🚀</span>
                   </button>
+                  <button
+                    onClick={() => onNavigate('stage-lectures', { stageId: lecture?.stageId })}
+                    className="btn btn-secondary btn-lg"
+                  >
+                    العودة لقائمة المحاضرات
+                  </button>
+                </div>
+              </>
+            ) : accessCheck.isProgressionLocked ? (
+              <>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.75rem', color: '#FCD34D' }}>
+                  المحاضرة مغلقة مؤقتاً (نظام فتح المحاضرات بالتدريج) ⏳
+                </h2>
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.25rem',
+                  maxWidth: '580px',
+                  margin: '0 auto 2rem',
+                  textAlign: 'right'
+                }}>
+                  <p style={{ color: '#FEF3C7', fontSize: '0.95rem', lineHeight: '1.6', margin: '0 0 10px', fontWeight: 700 }}>
+                    ⚠️ {accessCheck.reason}
+                  </p>
+                  <ul style={{ color: '#E2E8F0', fontSize: '0.85rem', margin: 0, paddingRight: '20px', lineHeight: '1.7' }}>
+                    <li>شرط 1: مشاهدة 50% على الأقل من المحاضرة السابقة بدون تسريع أو تقديم وهمي.</li>
+                    <li>شرط 2: اجتياز امتحان المحاضرة السابقة بنسبة تتجاوز 50% (إن وُجد).</li>
+                  </ul>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {accessCheck.prevLecture && (
+                    <button
+                      onClick={() => onNavigate('lecture-room', { lectureId: accessCheck.prevLecture.id })}
+                      className="btn btn-primary btn-lg"
+                      style={{ gap: '8px', fontWeight: 800, background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
+                    >
+                      <Play size={18} fill="currentColor" />
+                      <span>الانتقال للمحاضرة السابقة لإكمالها ▶️</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => onNavigate('stage-lectures', { stageId: lecture?.stageId })}
                     className="btn btn-secondary btn-lg"
@@ -697,14 +810,46 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               </div>
 
               <button
-                onClick={() => addToast('جاري بدء تحميل مذكرة الشرح والتدريبات...', 'success')}
+                onClick={handleDownloadLecturePdf}
+                disabled={isDownloadingPdf}
                 className="btn btn-primary btn-lg"
-                style={{ gap: '8px' }}
+                style={{ 
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  fontWeight: 800,
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)'
+                }}
               >
-                <Download size={18} />
-                <span>تحميل المذكرة بصيغة PDF عالية الدقة</span>
+                {isDownloadingPdf ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>جاري التنزيل ({downloadProgress}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    <span>تحميل المذكرة بصيغة PDF عالية الدقة 📥</span>
+                  </>
+                )}
               </button>
             </div>
+
+            {/* Live Progress Bar when downloading */}
+            {isDownloadingPdf && (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ height: '6px', width: '100%', background: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${downloadProgress}%`,
+                    background: 'linear-gradient(90deg, #10B981, #059669)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                  يتم الآن تنزيل ملف PDF وحفظه مباشرة في مجلد التنزيلات بجهازك...
+                </span>
+              </div>
+            )}
           </div>
         )}
 

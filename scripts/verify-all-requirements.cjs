@@ -89,10 +89,10 @@ assert(teacherDataContent.includes('whatsappNumber: "01012345678"'), 'teacherDat
 // 7. Verify Removal of Technical Infrastructure Mentions
 console.log('\n--- TEST GROUP 7: Clean Professional Wording (No Raw Tech Mentions) ---');
 const authModalContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/auth/AuthModal.jsx'), 'utf8');
-const authContextContent = fs.readFileSync(path.join(ROOT_DIR, 'src/context/AuthContext.jsx'), 'utf8');
 
 assert(!authModalContent.includes('Firebase & Google Authentication'), 'AuthModal does not mention raw Firebase Authentication');
-assert(!adminCenterContent.includes('سحابة Google Firebase مهيأة ومتصلة بنجاح'), 'Admin center banner does not display raw tech names');
+assert(!adminCenterContent.includes('السحابة التعليمية وقواعد البيانات مؤمنة ومتصلة بنجاح'), 'Admin center yellow cloud banner is completely removed');
+assert(!adminCenterContent.includes('مزامنة كاملة لبيانات المنصة سحابياً'), 'Admin center cloud sync button is removed');
 assert(!adminCenterContent.includes('رفع فيديو المحاضرة بنجاح على سحابة Cloudflare R2'), 'Video toast does not mention Cloudflare R2');
 assert(!adminCenterContent.includes('رفع ملف المذكرة إلى سحابة Cloudflare'), 'Booklet toast does not mention Cloudflare');
 
@@ -104,6 +104,41 @@ assert(teacherContextContent.includes('missing: \'watch\''), 'Lecture locked if 
 assert(teacherContextContent.includes('missing: \'exam_pending_grading\''), 'Lecture locked if exam essay is pending teacher manual grading');
 assert(teacherContextContent.includes('missing: \'exam_failed\''), 'Lecture locked if exam score <= 50%');
 
+// 9. Verify Exam Builder Reorganization (Buttons at bottom, live metrics header, objective-first ordering)
+console.log('\n--- TEST GROUP 9: Exam Builder Layout & Question Reorganization ---');
+assert(adminCenterContent.includes('لوحة إحصائيات وهيكل الامتحان'), 'Exam builder contains 5-metric structure header at top');
+assert(adminCenterContent.includes('إضافة سؤال جديد في نهاية الامتحان'), 'Question addition toolbar is positioned at bottom of list');
+assert(adminCenterContent.includes('ترتيب إلزامي: الموضوعي أولاً ثم المقالي'), 'Exam builder enforces canonical question sorting rule');
+assert(adminCenterContent.includes('strictlyOrderedQuestions'), 'Exam saver programmatically places objective questions before essay questions');
+
+// 10. Verify Standalone General Exam Engine & Personal Student Codes
+console.log('\n--- TEST GROUP 10: Standalone General Exam & Personalized Codes ---');
+const navbarContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/common/TeacherNavbar.jsx'), 'utf8');
+const generalExamPageContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/GeneralExamPage.jsx'), 'utf8');
+const examModalContent = fs.readFileSync(path.join(ROOT_DIR, 'src/components/student/EnglishExamModal.jsx'), 'utf8');
+
+assert(teacherContextContent.includes('generalExams'), 'TeacherContext maintains generalExams state');
+assert(teacherContextContent.includes('generalExamCodes'), 'TeacherContext maintains generalExamCodes state');
+assert(teacherContextContent.includes('generateGeneralExamCode'), 'TeacherContext provides single student code generation');
+assert(teacherContextContent.includes('bulkGenerateGeneralExamCodes'), 'TeacherContext provides bulk stage code generation');
+assert(teacherContextContent.includes('verifyAndRedeemGeneralExamCode'), 'TeacherContext enforces code validity and student identity matching');
+assert(teacherContextContent.includes('resetGeneralExamAttempt'), 'TeacherContext allows teacher to reopen attempt for a student');
+assert(teacherContextContent.includes('submitGeneralExam'), 'TeacherContext tracks general exam submission and grades');
+
+assert(navbarContent.includes("📝 الامتحان العام"), 'TeacherNavbar desktop navigation includes General Exam link');
+assert(navbarContent.includes("📝 الامتحان العام الشامل"), 'TeacherNavbar mobile drawer includes General Exam link');
+assert(appContent.includes("currentPage === 'general-exam'"), 'App.jsx routes general-exam page');
+assert(appContent.includes('GeneralExamPage'), 'App.jsx imports and mounts GeneralExamPage');
+
+assert(generalExamPageContent.includes('verifyAndRedeemGeneralExamCode'), 'GeneralExamPage gates access via personalized student codes');
+assert(generalExamPageContent.includes('isAlreadySubmitted'), 'GeneralExamPage restricts students strictly to one single attempt');
+assert(examModalContent.includes('isGeneralExam'), 'EnglishExamModal accepts isGeneralExam prop');
+assert(examModalContent.includes('submitGeneralExam'), 'EnglishExamModal routes submission to general exam engine');
+
+assert(adminCenterContent.includes("examsSubTab === 'general'"), 'TeacherAdminCenter contains General Exams and Codes management subtab');
+assert(adminCenterContent.includes('توليد أكواد جماعية لكافة طلاب مرحلة'), 'Admin center provides bulk generation for general exam codes');
+assert(adminCenterContent.includes('resetGeneralExamAttempt'), 'Admin center provides reset attempt button for teacher manual override');
+
 console.log('\n=====================================================');
-console.log('🎉 ALL 8 VERIFICATION GROUPS COMPLETED SUCCESSFULLY! 🎉');
+console.log('🎉 ALL 10 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
 console.log('=====================================================');

@@ -845,6 +845,152 @@ export function TeacherProvider({ children }) {
     } catch (e) {}
   }, [subscriptionAuditLogs]);
 
+  // 11g. Standalone General Exams (الامتحانات العامة المستقلة)
+  const [generalExams, setGeneralExams] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_general_exams');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      {
+        id: 'gen-exam-01',
+        title: 'الامتحان العام الشامل — The Master Grand Assessment 2026',
+        description: 'امتحان شامل لقياس مستوى الطلاب في القواعد والكلمات والمقالي. الدخول مرة واحدة فقط بكود شخصي.',
+        stageId: 'sec-3',
+        stageName: 'الصف الثالث الثانوي',
+        timeMinutes: 45,
+        totalMarks: 30,
+        passingMarks: 18,
+        status: 'published', // published | draft
+        allowReviewAfter: true,
+        showScoreImmediately: true,
+        maxAttempts: 1, // Strictly single attempt
+        updatedAt: '2026-08-20T10:00:00Z',
+        questions: [
+          {
+            id: 'gq-1',
+            type: 'mcq',
+            question: 'By the time the teacher arrived, all the students ______ their homework.',
+            points: 2,
+            options: ['had finished', 'have finished', 'will finish', 'are finishing'],
+            correctAnswer: 0,
+            explanation: 'نستخدم الماضي التام (had finished) للحدث الذي وقع واكتمل قبل حدث آخر في الماضي.'
+          },
+          {
+            id: 'gq-2',
+            type: 'mcq',
+            question: 'The criminal was arrested while he ______ to cross the border with forged papers.',
+            points: 2,
+            options: ['attempted', 'was attempting', 'has attempted', 'had attempted'],
+            correctAnswer: 1,
+            explanation: 'بعد while نستخدم الماضي المستمر للتعبير عن حدث كان مستمراً عندما قطعه حدث آخر.'
+          },
+          {
+            id: 'gq-3',
+            type: 'tf',
+            question: 'Adjectives usually come after nouns in standard English grammar.',
+            points: 2,
+            options: ['صح (True)', 'خطأ (False)'],
+            correctAnswer: 1,
+            explanation: 'الصفات تأتي قبل الأسماء في اللغة الإنجليزية (Attributive Position).'
+          },
+          {
+            id: 'gq-4',
+            type: 'multi',
+            question: 'Which of the following are relative pronouns used for persons? (Select all that apply)',
+            points: 4,
+            options: ['Who', 'Whom', 'Which', 'Whose'],
+            correctAnswers: [0, 1, 3],
+            explanation: 'الضمائر Who و Whom و Whose تستخدم للإشارة للعاقل، بينما Which لغير العاقل.'
+          },
+          {
+            id: 'gq-essay-1',
+            type: 'essay',
+            question: 'Discuss in 3-5 sentences the impact of modern artificial intelligence on learning English as a foreign language.',
+            points: 10,
+            modelAnswer: 'The answer should evaluate both pros (interactive feedback, 24/7 practice) and cons (reliance without critical thinking), using clear grammar and transitions.',
+            explanation: 'يقيم المستر الإجابة بناءً على دقة التراكيب اللغوية وترابط الأفكار وتنوع المفردات.'
+          },
+          {
+            id: 'gq-short-1',
+            type: 'short_answer',
+            question: 'What is the term for a word that sounds the same as another word but has a different spelling and meaning? (One word)',
+            points: 10,
+            modelAnswer: 'homophone',
+            explanation: 'A homophone is a word pronounced the same as another word but differing in meaning and spelling.'
+          }
+        ]
+      }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_general_exams', JSON.stringify(generalExams));
+    } catch (e) {}
+  }, [generalExams]);
+
+  // 11h. Personalized Student General Exam Codes (أكواد الامتحان العام المخصصة لكل طالب)
+  const [generalExamCodes, setGeneralExamCodes] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_general_exam_codes');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      {
+        code: 'GEN-SEC3-STD101-7891',
+        examId: 'gen-exam-01',
+        examTitle: 'الامتحان العام الشامل — The Master Grand Assessment 2026',
+        studentId: 'std-101',
+        studentName: 'أحمد محمود كمال',
+        studentPhone: '01012345678',
+        stageId: 'sec-3',
+        stageName: 'الصف الثالث الثانوي',
+        isUsed: false,
+        usedAt: null,
+        score: null,
+        createdAt: '2026-08-20T12:00:00Z',
+        allowRetake: false
+      },
+      {
+        code: 'GEN-SEC3-STD102-4523',
+        examId: 'gen-exam-01',
+        examTitle: 'الامتحان العام الشامل — The Master Grand Assessment 2026',
+        studentId: 'std-102',
+        studentName: 'سارة إبراهيم خليل',
+        studentPhone: '01122334455',
+        stageId: 'sec-3',
+        stageName: 'الصف الثالث الثانوي',
+        isUsed: true,
+        usedAt: '2026-08-21T18:40:00Z',
+        score: '28 / 30',
+        createdAt: '2026-08-20T12:00:00Z',
+        allowRetake: false
+      },
+      {
+        code: 'GEN-SEC3-STD103-9182',
+        examId: 'gen-exam-01',
+        examTitle: 'الامتحان العام الشامل — The Master Grand Assessment 2026',
+        studentId: 'std-103',
+        studentName: 'عبدالله الشمري',
+        studentPhone: '01233445566',
+        stageId: 'sec-3',
+        stageName: 'الصف الثالث الثانوي',
+        isUsed: false,
+        usedAt: null,
+        score: null,
+        createdAt: '2026-08-20T12:00:00Z',
+        allowRetake: false
+      }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_general_exam_codes', JSON.stringify(generalExamCodes));
+    } catch (e) {}
+  }, [generalExamCodes]);
+
   // 12. Announcements
   const [announcements, setAnnouncements] = useState(() => {
     const saved = localStorage.getItem('ms_announcements');
@@ -1055,7 +1201,7 @@ export function TeacherProvider({ children }) {
     setStudents(prev => [newStudent, ...prev]);
     // Sync to Firestore Cloud
     saveStudentToFirestore(newStudent);
-    addToast(`تمت إضافة الطالب (${newStudent.name}) وتوليد كود: ${newStudent.code} ومزامنته سحابياً! 👨‍🎓`, 'success');
+    addToast(`تمت إضافة الطالب (${newStudent.name}) وتوليد كود: ${newStudent.code} بنجاح! 👨‍🎓`, 'success');
     return newStudent;
   };
 
@@ -1113,7 +1259,7 @@ export function TeacherProvider({ children }) {
         const updatedStudent = { ...std, finance: updatedFinance, teacherNotes: notes || std.teacherNotes };
         saveStudentToFirestore(updatedStudent);
 
-        addToast(`تم تسجيل سداد (${numAmount} ج.م) وحفظ السجل المالي سحابياً بنجاح! 💵`, 'success');
+        addToast(`تم تسجيل سداد (${numAmount} ج.م) وحفظ السجل المالي بنجاح! 💵`, 'success');
         return updatedStudent;
       }
       return std;
@@ -1132,7 +1278,7 @@ export function TeacherProvider({ children }) {
     const updated = { ...teacherProfile, ...updatedFields };
     setTeacherProfile(updated);
     syncTeacherProfile(updated);
-    addToast(`تم حفظ وتحديث بيانات ${teacherProfile.name} ومزامنتها سحابياً ✓`, 'success');
+    addToast(`تم حفظ وتحديث بيانات ${teacherProfile.name} بنجاح ✓`, 'success');
   };
 
   const changeTeacherPassword = async (newPassword) => {
@@ -1148,7 +1294,7 @@ export function TeacherProvider({ children }) {
       localStorage.setItem('ms_teacher_profile', JSON.stringify(updated));
     } catch (e) {}
     await syncTeacherProfile(updated);
-    addToast(`تم تغيير كلمة مرور المستر بنجاح وحفظها سحابياً 🔐`, 'success');
+    addToast(`تم تغيير كلمة مرور المستر بنجاح وحفظها 🔐`, 'success');
     return { success: true, newPassword: cleanPass };
   };
 
@@ -1241,7 +1387,7 @@ export function TeacherProvider({ children }) {
     };
     setBooklets(prev => [newBk, ...prev]);
     await syncBookletToCloud(newBk);
-    addToast(`تمت إضافة المذكرة (${newBk.title}) وتأمينها سحابياً بنجاح 📚`, 'success');
+    addToast(`تمت إضافة المذكرة (${newBk.title}) وتأمينها بنجاح 📚`, 'success');
   };
 
   const deleteBooklet = async (bookletId) => {
@@ -2305,11 +2451,11 @@ export function TeacherProvider({ children }) {
           await syncAnnouncementToCloud(ann);
         }
       }
-      addToast('تمت مزامنة جميع البيانات مع السحابة بنجاح ☁️', 'success');
+      addToast('تم حفظ ومزامنة جميع البيانات بنجاح ✓', 'success');
       return { success: true };
     } catch (err) {
       console.warn('Sync all error:', err);
-      addToast('حدث خطأ أثناء المزامنة السحابية', 'error');
+      addToast('حدث خطأ أثناء حفظ ومزامنة البيانات', 'error');
       return { success: false, error: err.message };
     }
   };
@@ -3021,6 +3167,283 @@ export function TeacherProvider({ children }) {
     }
   };
 
+  // -------------------------------------------------------------
+  // General Exam Engine (الامتحان العام المستقل وأكواد الطلاب)
+  // -------------------------------------------------------------
+
+  const saveGeneralExam = (examObj) => {
+    if (!examObj || !examObj.id) return;
+    const totalMarks = examObj.totalMarks || (examObj.questions || []).reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+    const passingMarks = examObj.passingMarks || Math.ceil(totalMarks * 0.5);
+
+    const fullExam = {
+      ...examObj,
+      totalMarks,
+      passingMarks,
+      updatedAt: new Date().toISOString()
+    };
+
+    setGeneralExams(prev => {
+      const exists = prev.some(e => e.id === fullExam.id);
+      const updated = exists ? prev.map(e => e.id === fullExam.id ? fullExam : e) : [fullExam, ...prev];
+      try {
+        localStorage.setItem('ms_general_exams', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    saveToRtdb(`generalExams/${fullExam.id}`, fullExam).catch(() => {});
+    addToast('تم حفظ الامتحان العام المستقل بنجاح 🌟', 'success');
+    return fullExam;
+  };
+
+  const deleteGeneralExam = (examId) => {
+    if (!examId) return;
+    setGeneralExams(prev => {
+      const updated = prev.filter(e => e.id !== examId);
+      try {
+        localStorage.setItem('ms_general_exams', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    removeFromRtdb(`generalExams/${examId}`).catch(() => {});
+    addToast('تم حذف الامتحان العام', 'info');
+  };
+
+  const generateGeneralExamCode = ({ studentId, studentName, studentPhone, stageId, stageName, examId, examTitle }) => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const cleanStdCode = (studentId || 'STD').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const stageCode = (stageId || 'SEC').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const code = `GEN-${stageCode}-${cleanStdCode}-${randomSuffix}`;
+
+    const newCodeObj = {
+      code,
+      examId: examId || 'gen-exam-01',
+      examTitle: examTitle || 'الامتحان العام الشامل',
+      studentId,
+      studentName,
+      studentPhone: studentPhone || '',
+      stageId: stageId || 'sec-3',
+      stageName: stageName || 'الصف الثالث الثانوي',
+      isUsed: false,
+      usedAt: null,
+      score: null,
+      createdAt: new Date().toISOString(),
+      allowRetake: false
+    };
+
+    setGeneralExamCodes(prev => {
+      const updated = [newCodeObj, ...prev.filter(c => !(c.studentId === studentId && c.examId === examId))];
+      try {
+        localStorage.setItem('ms_general_exam_codes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    saveToRtdb(`generalExamCodes/${code}`, newCodeObj).catch(() => {});
+    addToast(`تم توليد كود الامتحان العام للطالب (${studentName}): ${code}`, 'success');
+    return newCodeObj;
+  };
+
+  const bulkGenerateGeneralExamCodes = (stageId, examId = 'gen-exam-01') => {
+    const targetStudents = students.filter(s => !stageId || s.stageId === stageId);
+    if (targetStudents.length === 0) {
+      addToast('لا يوجد طلاب مسجلين في هذه المرحلة', 'warning');
+      return [];
+    }
+
+    const currentExam = generalExams.find(e => e.id === examId) || generalExams[0];
+    const generated = [];
+
+    setGeneralExamCodes(prev => {
+      const existingMap = new Map(prev.map(c => [`${c.studentId}-${c.examId}`, c]));
+
+      targetStudents.forEach(std => {
+        const key = `${std.id}-${examId}`;
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        const cleanStdCode = (std.code || std.id || 'STD').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const stageCode = (std.stageId || 'SEC').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const code = `GEN-${stageCode}-${cleanStdCode}-${randomSuffix}`;
+
+        const codeObj = {
+          code,
+          examId,
+          examTitle: currentExam?.title || 'الامتحان العام الشامل',
+          studentId: std.id,
+          studentName: std.name,
+          studentPhone: std.phone || '',
+          stageId: std.stageId,
+          stageName: std.stageName,
+          isUsed: false,
+          usedAt: null,
+          score: null,
+          createdAt: new Date().toISOString(),
+          allowRetake: false
+        };
+
+        existingMap.set(key, codeObj);
+        generated.push(codeObj);
+        saveToRtdb(`generalExamCodes/${code}`, codeObj).catch(() => {});
+      });
+
+      const updated = Array.from(existingMap.values());
+      try {
+        localStorage.setItem('ms_general_exam_codes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    addToast(`تم توليد ${generated.length} كود امتحان مخصص لطلاب المرحلة بنجاح! 🎟️`, 'success');
+    return generated;
+  };
+
+  const resetGeneralExamAttempt = (studentId, examId = 'gen-exam-01') => {
+    setGeneralExamCodes(prev => {
+      const updated = prev.map(c => {
+        if (c.studentId === studentId && (!examId || c.examId === examId)) {
+          return {
+            ...c,
+            isUsed: false,
+            allowRetake: true,
+            usedAt: null
+          };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('ms_general_exam_codes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setExamSubmissions(prev => {
+      const examKey = `general-${examId}`;
+      const examSubs = { ...(prev[examKey] || {}) };
+      if (examSubs[studentId]) {
+        delete examSubs[studentId];
+      }
+      const updated = { ...prev, [examKey]: examSubs };
+      try {
+        localStorage.setItem('ms_exam_submissions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    addToast('تمت إعادة فتح محاولة الامتحان العام للطالب بنجاح! 🔓', 'success');
+  };
+
+  const verifyAndRedeemGeneralExamCode = (inputCode, studentUid, studentName) => {
+    if (!inputCode) return { success: false, error: 'يرجى إدخال الكود المخصص' };
+
+    const cleanInput = inputCode.trim().toUpperCase();
+    const codeObj = generalExamCodes.find(c => c.code.toUpperCase() === cleanInput);
+
+    if (!codeObj) {
+      return { success: false, error: 'كود الامتحان غير صحيح أو غير موجود' };
+    }
+
+    // Strict personalization check: ensure student matches
+    if (studentUid && codeObj.studentId && codeObj.studentId !== studentUid) {
+      // Also check if current user name matches student name
+      const nameMatch = studentName && codeObj.studentName && 
+        (studentName.includes(codeObj.studentName.split(' ')[0]) || codeObj.studentName.includes(studentName.split(' ')[0]));
+      if (!nameMatch) {
+        return { 
+          success: false, 
+          error: `هذا الكود مخصص حصرياً للطالب (${codeObj.studentName}) ولا يمكن استخدامه من حساب آخر!` 
+        };
+      }
+    }
+
+    // Strict single attempt check
+    if (codeObj.isUsed && !codeObj.allowRetake) {
+      return { 
+        success: false, 
+        error: 'عذراً، هذا الكود تم استخدامه بالفعل مسبقاً! مسموح بمحاولة واحدة فقط. تواصل مع المستر لإعادة فتح المحاولة.' 
+      };
+    }
+
+    const exam = generalExams.find(e => e.id === codeObj.examId) || generalExams[0];
+    return { success: true, codeObj, exam };
+  };
+
+  const submitGeneralExam = ({ examId, code, answers, autoScore, maxMarks, hasManualQuestions }) => {
+    const studentUid = currentUser?.uid || currentUser?.id || 'guest-student';
+    const studentName = currentUser?.name || 'طالب مسجل بالمنصة';
+    const cleanCode = (code || '').trim().toUpperCase();
+
+    // 1. Mark code as used
+    setGeneralExamCodes(prev => {
+      const updated = prev.map(c => {
+        if (c.code.toUpperCase() === cleanCode || (c.studentId === studentUid && c.examId === examId)) {
+          return {
+            ...c,
+            isUsed: true,
+            usedAt: new Date().toISOString(),
+            score: `${autoScore} / ${maxMarks}`,
+            allowRetake: false
+          };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('ms_general_exam_codes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // 2. Submit to exam submissions queue for manual grading and score tracking
+    const examKey = `general-${examId}`;
+    const submissionEntry = {
+      studentUid,
+      studentName,
+      studentPhone: currentUser?.phone || '',
+      lectureId: examKey,
+      lectureTitle: generalExams.find(e => e.id === examId)?.title || 'الامتحان العام الشامل',
+      isGeneralExam: true,
+      examId,
+      code: cleanCode,
+      submittedAt: new Date().toISOString(),
+      answers,
+      autoScore,
+      manualScore: 0,
+      totalScore: autoScore,
+      maxMarks,
+      passingMarks: Math.ceil(maxMarks * 0.5),
+      hasManualQuestions,
+      status: hasManualQuestions ? 'pending_grading' : 'graded',
+      gradedAt: hasManualQuestions ? null : new Date().toISOString(),
+      teacherNotes: '',
+      gradedQuestions: {}
+    };
+
+    setExamSubmissions(prev => {
+      const curSubs = prev[examKey] || {};
+      const updated = {
+        ...prev,
+        [examKey]: {
+          ...curSubs,
+          [studentUid]: submissionEntry
+        }
+      };
+      try {
+        localStorage.setItem('ms_exam_submissions', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    saveToRtdb(`examSubmissions/${examKey}/${studentUid}`, submissionEntry).catch(() => {});
+
+    if (hasManualQuestions) {
+      addToast('تم تسليم إجابات الامتحان العام بنجاح! تم رصد الأسئلة المقالية وإرسالها للمستر للتصحيح اليدوي.', 'info', 7000);
+    } else {
+      addToast(`مبارك! أتممت الامتحان العام الشامل بنجاح بدرجة ${autoScore} من ${maxMarks} 🏆`, 'success');
+      addXP(150);
+    }
+
+    return submissionEntry;
+  };
+
   return (
     <TeacherContext.Provider
       value={{
@@ -3040,6 +3463,15 @@ export function TeacherProvider({ children }) {
         manualOverrides,
         examsData,
         examSubmissions,
+        generalExams,
+        generalExamCodes,
+        saveGeneralExam,
+        deleteGeneralExam,
+        generateGeneralExamCode,
+        bulkGenerateGeneralExamCodes,
+        resetGeneralExamAttempt,
+        verifyAndRedeemGeneralExamCode,
+        submitGeneralExam,
         subscriptionAuditLogs,
         updateLectureWatchProgress,
         overrideUnlockLecture,

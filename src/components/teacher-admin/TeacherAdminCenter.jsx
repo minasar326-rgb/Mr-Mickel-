@@ -36,6 +36,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     postAnnouncement, deleteAnnouncement,
     overrideUnlockLecture, revokeOverrideLecture, manualOverrides,
     examsData, examSubmissions, subscriptionAuditLogs,
+    generalExams, generalExamCodes, saveGeneralExam, deleteGeneralExam,
+    generateGeneralExamCode, bulkGenerateGeneralExamCodes, resetGeneralExamAttempt,
     saveExamToLecture, deleteExamFromLecture, gradeManualExamSubmission,
     pauseStudentSubscription, resumeStudentSubscription, extendStudentSubscription,
     cancelStudentSubscription, toggleStudentFreeze, bulkUpdateSubscriptions,
@@ -274,9 +276,11 @@ export default function TeacherAdminCenter({ onNavigate }) {
   // -------------------------------------------------------------
   // Manual Exam Builder & Grading State (إنشاء الامتحانات والتصحيح)
   // -------------------------------------------------------------
-  const [examsSubTab, setExamsSubTab] = useState('list'); // 'list' | 'grading'
+  const [examsSubTab, setExamsSubTab] = useState('list'); // 'list' | 'grading' | 'general'
   const [isExamBuilderOpen, setIsExamBuilderOpen] = useState(false);
   const [editingExamLectureId, setEditingExamLectureId] = useState('');
+  const [bldIsGeneralExam, setBldIsGeneralExam] = useState(false);
+  const [bldExamStageId, setBldExamStageId] = useState('sec-3');
   const [bldExamTitle, setBldExamTitle] = useState('');
   const [bldExamDuration, setBldExamDuration] = useState(25);
   const [bldExamTotalMarks, setBldExamTotalMarks] = useState(20);
@@ -288,6 +292,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [bldExamQuestions, setBldExamQuestions] = useState([]);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewExamPayload, setPreviewExamPayload] = useState(null);
+
+  // General Exam Codes Management State
+  const [genExamCodeSearch, setGenExamCodeSearch] = useState('');
+  const [genExamCodeStageFilter, setGenExamCodeStageFilter] = useState('all');
+  const [genExamCodeStatusFilter, setGenExamCodeStatusFilter] = useState('all');
+  const [selectedGenStudentForCode, setSelectedGenStudentForCode] = useState('');
+  const [selectedGenStageForBulk, setSelectedGenStageForBulk] = useState('sec-3');
 
   // Manual Grading Queue State
   const [activeGradingItem, setActiveGradingItem] = useState(null);
@@ -686,6 +697,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const pendingGradingSubmissions = allSubmissionsList.filter(s => s.status === 'pending_grading');
 
   const handleOpenExamBuilder = (lec) => {
+    setBldIsGeneralExam(false);
     setEditingExamLectureId(lec.id);
     const existing = lec.exam || (examsData && examsData[lec.id]);
     if (existing) {
@@ -748,6 +760,71 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setIsExamBuilderOpen(true);
   };
 
+  const handleOpenGeneralExamBuilder = (existingGenExam = null) => {
+    setBldIsGeneralExam(true);
+    if (existingGenExam) {
+      setEditingExamLectureId(existingGenExam.id);
+      setBldExamTitle(existingGenExam.title || 'الامتحان العام الشامل');
+      setBldExamStageId(existingGenExam.stageId || 'sec-3');
+      setBldExamDuration(existingGenExam.timeMinutes || 45);
+      setBldExamTotalMarks(existingGenExam.totalMarks || 30);
+      setBldExamPassMarks(existingGenExam.passingMarks || 18);
+      setBldExamMaxAttempts(1); // General exams strictly 1 attempt
+      setBldExamShowResult(existingGenExam.showScoreImmediately !== false);
+      setBldExamShowCorrectAnswers(existingGenExam.allowReviewAfter !== false);
+      setBldExamIsDraft(existingGenExam.status === 'draft');
+      setBldExamQuestions(existingGenExam.questions && existingGenExam.questions.length > 0 ? JSON.parse(JSON.stringify(existingGenExam.questions)) : []);
+    } else {
+      setEditingExamLectureId(`gen-exam-${Date.now()}`);
+      setBldExamTitle('الامتحان العام الشامل — The Master Grand Exam');
+      setBldExamStageId('sec-3');
+      setBldExamDuration(45);
+      setBldExamTotalMarks(30);
+      setBldExamPassMarks(18);
+      setBldExamMaxAttempts(1);
+      setBldExamShowResult(true);
+      setBldExamShowCorrectAnswers(true);
+      setBldExamIsDraft(false);
+      setBldExamQuestions([
+        {
+          id: `q-${Date.now()}-1`,
+          type: 'mcq',
+          question: 'اختر الإجابة الصحيحة للقاعدة:',
+          questionImage: '',
+          options: ['الاختيار الأول (صحيح)', 'الاختيار الثاني', 'الاختيار الثالث', 'الاختيار الرابع'],
+          optionImages: ['', '', '', ''],
+          correctAnswer: 0,
+          points: 2,
+          explanation: 'شرح وتوضيح الإجابة الصحيحة.'
+        },
+        {
+          id: `q-${Date.now()}-2`,
+          type: 'tf',
+          question: 'جملة صحيحة قواعدياً:',
+          questionImage: '',
+          options: ['صحيح (True)', 'خطأ (False)'],
+          optionImages: [],
+          correctAnswer: 0,
+          points: 2,
+          explanation: 'القاعدة النحوية الصحيحة.'
+        },
+        {
+          id: `q-${Date.now()}-3`,
+          type: 'essay',
+          question: 'سؤال مقالي: اكتب فقرة باللغة الإنجليزية تشرح فيها...',
+          questionImage: '',
+          options: [],
+          optionImages: [],
+          correctAnswer: '',
+          modelAnswer: 'نموذج الإجابة لتقييم المستر اليدوي.',
+          points: 10,
+          explanation: 'معايير التصحيح اليدوي.'
+        }
+      ]);
+    }
+    setIsExamBuilderOpen(true);
+  };
+
   const handleAddQuestionToBuilder = (type = 'mcq') => {
     const newQ = {
       id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -757,10 +834,11 @@ export default function TeacherAdminCenter({ onNavigate }) {
       options: (type === 'mcq' || type === 'multi') ? ['اختيار 1', 'اختيار 2', 'اختيار 3', 'اختيار 4'] : (type === 'tf' ? ['صحيح (True)', 'خطأ (False)'] : []),
       optionImages: (type === 'mcq' || type === 'multi') ? ['', '', '', ''] : [],
       correctAnswer: type === 'multi' ? [0] : 0,
-      modelAnswer: type === 'essay' ? '' : '',
-      points: type === 'essay' ? 5 : 3,
+      modelAnswer: (type === 'essay' || type === 'short_answer') ? '' : '',
+      points: type === 'essay' ? 5 : (type === 'short_answer' ? 4 : 2),
       explanation: ''
     };
+    // Append to bottom of questions list
     setBldExamQuestions(prev => [...prev, newQ]);
   };
 
@@ -811,7 +889,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const handleSaveExamSubmit = (e) => {
     e.preventDefault();
     if (!editingExamLectureId) {
-      addToast('يرجى تحديد المحاضرة المرتبطة بالامتحان', 'error');
+      addToast('يرجى تحديد المحاضرة أو معرف الامتحان', 'error');
       return;
     }
     if (!bldExamTitle.trim()) {
@@ -823,25 +901,51 @@ export default function TeacherAdminCenter({ onNavigate }) {
       return;
     }
 
-    const calculatedTotal = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
-    const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay' || q.type === 'short_answer');
+    // Strict Ordering Rule: Objective questions (mcq, multi, tf) first, then Essay & Short answer questions
+    const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf');
+    const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer');
+    const strictlyOrderedQuestions = [...objectiveQuestions, ...subjectiveQuestions];
 
-    const examPayload = {
-      id: `exam-${editingExamLectureId}`,
-      lectureId: editingExamLectureId,
-      title: bldExamTitle.trim(),
-      timeMinutes: Number(bldExamDuration) || 25,
-      totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
-      passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
-      maxAttempts: Number(bldExamMaxAttempts) || 2,
-      status: bldExamIsDraft ? 'draft' : 'published',
-      showResult: bldExamShowResult,
-      showCorrectAnswers: bldExamShowCorrectAnswers,
-      hasManualGrading,
-      questions: bldExamQuestions
-    };
+    const calculatedTotal = strictlyOrderedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
+    const hasManualGrading = subjectiveQuestions.length > 0;
 
-    saveExamToLecture(editingExamLectureId, examPayload);
+    if (bldIsGeneralExam) {
+      const stgName = stages.find(s => s.id === bldExamStageId)?.name || 'جميع المراحل';
+      const genPayload = {
+        id: editingExamLectureId || `gen-exam-${Date.now()}`,
+        title: bldExamTitle.trim(),
+        description: 'امتحان عام مستقل - دخول لمرة واحدة فقط بكود شخصي.',
+        stageId: bldExamStageId,
+        stageName: stgName,
+        timeMinutes: Number(bldExamDuration) || 45,
+        totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
+        passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
+        maxAttempts: 1, // Strictly single attempt
+        status: bldExamIsDraft ? 'draft' : 'published',
+        allowReviewAfter: bldExamShowCorrectAnswers,
+        showScoreImmediately: bldExamShowResult,
+        hasManualGrading,
+        questions: strictlyOrderedQuestions
+      };
+      saveGeneralExam(genPayload);
+    } else {
+      const examPayload = {
+        id: `exam-${editingExamLectureId}`,
+        lectureId: editingExamLectureId,
+        title: bldExamTitle.trim(),
+        timeMinutes: Number(bldExamDuration) || 25,
+        totalMarks: Number(bldExamTotalMarks) || calculatedTotal,
+        passingMarks: Number(bldExamPassMarks) || Math.ceil((bldExamTotalMarks || calculatedTotal) * 0.5),
+        maxAttempts: Number(bldExamMaxAttempts) || 2,
+        status: bldExamIsDraft ? 'draft' : 'published',
+        showResult: bldExamShowResult,
+        showCorrectAnswers: bldExamShowCorrectAnswers,
+        hasManualGrading,
+        questions: strictlyOrderedQuestions
+      };
+      saveExamToLecture(editingExamLectureId, examPayload);
+    }
+
     setIsExamBuilderOpen(false);
   };
 
@@ -1256,46 +1360,6 @@ export default function TeacherAdminCenter({ onNavigate }) {
               👁️ معاينة كطالب
             </button>
           </div>
-        </div>
-
-        {/* Firebase Cloud Connection Card */}
-        <div style={{
-          background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-          border: '2px solid #F59E0B',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.1rem 1.5rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1.25rem',
-          boxShadow: '0 4px 15px rgba(245, 158, 11, 0.15)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(217, 119, 6, 0.3)' }}>
-              <Flame size={26} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <strong style={{ fontSize: '1.05rem', color: '#92400E' }}>السحابة التعليمية وقواعد البيانات مؤمنة ومتصلة بنجاح ☁️</strong>
-                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>النظام السحابي: نشط ومحمي</span>
-                <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>مزامنة سحابية مباشرة Live</span>
-              </div>
-              <span style={{ fontSize: '0.82rem', color: '#78350F' }}>
-                قواعد البيانات السحابية (نشطة) • مساحة التخزين السحابية التعليمية • المزامنة التلقائية مفعلة
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={syncAllToFirebase}
-            className="btn btn-warning"
-            style={{ gap: '8px', fontWeight: 800, padding: '0.75rem 1.4rem', boxShadow: '0 4px 15px rgba(217, 119, 6, 0.3)' }}
-          >
-            <Cloud size={18} />
-            <span>⚡ مزامنة كاملة لبيانات المنصة سحابياً</span>
-          </button>
         </div>
 
         {/* Tab Navigation Controls */}
@@ -2690,6 +2754,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </span>
                     )}
                   </button>
+
+                  <button
+                    onClick={() => setExamsSubTab('general')}
+                    className={`btn ${examsSubTab === 'general' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ gap: '6px', fontWeight: 800 }}
+                  >
+                    <Trophy size={16} color="#F59E0B" />
+                    <span>🌟 الامتحان العام الشامل وأكواد الطلاب ({generalExams.length})</span>
+                  </button>
                 </div>
               </div>
 
@@ -2697,12 +2770,40 @@ export default function TeacherAdminCenter({ onNavigate }) {
               {examsSubTab === 'list' && (
                 <div>
                   <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
-                      امتحانات المحاضرات المسجلة بالمنصة:
-                    </h4>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      اضغط على «تعديل الامتحان» أو «إنشاء امتحان» لفتح محرر الأسئلة اليدوي الكامل.
-                    </span>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 800 }}>
+                        امتحانات المحاضرات المسجلة بالمنصة:
+                      </h4>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        اضغط على «تعديل الامتحان» أو «إنشاء امتحان» لفتح محرر الأسئلة اليدوي الكامل.
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => {
+                          if (lectures.length > 0) {
+                            handleOpenExamBuilder(lectures[0]);
+                          } else {
+                            addToast('يرجى رفع محاضرة أولاً لإنشاء امتحان لها', 'warning');
+                          }
+                        }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ gap: '6px', fontWeight: 700 }}
+                      >
+                        <Plus size={15} />
+                        <span>+ إضافة امتحان لمحاضرة</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenGeneralExamBuilder()}
+                        className="btn btn-primary btn-sm"
+                        style={{ gap: '6px', fontWeight: 800 }}
+                      >
+                        <Trophy size={15} />
+                        <span>🌟 إنشاء امتحان عام مستقل</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
@@ -2889,6 +2990,418 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Sub-tab 3: General Exams & Student Personalized Codes */}
+              {examsSubTab === 'general' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  {/* General Exams Cards Showcase */}
+                  <div>
+                    <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div>
+                        <h4 style={{ margin: '0 0 4px', fontSize: '1.15rem', fontWeight: 800, color: '#1F4D3A' }}>
+                          🌟 الامتحانات العامة الشاملة المستقلة ({generalExams.length})
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          امتحانات مستقلة غير مرتبطة بمحاضرة محددة، تظهر في القائمة الرئيسية للطلاب ولا يدخل الطالب إلا بكود شخصي لمرة واحدة.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenGeneralExamBuilder()}
+                        className="btn btn-primary"
+                        style={{ gap: '8px', fontWeight: 800 }}
+                      >
+                        <Plus size={16} />
+                        <span>+ إنشاء امتحان عام جديد</span>
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+                      {generalExams.map(gExam => {
+                        const qCount = (gExam.questions || []).length;
+                        const essayCount = (gExam.questions || []).filter(q => q.type === 'essay' || q.type === 'short_answer').length;
+
+                        return (
+                          <div
+                            key={gExam.id}
+                            className="card"
+                            style={{
+                              padding: '1.5rem',
+                              background: 'var(--bg-subtle)',
+                              border: '2px solid rgba(166, 124, 82, 0.45)',
+                              borderRadius: 'var(--radius-lg)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              boxShadow: '0 4px 15px rgba(31, 77, 58, 0.06)'
+                            }}
+                          >
+                            <div>
+                              <div className="flex-between" style={{ marginBottom: '8px' }}>
+                                <span className="badge badge-gold">امتحان عام شامل 🌟</span>
+                                <span className="badge" style={{ background: gExam.status === 'draft' ? '#F59E0B' : '#10B981', color: 'white', fontWeight: 800 }}>
+                                  {gExam.status === 'draft' ? 'مسودة' : 'منشور للطلاب ✓'}
+                                </span>
+                              </div>
+
+                              <h4 style={{ fontSize: '1.15rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-primary)' }}>
+                                {gExam.title}
+                              </h4>
+                              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 1rem', lineHeight: '1.5' }}>
+                                {gExam.description || 'امتحان شامل لتقييم مستوى الطالب بكود مخصص.'}
+                              </p>
+
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                                <span className="badge" style={{ background: 'var(--bg-surface)' }}>⏱️ {gExam.timeMinutes || 45} دقيقة</span>
+                                <span className="badge" style={{ background: 'var(--bg-surface)' }}>❓ {qCount} سؤال</span>
+                                <span className="badge" style={{ background: 'var(--bg-surface)' }}>🎯 {gExam.totalMarks || 30} درجة</span>
+                                <span className="badge" style={{ background: 'var(--bg-surface)' }}>🔒 محاولة واحدة فقط</span>
+                                {essayCount > 0 && (
+                                  <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>
+                                    ✍️ {essayCount} أسئلة مقالية
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                              <button
+                                onClick={() => handleOpenGeneralExamBuilder(gExam)}
+                                className="btn btn-primary btn-sm"
+                                style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+                              >
+                                <Edit size={14} />
+                                <span>تعديل الامتحان</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setPreviewExamPayload(gExam);
+                                  setIsPreviewModalOpen(true);
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ gap: '4px' }}
+                                title="معاينة كطالب"
+                              >
+                                <Eye size={14} />
+                                <span>معاينة</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`حذف الامتحان العام "${gExam.title}" نهائياً؟`)) {
+                                    deleteGeneralExam(gExam.id);
+                                  }
+                                }}
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: '#EF4444' }}
+                                title="حذف الامتحان"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Personalized Student Exam Codes Generator & Ledger */}
+                  <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)' }}>
+                    <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem' }}>
+                      <div>
+                        <h4 style={{ fontSize: '1.25rem', fontWeight: 900, margin: '0 0 4px', color: '#1F4D3A' }}>
+                          🎟️ أكواد الامتحان العام المخصصة لكل طالب (Personalized Exam Codes)
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          يتم توليد كود خاص وفريد مربوط حصرياً باسم وكود الطالب ومرحلته، لا يمكن لأي طالب آخر استخدامه، ويُقفل فور تسليم الامتحان.
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => window.print()}
+                          className="btn btn-secondary btn-sm"
+                          style={{ gap: '6px' }}
+                          title="طباعة وتصدير قائمة الأكواد"
+                        >
+                          <Printer size={15} />
+                          <span>طباعة وتصدير 🖨️</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Generator Controls Box */}
+                    <div style={{
+                      background: 'var(--bg-subtle)',
+                      padding: '1.25rem',
+                      borderRadius: '12px',
+                      marginBottom: '1.5rem',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '1.25rem',
+                      alignItems: 'flex-end'
+                    }}>
+                      {/* Single Student Generator */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                          توليد كود لطالب محدد:
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <select
+                            value={selectedGenStudentForCode}
+                            onChange={e => setSelectedGenStudentForCode(e.target.value)}
+                            className="input-control"
+                          >
+                            <option value="">اختر الطالب من القائمة...</option>
+                            {students.map(std => (
+                              <option key={std.id} value={std.id}>
+                                {std.name} ({std.code || std.id}) - {std.stageName}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!selectedGenStudentForCode) {
+                                addToast('يرجى اختيار الطالب أولاً', 'warning');
+                                return;
+                              }
+                              const targetStd = students.find(s => s.id === selectedGenStudentForCode);
+                              if (targetStd) {
+                                generateGeneralExamCode({
+                                  studentId: targetStd.id,
+                                  studentName: targetStd.name,
+                                  studentPhone: targetStd.phone,
+                                  stageId: targetStd.stageId,
+                                  stageName: targetStd.stageName,
+                                  examId: generalExams[0]?.id || 'gen-exam-01',
+                                  examTitle: generalExams[0]?.title || 'الامتحان العام الشامل'
+                                });
+                              }
+                            }}
+                            className="btn btn-primary"
+                            style={{ flexShrink: 0, fontWeight: 800 }}
+                          >
+                            توليد الكود 🎟️
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bulk Stage Generator */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                          توليد أكواد جماعية لكافة طلاب مرحلة:
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <select
+                            value={selectedGenStageForBulk}
+                            onChange={e => setSelectedGenStageForBulk(e.target.value)}
+                            className="input-control"
+                          >
+                            {stages.map(stg => (
+                              <option key={stg.id} value={stg.id}>{stg.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              bulkGenerateGeneralExamCodes(selectedGenStageForBulk, generalExams[0]?.id || 'gen-exam-01');
+                            }}
+                            className="btn btn-secondary"
+                            style={{ flexShrink: 0, fontWeight: 800 }}
+                          >
+                            توليد للدفعة بالكامل ⚡
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filter and Search Bar */}
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          value={genExamCodeSearch}
+                          onChange={e => setGenExamCodeSearch(e.target.value)}
+                          placeholder="ابحث باسم الطالب، الكود الشخصي، أو رقم الهاتف..."
+                          className="input-control"
+                          style={{ paddingRight: '36px' }}
+                        />
+                      </div>
+
+                      <select
+                        value={genExamCodeStageFilter}
+                        onChange={e => setGenExamCodeStageFilter(e.target.value)}
+                        className="input-control"
+                        style={{ width: 'auto' }}
+                      >
+                        <option value="all">جميع المراحل</option>
+                        {stages.map(stg => (
+                          <option key={stg.id} value={stg.id}>{stg.name}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={genExamCodeStatusFilter}
+                        onChange={e => setGenExamCodeStatusFilter(e.target.value)}
+                        className="input-control"
+                        style={{ width: 'auto' }}
+                      >
+                        <option value="all">جميع الحالات</option>
+                        <option value="unused">🟢 غير مستخدم (متاح للدخول)</option>
+                        <option value="used">✓ مستخدم (تم التسليم)</option>
+                      </select>
+                    </div>
+
+                    {/* Personalized Codes Table */}
+                    {(() => {
+                      const filteredCodes = generalExamCodes.filter(c => {
+                        const matchSearch = (c.studentName || '').toLowerCase().includes(genExamCodeSearch.toLowerCase()) ||
+                          (c.code || '').toLowerCase().includes(genExamCodeSearch.toLowerCase()) ||
+                          (c.studentPhone || '').includes(genExamCodeSearch);
+                        const matchStage = genExamCodeStageFilter === 'all' || c.stageId === genExamCodeStageFilter;
+                        const matchStatus = genExamCodeStatusFilter === 'all' ||
+                          (genExamCodeStatusFilter === 'used' ? c.isUsed : !c.isUsed);
+                        return matchSearch && matchStage && matchStatus;
+                      });
+
+                      return (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '2px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>اسم الطالب</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>المرحلة</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>الكود المخصص (حصرى)</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>حالة الكود والامتحان</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>تاريخ الإنشاء</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem' }}>تاريخ الاستخدام والدرجة</th>
+                                <th style={{ padding: '12px 14px', fontSize: '0.85rem', textAlign: 'center' }}>إجراءات التحكم</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredCodes.length === 0 ? (
+                                <tr>
+                                  <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    لا توجد أكواد مطابقة. يمكنك توليد أكواد لطلابك فوراً من الأعلى.
+                                  </td>
+                                </tr>
+                              ) : (
+                                filteredCodes.map((cObj, cIdx) => (
+                                  <tr
+                                    key={cObj.code || cIdx}
+                                    style={{
+                                      borderBottom: '1px solid var(--border-subtle)',
+                                      background: cObj.isUsed ? 'rgba(245, 158, 11, 0.03)' : 'transparent'
+                                    }}
+                                  >
+                                    <td style={{ padding: '12px 14px' }}>
+                                      <strong style={{ fontSize: '0.92rem', display: 'block', color: 'var(--text-primary)' }}>
+                                        {cObj.studentName}
+                                      </strong>
+                                      {cObj.studentPhone && (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                          {cObj.studentPhone}
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px', fontSize: '0.85rem' }}>
+                                      <span className="badge badge-primary">{cObj.stageName || cObj.stageId}</span>
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px' }}>
+                                      <span style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.92rem',
+                                        fontWeight: 800,
+                                        letterSpacing: '1px',
+                                        background: 'var(--bg-subtle)',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--border-subtle)',
+                                        color: '#1F4D3A'
+                                      }}>
+                                        {cObj.code}
+                                      </span>
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px' }}>
+                                      {cObj.isUsed ? (
+                                        <span className="badge" style={{ background: '#E2E8F0', color: '#475569', fontWeight: 800 }}>
+                                          ✓ مستخدم (تم التسليم)
+                                        </span>
+                                      ) : (
+                                        <span className="badge badge-success" style={{ fontWeight: 800 }}>
+                                          🟢 متاح للدخول (غير مستخدم)
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                      {cObj.createdAt ? new Date(cObj.createdAt).toLocaleDateString('ar-EG') : 'اليوم'}
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px', fontSize: '0.85rem' }}>
+                                      {cObj.isUsed ? (
+                                        <div>
+                                          <strong style={{ color: '#1F4D3A', display: 'block' }}>{cObj.score || 'تم التسليم'}</strong>
+                                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                            {cObj.usedAt ? new Date(cObj.usedAt).toLocaleString('ar-EG') : ''}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>لم يبدأ بعد</span>
+                                      )}
+                                    </td>
+
+                                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(cObj.code);
+                                            addToast(`تم نسخ كود الطالب (${cObj.studentName}): ${cObj.code}`, 'success');
+                                          }}
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ gap: '4px', fontSize: '0.75rem' }}
+                                          title="نسخ الكود"
+                                        >
+                                          <Copy size={13} />
+                                          <span>نسخ</span>
+                                        </button>
+
+                                        {cObj.isUsed && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (window.confirm(`هل أنت متأكد من إعادة فتح محاولة الامتحان العام للطالب (${cObj.studentName})؟`)) {
+                                                resetGeneralExamAttempt(cObj.studentId, cObj.examId);
+                                              }
+                                            }}
+                                            className="btn btn-warning btn-sm"
+                                            style={{ gap: '4px', fontSize: '0.75rem', fontWeight: 800 }}
+                                            title="السماح بإعادة المحاولة"
+                                          >
+                                            <RotateCcw size={13} />
+                                            <span>إعادة فتح</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
@@ -4918,13 +5431,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0 }}>إنشاء وتعديل الامتحان يدويًا 📝</h3>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 900, margin: 0 }}>
+                      {bldIsGeneralExam ? '🌟 استوديو إنشاء الامتحان العام الشامل المستقل' : 'إنشاء وتعديل امتحان المحاضرة يدويًا 📝'}
+                    </h3>
                     <span className={bldExamIsDraft ? 'badge badge-warning' : 'badge badge-success'} style={{ fontSize: '0.75rem' }}>
                       {bldExamIsDraft ? 'مسودة (غير معلن)' : 'منشور للطلاب 🟢'}
                     </span>
                   </div>
                   <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    المحاضرة: {lectures.find(l => l.id === editingExamLectureId)?.title || 'المحاضرة المحددة'}
+                    {bldIsGeneralExam ? 'امتحان عام شامل للطلاب (دخول فردي لمرة واحدة بكود شخصي)' : `المحاضرة: ${lectures.find(l => l.id === editingExamLectureId)?.title || 'المحاضرة المحددة'}`}
                   </span>
                 </div>
               </div>
@@ -4953,6 +5468,23 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     required
                   />
                 </div>
+
+                {bldIsGeneralExam && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>
+                      المرحلة الدراسية المستهدفة للامتحان العام:
+                    </label>
+                    <select
+                      value={bldExamStageId}
+                      onChange={e => setBldExamStageId(e.target.value)}
+                      className="input-control"
+                    >
+                      {stages.map(stg => (
+                        <option key={stg.id} value={stg.id}>{stg.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>مدة الامتحان (بالدقائق):</label>
@@ -5038,64 +5570,71 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 </div>
               </div>
 
-              {/* Add Question Toolbar */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div className="flex-between">
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>
-                    قائمة الأسئلة ({bldExamQuestions.length} سؤال)
-                  </h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    إجمالي درجات الأسئلة الحالية: {bldExamQuestions.reduce((s, q) => s + (Number(q.points) || 0), 0)} درجة
-                  </span>
-                </div>
+              {/* Live Exam Structure & Metrics Dashboard */}
+              {(() => {
+                const totalQ = bldExamQuestions.length;
+                const mcqCount = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi').length;
+                const tfCount = bldExamQuestions.filter(q => q.type === 'tf').length;
+                const essayCount = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer').length;
+                const totalMarks = bldExamQuestions.reduce((s, q) => s + (Number(q.points) || 0), 0);
 
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: 'var(--bg-subtle)', padding: '0.75rem', borderRadius: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestionToBuilder('mcq')}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '0.8rem', gap: '6px' }}
-                  >
-                    <Plus size={14} /> <span>+ اختيار من متعدد (إجابة واحدة)</span>
-                  </button>
+                return (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(31, 77, 58, 0.08) 0%, rgba(166, 124, 82, 0.1) 100%)',
+                    border: '1.5px solid rgba(31, 77, 58, 0.25)',
+                    borderRadius: '12px',
+                    padding: '1rem 1.25rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem'
+                  }}>
+                    <div className="flex-between" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--primary-700)' }}>
+                          📊 لوحة إحصائيات وهيكل الامتحان:
+                        </span>
+                        <span className="badge badge-primary" style={{ fontSize: '0.75rem' }}>
+                          ترتيب إلزامي: الموضوعي أولاً ثم المقالي
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        يتم حفظ وترتيب الأسئلة أوتوماتيكياً: أسئلة الاختيارات أولاً ثم الأسئلة المقالية
+                      </span>
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestionToBuilder('multi')}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '0.8rem', gap: '6px' }}
-                  >
-                    <Plus size={14} /> <span>+ اختيار من متعدد (أكثر من إجابة)</span>
-                  </button>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>إجمالي الأسئلة</span>
+                        <strong style={{ fontSize: '1.15rem', color: 'var(--primary-700)' }}>{totalQ}</strong>
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestionToBuilder('tf')}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '0.8rem', gap: '6px' }}
-                  >
-                    <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
-                  </button>
+                      <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>اختيار من متعدد</span>
+                        <strong style={{ fontSize: '1.15rem', color: '#0284C7' }}>{mcqCount}</strong>
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestionToBuilder('essay')}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '0.8rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)' }}
-                  >
-                    <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي) ✍️</span>
-                  </button>
+                      <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>صح أو خطأ (T/F)</span>
+                        <strong style={{ fontSize: '1.15rem', color: '#10B981' }}>{tfCount}</strong>
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestionToBuilder('short_answer')}
-                    className="btn btn-secondary btn-sm"
-                    style={{ fontSize: '0.8rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)' }}
-                  >
-                    <Plus size={14} /> <span>+ إجابة قصيرة (تصحيح يدوي) 📝</span>
-                  </button>
-                </div>
-              </div>
+                      <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>مقالي وإجابة قصيرة</span>
+                        <strong style={{ fontSize: '1.15rem', color: '#D97706' }}>{essayCount}</strong>
+                      </div>
+
+                      <div style={{ background: 'var(--bg-surface)', padding: '0.65rem 0.9rem', borderRadius: '8px', border: '1.5px solid var(--primary-500)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block' }}>مجموع الدرجات</span>
+                        <strong style={{ fontSize: '1.15rem', color: 'var(--primary-800)' }}>{totalMarks} درجة</strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Questions List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -5439,6 +5978,74 @@ export default function TeacherAdminCenter({ onNavigate }) {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Add Question Toolbar (Positioned at the BOTTOM of the questions list) */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                background: 'var(--bg-subtle)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '2px dashed var(--primary-500)',
+                marginTop: '0.5rem'
+              }}>
+                <div className="flex-between">
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--primary-700)' }}>
+                    ➕ إضافة سؤال جديد في نهاية الامتحان:
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    يُضاف السؤال لأسفل القائمة مباشرة
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('mcq')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.82rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ اختيار من متعدد (إجابة واحدة)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('multi')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.82rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ اختيار من متعدد (أكثر من إجابة)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('tf')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.82rem', gap: '6px' }}
+                  >
+                    <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('essay')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.82rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)', fontWeight: 800 }}
+                  >
+                    <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي) ✍️</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestionToBuilder('short_answer')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.82rem', gap: '6px', borderColor: 'var(--accent-500)', color: 'var(--accent-700)', fontWeight: 800 }}
+                  >
+                    <Plus size={14} /> <span>+ إجابة قصيرة (تصحيح يدوي) 📝</span>
+                  </button>
+                </div>
               </div>
 
               {/* Bottom Actions Bar */}

@@ -21,6 +21,7 @@ import BookletShowcase from './components/teacher-landing/BookletShowcase';
 import StageLecturesPage from './components/stages/StageLecturesPage';
 import LecturePlayerRoom from './components/student/LecturePlayerRoom';
 import StudentPortal from './components/student/StudentPortal';
+import GeneralExamPage from './components/student/GeneralExamPage';
 
 // Teacher Management Component
 import TeacherAdminCenter from './components/teacher-admin/TeacherAdminCenter';
@@ -240,6 +241,13 @@ function AppContent() {
 
         {currentPage === 'student-portal' && (
           <StudentPortal
+            onNavigate={handleNavigate}
+            onOpenCodeModal={handleOpenCodeModal}
+          />
+        )}
+
+        {currentPage === 'general-exam' && (
+          <GeneralExamPage
             onNavigate={handleNavigate}
             onOpenCodeModal={handleOpenCodeModal}
           />

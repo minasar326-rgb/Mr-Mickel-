@@ -9,13 +9,32 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function EnglishExamModal({ isOpen, onClose, lectureId, previewMode = false, previewExam = null }) {
-  const { submitStudentExamDetailed, submitExam, lectures, examsData, examSubmissions } = useTeacher();
+export default function EnglishExamModal({ 
+  isOpen, 
+  onClose, 
+  lectureId, 
+  previewMode = false, 
+  previewExam = null,
+  isGeneralExam = false,
+  generalExamCode = '',
+  generalExamId = '',
+  onExamComplete = null
+}) {
+  const { 
+    submitStudentExamDetailed, 
+    submitExam, 
+    lectures, 
+    examsData, 
+    examSubmissions,
+    generalExams,
+    submitGeneralExam
+  } = useTeacher();
   const { currentUser } = useAuth();
   const { addToast } = useToast();
 
   const currentLecture = (lectures || []).find(l => l.id === lectureId);
-  const exam = previewExam || currentLecture?.exam || (examsData && examsData[lectureId]) || initialExams[lectureId] || initialExams['lec-s3-01'];
+  const matchedGeneralExam = isGeneralExam ? (generalExams || []).find(g => g.id === (generalExamId || lectureId)) : null;
+  const exam = previewExam || matchedGeneralExam || currentLecture?.exam || (examsData && examsData[lectureId]) || initialExams[lectureId] || initialExams['lec-s3-01'];
 
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
@@ -178,16 +197,32 @@ export default function EnglishExamModal({ isOpen, onClose, lectureId, previewMo
     setSubmissionResult(resultObj);
     setIsSubmitted(true);
 
-    if (submitStudentExamDetailed) {
-      submitStudentExamDetailed(lectureId, {
-        answers: selectedAnswers,
-        autoScore,
-        maxMarks: totalMarks,
-        hasManualQuestions: hasManual,
-        questions: allExamQuestions
-      });
-    } else if (submitExam) {
-      submitExam(lectureId, autoScore, totalMarks, passed);
+    if (isGeneralExam) {
+      if (submitGeneralExam) {
+        submitGeneralExam({
+          examId: generalExamId || exam.id,
+          code: generalExamCode,
+          answers: selectedAnswers,
+          autoScore,
+          maxMarks: totalMarks,
+          hasManualQuestions: hasManual
+        });
+      }
+      if (onExamComplete) {
+        onExamComplete(resultObj);
+      }
+    } else {
+      if (submitStudentExamDetailed) {
+        submitStudentExamDetailed(lectureId, {
+          answers: selectedAnswers,
+          autoScore,
+          maxMarks: totalMarks,
+          hasManualQuestions: hasManual,
+          questions: allExamQuestions
+        });
+      } else if (submitExam) {
+        submitExam(lectureId, autoScore, totalMarks, passed);
+      }
     }
 
     if (passed && !hasManual) {

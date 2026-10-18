@@ -167,6 +167,39 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // Standalone Comprehensive Exams (الامتحانات العامة الشاملة)
+    // ===============================================================
+
+    match /generalExams/{examId} {
+      allow read: if true;
+      allow write: if isTeacherAdmin();
+    }
+
+    match /generalExamCodes/{codeId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isTeacherAdmin();
+      allow update: if isTeacherAdmin() || (
+        isAuthenticated() &&
+        resource.data.isUsed != true &&
+        request.resource.data.isUsed == true
+      );
+    }
+
+    // ===============================================================
+    // Unified Management: Staff Admins & Audit Logs
+    // ===============================================================
+
+    match /adminUsers/{adminId} {
+      allow read, write: if isTeacherAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isTeacherAdmin();
+      allow create: if isTeacherAdmin();
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // ===============================================================
     // Treasury Transactions (Financial Records)
     // ===============================================================
 
@@ -177,3 +210,4 @@ service cloud.firestore {
     }
   }
 }
+

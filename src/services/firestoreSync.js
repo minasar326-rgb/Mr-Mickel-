@@ -821,3 +821,130 @@ export async function markCodeAsUsedInCloud(cleanCode, updatedCodeData) {
   }
 }
 
+/**
+ * ===============================================================
+ * Centralized Platform Management: Multi-Admin, RBAC, Audit & Backups
+ * ===============================================================
+ */
+
+/**
+ * Save or update an admin/staff user in Firestore & RTDB
+ */
+export async function saveAdminUserToCloud(adminUser) {
+  if (!adminUser || !adminUser.id) return { success: false, error: 'Missing adminUser ID' };
+  try {
+    const adminData = {
+      ...adminUser,
+      updatedAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'adminUsers', adminUser.id), adminData, { merge: true });
+
+    if (rtdb) {
+      try {
+        await rtdbSet(rtdbRef(rtdb, 'adminUsers/' + adminUser.id), {
+          ...adminUser,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (e) {}
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('saveAdminUserToCloud warning:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Delete an admin user without affecting ANY lectures, exams, or platform assets
+ */
+export async function deleteAdminUserFromCloud(adminId) {
+  if (!adminId) return { success: false };
+  try {
+    await deleteDoc(doc(db, 'adminUsers', adminId));
+    if (rtdb) {
+      try {
+        await rtdbRemove(rtdbRef(rtdb, 'adminUsers/' + adminId));
+      } catch (e) {}
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('deleteAdminUserFromCloud warning:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Real-time listener for admin users
+ */
+export function listenToAdminUsers(callback) {
+  try {
+    const col = collection(db, 'adminUsers');
+    const unsub = onSnapshot(col, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(list);
+    }, (err) => {
+      console.warn('listenToAdminUsers notice:', err.message);
+    });
+    return unsub;
+  } catch (e) {
+    console.warn('Could not establish adminUsers listener:', e);
+    return () => {};
+  }
+}
+
+/**
+ * Log platform audit trail action
+ */
+export async function logPlatformAuditAction(auditData) {
+  try {
+    const logId = `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const fullLog = {
+      id: logId,
+      ...auditData,
+      timestamp: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    };
+
+    // Save to Firestore auditLogs collection
+    try {
+      await setDoc(doc(db, 'auditLogs', logId), fullLog);
+    } catch (e) {}
+
+    // Save to RTDB auditLogs node for instant reactivity
+    if (rtdb) {
+      try {
+        await rtdbSet(rtdbRef(rtdb, 'auditLogs/' + logId), fullLog);
+      } catch (e) {}
+    }
+    return { success: true, logId };
+  } catch (err) {
+    console.warn('logPlatformAuditAction notice:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Real-time listener for audit logs
+ */
+export function listenToAuditLogs(callback) {
+  try {
+    const col = collection(db, 'auditLogs');
+    const q = query(col, orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(list);
+    }, (err) => {
+      // Fallback to unordered if index is pending
+      const unsubFallback = onSnapshot(col, (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        callback(list);
+      }, () => {});
+      return unsubFallback;
+    });
+    return unsub;
+  } catch (e) {
+    return () => {};
+  }
+}
+

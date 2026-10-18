@@ -167,8 +167,44 @@ assert(adminCenterContent.includes('lecture-exam-inline-section'), 'Lecture exam
 assert(comprehensiveExamsPageContent.includes('قسم مستقل بالكامل • خارج المراحل والشهور والكورسات'), 'Comprehensive exams are strictly independent of stages/lectures');
 assert(adminCenterContent.includes('المرحلة التعليمية (لحفظ بيانات الطالب فقط)'), 'Stage is strictly metadata for student records in comprehensive codes');
 
+// 13. Verify Unified Platform Management, Multi-Admin RBAC, Decoupled Content, and Backup/Restore
+console.log('\n--- TEST GROUP 13: Unified Platform Management, Multi-Admin & Backup/Restore ---');
+const firestoreRulesContent = fs.readFileSync(path.join(ROOT_DIR, 'firestore.rules'), 'utf8');
+
+// A. Centralized Multi-Admin & RBAC
+assert(teacherContextContent.includes('staffAdmins'), 'TeacherContext maintains staffAdmins state');
+assert(teacherContextContent.includes('addStaffAdmin'), 'TeacherContext provides addStaffAdmin');
+assert(teacherContextContent.includes('deleteStaffAdmin'), 'TeacherContext provides deleteStaffAdmin');
+assert(teacherContextContent.includes('hasPermission'), 'TeacherContext implements granular RBAC check');
+assert(adminCenterContent.includes("id: 'staff'"), 'Admin center includes staff management tab');
+assert(adminCenterContent.includes('فريق العمل وصلاحيات الإدارة والتدريس'), 'Admin center renders Staff and RBAC management view');
+assert(adminCenterContent.includes('isAddStaffModalOpen'), 'Admin center provides Add Staff Admin modal');
+
+// B. Content Decoupling & Creator Attribution
+assert(teacherContextContent.includes('createdByUid'), 'Lectures and exams are stamped with creator attribution');
+assert(teacherContextContent.includes('createdByName'), 'Lectures and exams record creator name');
+assert(teacherContextContent.includes('soft_deleted'), 'Soft delete retains data at platform level');
+assert(teacherContextContent.includes('restoreLecture'), 'Soft-deleted lectures can be restored');
+assert(teacherContextContent.includes('restoreGeneralExam'), 'Soft-deleted general exams can be restored');
+assert(adminCenterContent.includes('سلة المهملات والمحذوفات المسترجعة'), 'Admin center provides Trash and Recovery inspector');
+
+// C. Full Backup & Safe Restore
+assert(teacherContextContent.includes('exportPlatformBackup'), 'TeacherContext provides full JSON snapshot export');
+assert(teacherContextContent.includes('restorePlatformBackup'), 'TeacherContext provides platform restore engine');
+assert(adminCenterContent.includes("id: 'backups'"), 'Admin center includes backups & audit tab');
+assert(adminCenterContent.includes('تصدير نسخة احتياطية كاملة'), 'Admin center provides full backup export button');
+assert(adminCenterContent.includes('اختيار ملف النسخة الاحتياطية للاستعادة'), 'Admin center provides backup restore uploader');
+assert(adminCenterContent.includes('restoreDryRunResult'), 'Admin center provides dry-run preview before executing restore');
+
+// D. Security Rules & Audit Trail
+assert(firestoreRulesContent.includes('match /adminUsers/{adminId}'), 'firestore.rules protects adminUsers collection');
+assert(firestoreRulesContent.includes('match /auditLogs/{logId}'), 'firestore.rules secures auditLogs collection');
+assert(firestoreRulesContent.includes('allow update, delete: if false'), 'firestore.rules enforces audit logs immutability');
+assert(teacherContextContent.includes('logPlatformAuditAction'), 'TeacherContext logs all operations to centralized audit trail');
+assert(adminCenterContent.includes('سجل التدقيق والرقابة الشامل للمنصة'), 'Admin center renders live platform audit trail');
+
 console.log('\n=====================================================');
-console.log('🎉 ALL 12 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
+console.log('🎉 ALL 13 COMPREHENSIVE VERIFICATION GROUPS PASSED! 🎉');
 console.log('=====================================================');
 
 

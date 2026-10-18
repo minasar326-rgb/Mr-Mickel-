@@ -31,7 +31,12 @@ import {
   syncAnnouncementToCloud,
   deleteAnnouncementFromCloud,
   updateStudentSubscriptionStatusInCloud,
-  saveAuditLogToCloud
+  saveAuditLogToCloud,
+  saveAdminUserToCloud,
+  deleteAdminUserFromCloud,
+  listenToAdminUsers,
+  logPlatformAuditAction,
+  listenToAuditLogs
 } from '../services/firestoreSync';
 import {
   saveMediaFilePermanently,
@@ -1017,6 +1022,74 @@ export function TeacherProvider({ children }) {
     ];
   });
 
+  // 13. Platform Staff & Authorized Administrators (نظام الإدارة الموحد وصلاحيات المدرسين)
+  const defaultSuperAdmin = {
+    id: 'admin-super-01',
+    uid: 'teacher-admin',
+    name: 'مستر مايكل شحاته (المالك الرئيسي)',
+    email: 'mrmichaelshehata@gmail.com',
+    phone: '01012345678',
+    role: 'super_admin', // super_admin | admin | assistant
+    roleLabel: 'المالك والمشرف العام 👑',
+    permissions: {
+      canManageLectures: true,
+      canManageExams: true,
+      canManageSubscriptions: true,
+      canViewFinance: true,
+      canManageCodes: true,
+      canManageStaff: true,
+      canExportBackup: true,
+      canRestoreBackup: true
+    },
+    isActive: true,
+    createdAt: '2026-08-01T00:00:00Z',
+    lastActive: new Date().toISOString()
+  };
+
+  const [staffAdmins, setStaffAdmins] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_staff_admins');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [defaultSuperAdmin];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_staff_admins', JSON.stringify(staffAdmins));
+    } catch (e) {}
+  }, [staffAdmins]);
+
+  // 14. Centralized Platform Audit Logs (سجلات الرقابة والتدقيق المستمر)
+  const [platformAuditLogs, setPlatformAuditLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ms_platform_audit_logs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      {
+        id: 'audit-init-01',
+        action: 'system_initialized',
+        actionLabel: 'تهيئة نظام الإدارة الموحد 🛡️',
+        entityType: 'platform',
+        entityId: 'global',
+        details: 'تم تفعيل بنية النظام الموحد المركزي وفصل ملكية المحتوى عن حسابات الأفراد.',
+        performedByUid: 'teacher-admin',
+        performedByName: 'النظام المركزي',
+        timestamp: '2026-08-01T00:00:00Z'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ms_platform_audit_logs', JSON.stringify(platformAuditLogs));
+    } catch (e) {}
+  }, [platformAuditLogs]);
+
   // Real-time Multi-Device Cloud Synchronization & Local Cache
   useEffect(() => {
     let isCancelled = false;
@@ -1097,6 +1170,16 @@ export function TeacherProvider({ children }) {
       setStudents(cloudStudents);
     });
 
+    const unsubAdminUsers = listenToAdminUsers((cloudAdmins) => {
+      if (isCancelled || !Array.isArray(cloudAdmins) || cloudAdmins.length === 0) return;
+      setStaffAdmins(cloudAdmins);
+    });
+
+    const unsubAuditLogs = listenToAuditLogs((cloudLogs) => {
+      if (isCancelled || !Array.isArray(cloudLogs) || cloudLogs.length === 0) return;
+      setPlatformAuditLogs(cloudLogs);
+    });
+
     // 3. Rehydrate from local IndexedDB if available and state is empty
     loadCollectionFromLocal(STORES.LECTURES).then(localLectures => {
       if (!isCancelled && Array.isArray(localLectures) && localLectures.length > 0) {
@@ -1116,6 +1199,8 @@ export function TeacherProvider({ children }) {
       if (typeof unsubRtdbAnnouncements === 'function') unsubRtdbAnnouncements();
       if (typeof unsubLectures === 'function') unsubLectures();
       if (typeof unsubStudents === 'function') unsubStudents();
+      if (typeof unsubAdminUsers === 'function') unsubAdminUsers();
+      if (typeof unsubAuditLogs === 'function') unsubAuditLogs();
     };
   }, []);
 
@@ -1303,6 +1388,9 @@ export function TeacherProvider({ children }) {
     const cleanVideoUrl = (lectureData.videoUrl && typeof lectureData.videoUrl === 'string' && !lectureData.videoUrl.startsWith('blob:'))
       ? lectureData.videoUrl
       : '';
+    const creatorUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const creatorName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
     const newLec = {
       ...lectureData,
       videoUrl: cleanVideoUrl,
@@ -1313,6 +1401,9 @@ export function TeacherProvider({ children }) {
       price: lectureData.price || (isFree ? 'مجاناً' : '70 ج.م'),
       isLocked: !isFree,
       isPermanent: true,
+      isDeleted: false,
+      createdByUid: creatorUid,
+      createdByName: creatorName,
       createdAt: new Date().toISOString()
     };
 
@@ -1346,6 +1437,17 @@ export function TeacherProvider({ children }) {
     // 3. Persist permanently into Cloud Firestore & RTDB
     await saveLectureToFirestore(newLec);
 
+    // 4. Record Centralized Audit Trail
+    logPlatformAuditAction({
+      action: 'lecture_created',
+      actionLabel: 'إضافة محاضرة جديدة 🎥',
+      entityType: 'lecture',
+      entityId: newLec.id,
+      details: `تم رفع ونشر محاضرة: ${newLec.title} (بواسطة: ${creatorName})`,
+      performedByUid: creatorUid,
+      performedByName: creatorName
+    }).catch(() => {});
+
     addToast(`تم رفع ونشر المحاضرة (${newLec.title}) بنجاح! 🚀 (${isFree ? 'متاحة مجاناً' : 'باشتراك'})`, 'success');
     return newLec;
   };
@@ -1353,6 +1455,8 @@ export function TeacherProvider({ children }) {
   const updateLecture = async (lectureId, updatedData) => {
     if (!lectureId) return;
     let updatedLec = null;
+    const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
 
     setLectures(prev => {
       const updated = prev.map(lec => {
@@ -1360,6 +1464,8 @@ export function TeacherProvider({ children }) {
           updatedLec = {
             ...lec,
             ...updatedData,
+            updatedByUid: modifierUid,
+            updatedByName: modifierName,
             updatedAt: new Date().toISOString()
           };
           return updatedLec;
@@ -1375,6 +1481,16 @@ export function TeacherProvider({ children }) {
     if (updatedLec) {
       await persistCollectionLocally(STORES.LECTURES, [updatedLec]);
       await saveLectureToFirestore(updatedLec);
+
+      logPlatformAuditAction({
+        action: 'lecture_updated',
+        actionLabel: 'تعديل محاضرة ✏️',
+        entityType: 'lecture',
+        entityId: updatedLec.id,
+        details: `تم تعديل المحاضرة أو امتحانها: ${updatedLec.title}`,
+        performedByUid: modifierUid,
+        performedByName: modifierName
+      }).catch(() => {});
     }
 
     if (updatedData.exam) {
@@ -1391,16 +1507,97 @@ export function TeacherProvider({ children }) {
     return updatedLec;
   };
 
-  const deleteLecture = async (lectureId) => {
+  // Safe Deletion: Soft delete flags the lecture so students cannot see it, but data is 100% recoverable
+  const deleteLecture = async (lectureId, hardDelete = false) => {
     const targetLecture = lectures.find(l => l.id === lectureId);
-    const updated = lectures.filter(l => l.id !== lectureId);
-    setLectures(updated);
-    await deleteLectureFromFirestore(lectureId);
-    if (targetLecture?.localMediaKey) {
-      await deleteMediaPermanently(targetLecture.localMediaKey);
+    if (!targetLecture) return;
+    const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
+    if (hardDelete) {
+      const updated = lectures.filter(l => l.id !== lectureId);
+      setLectures(updated);
+      await deleteLectureFromFirestore(lectureId);
+      if (targetLecture?.localMediaKey) {
+        await deleteMediaPermanently(targetLecture.localMediaKey);
+      }
+      await persistCollectionLocally(STORES.LECTURES, updated);
+      logPlatformAuditAction({
+        action: 'lecture_hard_deleted',
+        actionLabel: 'حذف نهائي لمحاضرة 🗑️',
+        entityType: 'lecture',
+        entityId: lectureId,
+        details: `تم الحذف النهائي للمحاضرة (${targetLecture.title})`,
+        performedByUid: modifierUid,
+        performedByName: modifierName
+      }).catch(() => {});
+      addToast('تم حذف المحاضرة من المنصة نهائياً 🗑️', 'info');
+    } else {
+      // Soft Delete: Preserves content and metadata on platform level
+      const updated = lectures.map(l => {
+        if (l.id === lectureId) {
+          return {
+            ...l,
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+            deletedByUid: modifierUid,
+            deletedByName: modifierName
+          };
+        }
+        return l;
+      });
+      setLectures(updated);
+      const softLec = updated.find(l => l.id === lectureId);
+      if (softLec) {
+        await saveLectureToFirestore(softLec);
+      }
+      logPlatformAuditAction({
+        action: 'lecture_soft_deleted',
+        actionLabel: 'نقل محاضرة لسلة المهملات 📦',
+        entityType: 'lecture',
+        entityId: lectureId,
+        details: `تم نقل المحاضرة (${targetLecture.title}) إلى المحذوفات مع إمكانية استعادتها فوراً`,
+        performedByUid: modifierUid,
+        performedByName: modifierName
+      }).catch(() => {});
+      addToast(`تم نقل المحاضرة (${targetLecture.title}) إلى سلة المهملات مع الحفاظ الكامل على بياناتها 📦`, 'info');
     }
-    await persistCollectionLocally(STORES.LECTURES, updated);
-    addToast('تم حذف المحاضرة من المنصة نهائياً 🗑️', 'info');
+  };
+
+  // Restore Soft-Deleted Lecture
+  const restoreLecture = async (lectureId) => {
+    const targetLecture = lectures.find(l => l.id === lectureId);
+    if (!targetLecture) return;
+    const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
+    const updated = lectures.map(l => {
+      if (l.id === lectureId) {
+        const { isDeleted, deletedAt, deletedByUid, deletedByName, ...rest } = l;
+        return {
+          ...rest,
+          isDeleted: false,
+          restoredAt: new Date().toISOString(),
+          restoredByName: modifierName
+        };
+      }
+      return l;
+    });
+    setLectures(updated);
+    const restoredLec = updated.find(l => l.id === lectureId);
+    if (restoredLec) {
+      await saveLectureToFirestore(restoredLec);
+    }
+    logPlatformAuditAction({
+      action: 'lecture_restored',
+      actionLabel: 'استعادة محاضرة محذوفة ♻️',
+      entityType: 'lecture',
+      entityId: lectureId,
+      details: `تمت استعادة المحاضرة (${targetLecture.title}) بنجاح`,
+      performedByUid: modifierUid,
+      performedByName: modifierName
+    }).catch(() => {});
+    addToast(`تمت استعادة المحاضرة (${targetLecture.title}) بنجاح ونشرها مجدداً! ✨`, 'success');
   };
 
   const addStage = async (stageData) => {
@@ -3217,10 +3414,18 @@ export function TeacherProvider({ children }) {
     const totalMarks = examObj.totalMarks || (examObj.questions || []).reduce((sum, q) => sum + (Number(q.points) || 1), 0);
     const passingMarks = examObj.passingMarks || Math.ceil(totalMarks * 0.5);
 
+    const creatorUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const creatorName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
     const fullExam = {
       ...examObj,
       totalMarks,
       passingMarks,
+      isDeleted: false,
+      createdByUid: examObj.createdByUid || creatorUid,
+      createdByName: examObj.createdByName || creatorName,
+      updatedByUid: creatorUid,
+      updatedByName: creatorName,
       updatedAt: new Date().toISOString()
     };
 
@@ -3234,21 +3439,123 @@ export function TeacherProvider({ children }) {
     });
 
     saveToRtdb(`generalExams/${fullExam.id}`, fullExam).catch(() => {});
+
+    logPlatformAuditAction({
+      action: 'general_exam_saved',
+      actionLabel: 'حفظ امتحان شامل 🌟',
+      entityType: 'generalExam',
+      entityId: fullExam.id,
+      details: `تم حفظ أو تحديث الامتحان الشامل: ${fullExam.title}`,
+      performedByUid: creatorUid,
+      performedByName: creatorName
+    }).catch(() => {});
+
     addToast('تم حفظ الامتحان العام المستقل بنجاح 🌟', 'success');
     return fullExam;
   };
 
-  const deleteGeneralExam = (examId) => {
+  const deleteGeneralExam = (examId, hardDelete = false) => {
     if (!examId) return;
+    const targetExam = generalExams.find(e => e.id === examId);
+    const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
+    if (hardDelete) {
+      setGeneralExams(prev => {
+        const updated = prev.filter(e => e.id !== examId);
+        try {
+          localStorage.setItem('ms_general_exams', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+      removeFromRtdb(`generalExams/${examId}`).catch(() => {});
+      logPlatformAuditAction({
+        action: 'general_exam_hard_deleted',
+        actionLabel: 'حذف نهائي لامتحان شامل 🗑️',
+        entityType: 'generalExam',
+        entityId: examId,
+        details: `تم الحذف النهائي للامتحان الشامل (${targetExam?.title || examId})`,
+        performedByUid: modifierUid,
+        performedByName: modifierName
+      }).catch(() => {});
+      addToast('تم حذف الامتحان العام نهائياً', 'info');
+    } else {
+      // Soft Delete: Preserves exam content on platform
+      setGeneralExams(prev => {
+        const updated = prev.map(e => {
+          if (e.id === examId) {
+            return {
+              ...e,
+              isDeleted: true,
+              deletedAt: new Date().toISOString(),
+              deletedByUid: modifierUid,
+              deletedByName: modifierName
+            };
+          }
+          return e;
+        });
+        try {
+          localStorage.setItem('ms_general_exams', JSON.stringify(updated));
+        } catch (e) {}
+        const softExam = updated.find(e => e.id === examId);
+        if (softExam) {
+          saveToRtdb(`generalExams/${examId}`, softExam).catch(() => {});
+        }
+        return updated;
+      });
+
+      logPlatformAuditAction({
+        action: 'general_exam_soft_deleted',
+        actionLabel: 'نقل امتحان شامل للمحذوفات 📦',
+        entityType: 'generalExam',
+        entityId: examId,
+        details: `تم نقل الامتحان الشامل (${targetExam?.title || examId}) للمحذوفات مع إمكانية استعادته`,
+        performedByUid: modifierUid,
+        performedByName: modifierName
+      }).catch(() => {});
+      addToast(`تم نقل الامتحان الشامل (${targetExam?.title || ''}) إلى سلة المهملات مع الحفاظ على بياناته 📦`, 'info');
+    }
+  };
+
+  const restoreGeneralExam = (examId) => {
+    if (!examId) return;
+    const targetExam = generalExams.find(e => e.id === examId);
+    const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
+    const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
     setGeneralExams(prev => {
-      const updated = prev.filter(e => e.id !== examId);
+      const updated = prev.map(e => {
+        if (e.id === examId) {
+          const { isDeleted, deletedAt, deletedByUid, deletedByName, ...rest } = e;
+          return {
+            ...rest,
+            isDeleted: false,
+            restoredAt: new Date().toISOString(),
+            restoredByName: modifierName
+          };
+        }
+        return e;
+      });
       try {
         localStorage.setItem('ms_general_exams', JSON.stringify(updated));
       } catch (e) {}
+      const restored = updated.find(e => e.id === examId);
+      if (restored) {
+        saveToRtdb(`generalExams/${examId}`, restored).catch(() => {});
+      }
       return updated;
     });
-    removeFromRtdb(`generalExams/${examId}`).catch(() => {});
-    addToast('تم حذف الامتحان العام', 'info');
+
+    logPlatformAuditAction({
+      action: 'general_exam_restored',
+      actionLabel: 'استعادة امتحان شامل ♻️',
+      entityType: 'generalExam',
+      entityId: examId,
+      details: `تمت استعادة الامتحان الشامل (${targetExam?.title || examId}) بنجاح`,
+      performedByUid: modifierUid,
+      performedByName: modifierName
+    }).catch(() => {});
+    addToast(`تمت استعادة الامتحان الشامل (${targetExam?.title || ''}) بنجاح! ✨`, 'success');
   };
 
   const generateGeneralExamCode = ({ studentId, studentName, studentPhone, stageId, stageName, examId, examTitle }) => {
@@ -3510,6 +3817,232 @@ export function TeacherProvider({ children }) {
     return submissionEntry;
   };
 
+  // -------------------------------------------------------------
+  // Centralized Platform Multi-Admin & RBAC Management
+  // -------------------------------------------------------------
+
+  const currentAdminUser = staffAdmins.find(
+    a => a.email === currentUser?.email || a.uid === (currentUser?.uid || currentUser?.id)
+  ) || defaultSuperAdmin;
+
+  const hasPermission = (permissionKey) => {
+    // Super admin has all permissions unconditionally
+    if (currentAdminUser?.role === 'super_admin' || currentAdminUser?.uid === 'teacher-admin') {
+      return true;
+    }
+    return Boolean(currentAdminUser?.permissions?.[permissionKey]);
+  };
+
+  const addStaffAdmin = async (adminData) => {
+    const newAdmin = {
+      id: `admin-${Date.now()}`,
+      uid: adminData.uid || `staff-${Date.now()}`,
+      name: adminData.name || 'مدرس مساعد',
+      email: adminData.email,
+      phone: adminData.phone || '',
+      role: adminData.role || 'admin',
+      roleLabel: adminData.role === 'admin' ? 'مدرس مصرح له بالإدارة 👨‍🏫' : 'مساعد إداري 📋',
+      permissions: {
+        canManageLectures: adminData.permissions?.canManageLectures !== false,
+        canManageExams: adminData.permissions?.canManageExams !== false,
+        canManageSubscriptions: Boolean(adminData.permissions?.canManageSubscriptions),
+        canViewFinance: Boolean(adminData.permissions?.canViewFinance),
+        canManageCodes: adminData.permissions?.canManageCodes !== false,
+        canManageStaff: false, // Only super admin can manage staff
+        canExportBackup: Boolean(adminData.permissions?.canExportBackup),
+        canRestoreBackup: false
+      },
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+
+    setStaffAdmins(prev => [...prev, newAdmin]);
+    await saveAdminUserToCloud(newAdmin);
+
+    logPlatformAuditAction({
+      action: 'staff_admin_created',
+      actionLabel: 'إضافة حساب إدارة جديد 👥',
+      entityType: 'adminUser',
+      entityId: newAdmin.id,
+      details: `تم إنشاء حساب إدارة جديد للمعلم (${newAdmin.name}) بصلاحيات مخصصة`,
+      performedByUid: currentAdminUser.uid,
+      performedByName: currentAdminUser.name
+    }).catch(() => {});
+
+    addToast(`تم إضافة حساب الإدارة (${newAdmin.name}) بنجاح! 🎉`, 'success');
+    return newAdmin;
+  };
+
+  const updateStaffAdmin = async (adminId, updatedData) => {
+    let updatedObj = null;
+    setStaffAdmins(prev => {
+      const updated = prev.map(a => {
+        if (a.id === adminId) {
+          updatedObj = { ...a, ...updatedData, updatedAt: new Date().toISOString() };
+          return updatedObj;
+        }
+        return a;
+      });
+      return updated;
+    });
+
+    if (updatedObj) {
+      await saveAdminUserToCloud(updatedObj);
+      logPlatformAuditAction({
+        action: 'staff_admin_updated',
+        actionLabel: 'تعديل صلاحيات حساب إدارة ⚙️',
+        entityType: 'adminUser',
+        entityId: adminId,
+        details: `تم تحديث صلاحيات أو بيانات المشرف (${updatedObj.name})`,
+        performedByUid: currentAdminUser.uid,
+        performedByName: currentAdminUser.name
+      }).catch(() => {});
+      addToast(`تم تحديث صلاحيات (${updatedObj.name}) بنجاح! 💾`, 'success');
+    }
+  };
+
+  const deleteStaffAdmin = async (adminId) => {
+    const target = staffAdmins.find(a => a.id === adminId);
+    if (!target) return;
+    if (target.role === 'super_admin' || target.id === 'admin-super-01') {
+      addToast('لا يمكن حذف حساب المالك الرئيسي للمنصة!', 'error');
+      return;
+    }
+
+    setStaffAdmins(prev => prev.filter(a => a.id !== adminId));
+    await deleteAdminUserFromCloud(adminId);
+
+    logPlatformAuditAction({
+      action: 'staff_admin_deleted',
+      actionLabel: 'حذف حساب إدارة 🗑️',
+      entityType: 'adminUser',
+      entityId: adminId,
+      details: `تم حذف حساب الإدارة (${target.name}) دون المساس بأي من محاضراته أو محتوياته المنشورة`,
+      performedByUid: currentAdminUser.uid,
+      performedByName: currentAdminUser.name
+    }).catch(() => {});
+
+    addToast(`تم حذف حساب المشرف (${target.name}) بنجاح. مع بقاء كافة المحاضرات والامتحانات محفوظة بالمنصة بنسبة 100%! 🛡️`, 'info');
+  };
+
+  // -------------------------------------------------------------
+  // Full Platform Backup & Restore Engine (نظام النسخ الاحتياطي والاستعادة)
+  // -------------------------------------------------------------
+
+  const exportPlatformBackup = () => {
+    const backupSnapshot = {
+      meta: {
+        platformName: 'منصة مستر مايكل شحاتة التعليمية',
+        version: '3.0.0-unified',
+        exportedAt: new Date().toISOString(),
+        exportedBy: currentAdminUser.name,
+        exportedByUid: currentAdminUser.uid,
+        totalLectures: lectures.length,
+        totalSections: sections.length,
+        totalGeneralExams: generalExams.length,
+        totalStudents: students.length,
+        totalCodes: accessCodes.length + generalExamCodes.length
+      },
+      data: {
+        teacherProfile,
+        stages,
+        sections,
+        lectures,
+        booklets,
+        topAchievers,
+        accessCodes,
+        students,
+        transactions,
+        announcements,
+        examsData,
+        generalExams,
+        generalExamCodes,
+        staffAdmins,
+        examSubmissions
+      }
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupSnapshot, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    const dateFormatted = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    downloadAnchor.setAttribute('download', `platform-backup-mr-michael-${dateFormatted}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    logPlatformAuditAction({
+      action: 'backup_exported',
+      actionLabel: 'تصدير نسخة احتياطية كاملة 💾',
+      entityType: 'platform',
+      entityId: 'backup',
+      details: `تم تصدير نسخة احتياطية شاملة لكامل المنصة بواسطة ${currentAdminUser.name}`,
+      performedByUid: currentAdminUser.uid,
+      performedByName: currentAdminUser.name
+    }).catch(() => {});
+
+    addToast('تم تجهيز وتنزيل النسخة الاحتياطية الشاملة للمنصة بنجاح! 💾🛡️', 'success', 5000);
+    return backupSnapshot;
+  };
+
+  const restorePlatformBackup = async (backupJsonString, isDryRun = false) => {
+    try {
+      const parsed = typeof backupJsonString === 'string' ? JSON.parse(backupJsonString) : backupJsonString;
+      if (!parsed || !parsed.data) {
+        throw new Error('ملف النسخة الاحتياطية غير صالح أو لا يحتوي على بنية البيانات السليمة.');
+      }
+
+      const { data } = parsed;
+
+      if (isDryRun) {
+        return {
+          valid: true,
+          meta: parsed.meta,
+          summary: {
+            lecturesCount: (data.lectures || []).length,
+            sectionsCount: (data.sections || []).length,
+            generalExamsCount: (data.generalExams || []).length,
+            studentsCount: (data.students || []).length,
+            codesCount: (data.accessCodes || []).length + (data.generalExamCodes || []).length,
+            exportedAt: parsed.meta?.exportedAt
+          }
+        };
+      }
+
+      // Execute actual restore
+      if (Array.isArray(data.stages)) setStages(data.stages);
+      if (Array.isArray(data.sections)) setSections(data.sections);
+      if (Array.isArray(data.lectures)) setLectures(data.lectures);
+      if (Array.isArray(data.booklets)) setBooklets(data.booklets);
+      if (Array.isArray(data.topAchievers)) setTopAchievers(data.topAchievers);
+      if (Array.isArray(data.accessCodes)) setAccessCodes(data.accessCodes);
+      if (Array.isArray(data.students)) setStudents(data.students);
+      if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+      if (Array.isArray(data.announcements)) setAnnouncements(data.announcements);
+      if (data.examsData && typeof data.examsData === 'object') setExamsData(data.examsData);
+      if (Array.isArray(data.generalExams)) setGeneralExams(data.generalExams);
+      if (Array.isArray(data.generalExamCodes)) setGeneralExamCodes(data.generalExamCodes);
+      if (data.teacherProfile && typeof data.teacherProfile === 'object') setTeacherProfile(data.teacherProfile);
+
+      logPlatformAuditAction({
+        action: 'backup_restored',
+        actionLabel: 'استعادة كاملة للمنصة من نسخة احتياطية ♻️',
+        entityType: 'platform',
+        entityId: 'backup',
+        details: `تم استعادة بيانات المنصة بالكامل من ملف النسخة الاحتياطية المؤرخ في ${parsed.meta?.exportedAt || 'تاريخ غير محدد'}`,
+        performedByUid: currentAdminUser.uid,
+        performedByName: currentAdminUser.name
+      }).catch(() => {});
+
+      addToast('تمت استعادة كافة بيانات ومحتويات المنصة بنجاح تام! 🚀', 'success', 6000);
+      return { success: true };
+    } catch (err) {
+      console.error('Backup restore error:', err);
+      addToast(`فشلت استعادة النسخة الاحتياطية: ${err.message}`, 'error', 6000);
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
     <TeacherContext.Provider
       value={{
@@ -3556,6 +4089,17 @@ export function TeacherProvider({ children }) {
         uploadNewLecture,
         updateLecture,
         deleteLecture,
+        restoreLecture,
+        restoreGeneralExam,
+        staffAdmins,
+        currentAdminUser,
+        hasPermission,
+        addStaffAdmin,
+        updateStaffAdmin,
+        deleteStaffAdmin,
+        platformAuditLogs,
+        exportPlatformBackup,
+        restorePlatformBackup,
         addStage,
         deleteStage,
         addBooklet,

@@ -29,6 +29,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
     addStudent, updateStudent, deleteStudent, toggleStudentStatus, recordPayment,
     generatePaymentReminderWhatsApp, generateStudentReceiptWhatsApp, generateParentWhatsAppReport,
     updateTeacherProfile, uploadNewLecture, updateLecture, deleteLecture,
+    restoreLecture, restoreGeneralExam,
+    staffAdmins, currentAdminUser, hasPermission,
+    addStaffAdmin, updateStaffAdmin, deleteStaffAdmin,
+    platformAuditLogs, exportPlatformBackup, restorePlatformBackup,
     addStage, deleteStage,
     addBooklet, deleteBooklet,
     addAchiever, deleteAchiever,
@@ -174,6 +178,27 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [lectureExamDuration, setLectureExamDuration] = useState(25);
   const [lectureExamPassMarks, setLectureExamPassMarks] = useState(14);
   const [lectureExamTotalMarks, setLectureExamTotalMarks] = useState(20);
+
+  // Staff & RBAC Management Form State
+  const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
+  const [staffName, setStaffName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [staffRole, setStaffRole] = useState('admin');
+  const [staffPermissions, setStaffPermissions] = useState({
+    canManageLectures: true,
+    canManageExams: true,
+    canManageSubscriptions: false,
+    canViewFinance: false,
+    canManageCodes: true,
+    canExportBackup: false
+  });
+
+  // Backup & Restore System State
+  const [restoreFileJson, setRestoreFileJson] = useState(null);
+  const [restoreDryRunResult, setRestoreDryRunResult] = useState(null);
+  const [isConfirmRestoreModalOpen, setIsConfirmRestoreModalOpen] = useState(false);
+  const restoreFileInputRef = useRef(null);
   const [lectureExamMaxAttempts, setLectureExamMaxAttempts] = useState(2);
   const [lectureExamQuestions, setLectureExamQuestions] = useState([
     {
@@ -1491,7 +1516,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
             { id: 'booklets', label: `📚 المذكرات (${booklets.length})`, icon: FileText },
             { id: 'achievers', label: `🏆 أوائل المستر (${topAchievers.length})`, icon: Trophy },
             { id: 'codes', label: `🎟️ كروت الشحن (${accessCodes.length})`, icon: Key },
-            { id: 'broadcast', label: `📢 التنبيهات (${announcements.length})`, icon: Bell }
+            { id: 'broadcast', label: `📢 التنبيهات (${announcements.length})`, icon: Bell },
+            { id: 'staff', label: `👥 فريق العمل والصلاحيات (${staffAdmins.length})`, icon: Users },
+            { id: 'backups', label: '💾 النسخ الاحتياطي والرقابة', icon: HardDrive }
           ].map(tab => {
             const Icon = tab.icon;
             return (
@@ -6452,6 +6479,357 @@ export default function TeacherAdminCenter({ onNavigate }) {
             </div>
           </div>
         )}
+
+        {/* ========================================================= */}
+        {/* TAB 15: UNIFIED PLATFORM STAFF & RBAC MANAGEMENT */}
+        {/* ========================================================= */}
+        {activeTab === 'staff' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span className="badge badge-gold">نظام الإدارة الموحد المركزي 👥</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Multi-Admin & Role-Based Access Control</span>
+                  </div>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0 }}>فريق العمل وصلاحيات الإدارة والتدريس</h3>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                    جميع الحسابات متصلة بقاعدة البيانات المركزية للمنصة. حذف أي حساب مشرف لا يؤثر مطلقاً على المحاضرات أو الامتحانات.
+                  </p>
+                </div>
+
+                {hasPermission('canManageStaff') && (
+                  <button
+                    onClick={() => {
+                      setStaffName('');
+                      setStaffEmail('');
+                      setStaffPhone('');
+                      setStaffRole('admin');
+                      setStaffPermissions({
+                        canManageLectures: true,
+                        canManageExams: true,
+                        canManageSubscriptions: false,
+                        canViewFinance: false,
+                        canManageCodes: true,
+                        canExportBackup: false
+                      });
+                      setIsAddStaffModalOpen(true);
+                    }}
+                    className="btn btn-primary"
+                    style={{ gap: '8px', fontWeight: 800 }}
+                  >
+                    <Plus size={18} /> <span>إضافة حساب إدارة / مدرس جديد ➕</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Staff Table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-subtle)', borderBottom: '2px solid var(--border-subtle)' }}>
+                      <th style={{ padding: '12px' }}>المشرف / المعلم</th>
+                      <th style={{ padding: '12px' }}>البريد الإلكتروني</th>
+                      <th style={{ padding: '12px' }}>الدور الوظيفي</th>
+                      <th style={{ padding: '12px' }}>الصلاحيات الممنوحة</th>
+                      <th style={{ padding: '12px' }}>الحالة</th>
+                      <th style={{ padding: '12px' }}>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(staffAdmins || []).map((admin) => {
+                      const isSuper = admin.role === 'super_admin' || admin.id === 'admin-super-01';
+                      return (
+                        <tr key={admin.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td style={{ padding: '12px', fontWeight: 800 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{admin.name}</span>
+                              {isSuper && <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}>المالك الرئيسي 👑</span>}
+                            </div>
+                            {admin.phone && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{admin.phone}</span>}
+                          </td>
+                          <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                            {admin.email}
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span className={isSuper ? 'badge badge-primary' : 'badge badge-secondary'} style={{ fontSize: '0.78rem' }}>
+                              {admin.roleLabel || admin.role}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {isSuper ? (
+                                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>كافة الصلاحيات الكاملة ✔️</span>
+                              ) : (
+                                <>
+                                  {admin.permissions?.canManageLectures && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>محاضرات</span>}
+                                  {admin.permissions?.canManageExams && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>امتحانات</span>}
+                                  {admin.permissions?.canManageSubscriptions && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>اشتراكات</span>}
+                                  {admin.permissions?.canViewFinance && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>الخزينة</span>}
+                                  {admin.permissions?.canManageCodes && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>أكواد</span>}
+                                  {admin.permissions?.canExportBackup && <span className="badge badge-subtle" style={{ fontSize: '0.68rem' }}>نسخ احتياطي</span>}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span className={admin.isActive ? 'badge badge-success' : 'badge badge-danger'} style={{ fontSize: '0.75rem' }}>
+                              {admin.isActive ? 'نشط ومصرح له 🟢' : 'معلق 🔴'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            {!isSuper && hasPermission('canManageStaff') && (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  onClick={() => updateStaffAdmin(admin.id, { isActive: !admin.isActive })}
+                                  className="btn btn-ghost btn-sm"
+                                  title={admin.isActive ? 'تعليق الحساب مؤقتاً' : 'تنشيط الحساب'}
+                                >
+                                  {admin.isActive ? <Pause size={15} color="#D97706" /> : <Play size={15} color="#10B981" />}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`هل أنت متأكد من حذف حساب (${admin.name})؟\n\nتأكيد أمان المنصة: ستبقى كافة المحاضرات والامتحانات والملفات التي قام برفعها محفوظة بالكامل في المنصة دون أي حذف.`)) {
+                                      deleteStaffAdmin(admin.id);
+                                    }
+                                  }}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ color: '#EF4444' }}
+                                  title="حذف حساب المشرف مع الإبقاء على المحتوى"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            )}
+                            {isSuper && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>محمي برمجياً 🔒</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 16: FULL BACKUP, RESTORE & AUDIT LOGS */}
+        {/* ========================================================= */}
+        {activeTab === 'backups' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)' }}>
+              <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span className="badge badge-gold">منظومة النسخ الاحتياطي والرقابة 💾</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Platform Integrity & Disaster Recovery</span>
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0 }}>تصدير النسخ الاحتياطية واستعادة المنصة</h3>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                  تنزيل لقطة مشفرة لكامل المنصة (محاضرات، امتحانات، بنوك أسئلة، طلاب، اشتراكات، إعدادات) لضمان عدم ضياع أي بيانات تحت أي ظرف.
+                </p>
+              </div>
+
+              {/* Actions Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                {/* Export Card */}
+                <div className="card" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '1.5rem', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Download size={22} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem' }}>تصدير نسخة احتياطية كاملة</h4>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تنزيل ملف JSON شامل</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                    يقوم بتجميع كافة بيانات المنصة الحالية في ملف واحد منظم يمكن حفظه في جهازك أو السحابة.
+                  </p>
+                  <button
+                    onClick={exportPlatformBackup}
+                    className="btn btn-primary"
+                    style={{ width: '100%', gap: '8px', fontWeight: 800 }}
+                  >
+                    <Download size={18} /> <span>تصدير وتنزيل النسخة الاحتياطية الآن 💾</span>
+                  </button>
+                </div>
+
+                {/* Restore Card */}
+                <div className="card" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '1.5rem', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <RotateCcw size={22} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem' }}>استعادة المنصة من ملف نسخة احتياطية</h4>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>فحص ومعاينة آمنة قبل التطبيق</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                    ارفع ملف JSON الاحتياطي للتحقق منه ومعاينته أولاً ثم استعادة المحتويات.
+                  </p>
+                  <input
+                    type="file"
+                    ref={restoreFileInputRef}
+                    accept=".json,application/json"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      try {
+                        const text = await file.text();
+                        const check = await restorePlatformBackup(text, true);
+                        if (check.valid) {
+                          setRestoreFileJson(text);
+                          setRestoreDryRunResult(check);
+                          setIsConfirmRestoreModalOpen(true);
+                        }
+                      } catch (err) {
+                        addToast(`ملف النسخة الاحتياطية غير صالح: ${err.message}`, 'error');
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={() => restoreFileInputRef.current?.click()}
+                    className="btn btn-secondary"
+                    style={{ width: '100%', gap: '8px', fontWeight: 800, border: '1px solid var(--border-subtle)' }}
+                  >
+                    <Upload size={18} /> <span>اختيار ملف النسخة الاحتياطية للاستعادة 📂</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Trash & Soft-Deleted Recovery Section */}
+              <div style={{ marginBottom: '2.5rem' }}>
+                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                  <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>سلة المهملات والمحذوفات المسترجعة ♻️</span>
+                    <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>
+                      {lectures.filter(l => l.isDeleted).length + generalExams.filter(e => e.isDeleted).length} عنصر
+                    </span>
+                  </h4>
+                </div>
+
+                {lectures.filter(l => l.isDeleted).length === 0 && generalExams.filter(e => e.isDeleted).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '1.5rem', background: 'var(--bg-subtle)', borderRadius: '10px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                    سلة المهملات فارغة. لا توجد أي محاضرات أو امتحانات محذوفة حالياً.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {lectures.filter(l => l.isDeleted).map(delLec => (
+                      <div key={delLec.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>محاضرة محذوفة</span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>حذفت في: {new Date(delLec.deletedAt || Date.now()).toLocaleDateString('ar-EG')}</span>
+                          </div>
+                          <strong style={{ fontSize: '0.95rem' }}>{delLec.title}</strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => restoreLecture(delLec.id)}
+                            className="btn btn-success btn-sm"
+                            style={{ gap: '6px' }}
+                          >
+                            <RotateCcw size={15} /> <span>استعادة فورا ♻️</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`حذف نهائي للمحاضرة "${delLec.title}"؟ لا يمكن التراجع!`)) {
+                                deleteLecture(delLec.id, true);
+                              }
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: '#EF4444' }}
+                          >
+                            <Trash2 size={15} /> <span>حذف نهائي</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {generalExams.filter(e => e.isDeleted).map(delExam => (
+                      <div key={delExam.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>امتحان شامل محذوف</span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>حذف في: {new Date(delExam.deletedAt || Date.now()).toLocaleDateString('ar-EG')}</span>
+                          </div>
+                          <strong style={{ fontSize: '0.95rem' }}>{delExam.title}</strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => restoreGeneralExam(delExam.id)}
+                            className="btn btn-success btn-sm"
+                            style={{ gap: '6px' }}
+                          >
+                            <RotateCcw size={15} /> <span>استعادة فورا ♻️</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`حذف نهائي للامتحان "${delExam.title}"؟ لا يمكن التراجع!`)) {
+                                deleteGeneralExam(delExam.id, true);
+                              }
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: '#EF4444' }}
+                          >
+                            <Trash2 size={15} /> <span>حذف نهائي</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Central Platform Audit Trail */}
+              <div>
+                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                  <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>سجل التدقيق والرقابة الشامل للمنصة 🛡️</span>
+                    <span className="badge badge-subtle" style={{ fontSize: '0.75rem' }}>
+                      {(platformAuditLogs || []).length} إجراء موثق
+                    </span>
+                  </h4>
+                </div>
+
+                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1.5px solid var(--border-subtle)' }}>
+                        <th style={{ padding: '8px' }}>الوقت</th>
+                        <th style={{ padding: '8px' }}>نوع الإجراء</th>
+                        <th style={{ padding: '8px' }}>التفاصيل</th>
+                        <th style={{ padding: '8px' }}>المشرف المنفذ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(platformAuditLogs || []).map((log, idx) => (
+                        <tr key={log.id || idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            {new Date(log.timestamp).toLocaleString('ar-EG')}
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <span className="badge badge-subtle" style={{ fontSize: '0.72rem' }}>
+                              {log.actionLabel || log.action}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px' }}>{log.details || '-'}</td>
+                          <td style={{ padding: '8px', fontWeight: 700, color: 'var(--primary-700)' }}>
+                            {log.performedByName || 'النظام المركزي'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -8133,6 +8511,236 @@ export default function TeacherAdminCenter({ onNavigate }) {
         style={{ display: 'none' }}
         onChange={(e) => handleUploadOptionImage(e, activeOptUploadTarget.qIdx, activeOptUploadTarget.optIdx)}
       />
+
+      {/* ========================================================= */}
+      {/* MODAL 16: ADD STAFF ADMIN MODAL */}
+      {/* ========================================================= */}
+      {isAddStaffModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '580px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-xl)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="flex-between" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>إضافة حساب إدارة جديد بالمنصة 👥</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>تحديد الدور والصلاحيات المخصصة</span>
+                </div>
+              </div>
+              <button onClick={() => setIsAddStaffModalOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!staffEmail.trim()) {
+                addToast('يرجى إدخال البريد الإلكتروني للمشرف', 'error');
+                return;
+              }
+              await addStaffAdmin({
+                name: staffName.trim() || 'مشرف المنصة',
+                email: staffEmail.trim().toLowerCase(),
+                phone: staffPhone.trim(),
+                role: staffRole,
+                permissions: staffPermissions
+              });
+              setIsAddStaffModalOpen(false);
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>اسم المشرف / المعلم:</label>
+                <input
+                  type="text"
+                  placeholder="مثال: أستاذ حسام الدين"
+                  value={staffName}
+                  onChange={e => setStaffName(e.target.value)}
+                  className="input-control"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>البريد الإلكتروني (المستخدم لتسجيل الدخول):</label>
+                <input
+                  type="email"
+                  placeholder="hossam@gmail.com"
+                  value={staffEmail}
+                  onChange={e => setStaffEmail(e.target.value)}
+                  className="input-control"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>رقم الهاتف (واتساب):</label>
+                <input
+                  type="text"
+                  placeholder="010XXXXXXXX"
+                  value={staffPhone}
+                  onChange={e => setStaffPhone(e.target.value)}
+                  className="input-control"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>نوع الحساب:</label>
+                <select value={staffRole} onChange={e => setStaffRole(e.target.value)} className="input-control">
+                  <option value="admin">مدرس شريك / مصرح له بالإدارة الكاملة 👨‍🏫</option>
+                  <option value="assistant">مساعد إداري ومصحح امتحانات 📋</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px' }}>الصلاحيات الممنوحة:</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canManageLectures}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canManageLectures: e.target.checked }))}
+                    />
+                    <span>رفع وإدارة المحاضرات 🎥</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canManageExams}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canManageExams: e.target.checked }))}
+                    />
+                    <span>إنشاء الامتحانات والتصحيح 📝</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canManageSubscriptions}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canManageSubscriptions: e.target.checked }))}
+                    />
+                    <span>إدارة وتعديل الاشتراكات 🎫</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canManageCodes}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canManageCodes: e.target.checked }))}
+                    />
+                    <span>توليد وإدارة كروت الشحن 🎟️</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canViewFinance}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canViewFinance: e.target.checked }))}
+                    />
+                    <span>الاطلاع على الخزينة 💰</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={staffPermissions.canExportBackup}
+                      onChange={e => setStaffPermissions(prev => ({ ...prev, canExportBackup: e.target.checked }))}
+                    />
+                    <span>تصدير النسخ الاحتياطية 💾</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, fontWeight: 800 }}>
+                  حفظ وتفعيل حساب الإدارة 🚀
+                </button>
+                <button type="button" onClick={() => setIsAddStaffModalOpen(false)} className="btn btn-secondary">
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 17: BACKUP RESTORE PREVIEW & CONFIRMATION MODAL */}
+      {/* ========================================================= */}
+      {isConfirmRestoreModalOpen && restoreDryRunResult && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1400,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(5px)',
+          padding: '1.5rem'
+        }}>
+          <div className="card animate-fade-in" style={{ maxWidth: '580px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-xl)' }}>
+            <div className="flex-between" style={{ marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RotateCcw size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>تأكيد استعادة المنصة من النسخة الاحتياطية ⚠️</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>معاينة محتويات النسخة قبل التنفيذ</span>
+                </div>
+              </div>
+              <button onClick={() => setIsConfirmRestoreModalOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
+            </div>
+
+            <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '1rem', borderRadius: '10px', marginBottom: '1.25rem', color: '#991B1B', fontSize: '0.85rem' }}>
+              ⚠️ تنبيه أمني: سيتم تطبيق محتويات النسخة الاحتياطية وتحديث قاعدة بيانات المنصة ومزامنتها سحابياً.
+            </div>
+
+            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '0.95rem', fontWeight: 800 }}>تفاصيل النسخة الاحتياطية التي تم فحصها:</h4>
+              <ul style={{ margin: 0, paddingRight: '20px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <li>تاريخ التصدير: <strong>{restoreDryRunResult.summary.exportedAt ? new Date(restoreDryRunResult.summary.exportedAt).toLocaleString('ar-EG') : 'غير محدد'}</strong></li>
+                <li>إجمالي المحاضرات: <strong>{restoreDryRunResult.summary.lecturesCount} محاضرة</strong></li>
+                <li>إجمالي الشهور والكورسات: <strong>{restoreDryRunResult.summary.sectionsCount} قسم</strong></li>
+                <li>إجمالي الامتحانات الشاملة: <strong>{restoreDryRunResult.summary.generalExamsCount} امتحان شامل</strong></li>
+                <li>إجمالي الطلاب المسجلين: <strong>{restoreDryRunResult.summary.studentsCount} طالب</strong></li>
+                <li>إجمالي كروت وأكواد الشحن: <strong>{restoreDryRunResult.summary.codesCount} كود</strong></li>
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (restoreFileJson) {
+                    await restorePlatformBackup(restoreFileJson, false);
+                    setIsConfirmRestoreModalOpen(false);
+                  }
+                }}
+                className="btn btn-danger btn-lg"
+                style={{ flex: 1, gap: '8px', fontWeight: 800 }}
+              >
+                <Check size={18} /> <span>تأكيد الاستعادة الآن 🚀</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsConfirmRestoreModalOpen(false)}
+                className="btn btn-secondary"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

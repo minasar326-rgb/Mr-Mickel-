@@ -269,15 +269,15 @@ export default function EnglishExamModal({
       justifyContent: 'center',
       backgroundColor: 'rgba(0, 0, 0, 0.85)',
       backdropFilter: 'blur(8px)',
-      padding: '1.25rem',
+      padding: '0.75rem',
       animation: 'fadeIn 0.2s ease'
     }}>
       <div 
-        className="card animate-fade-in"
+        className="card animate-fade-in card-modal-responsive"
         style={{
           maxWidth: '820px',
           width: '100%',
-          padding: '2rem',
+          padding: '1.75rem 1.25rem',
           borderRadius: 'var(--radius-xl)',
           position: 'relative',
           maxHeight: '92vh',

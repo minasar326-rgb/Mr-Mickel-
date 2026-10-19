@@ -93,14 +93,14 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '1.35rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
+                <span style={{ fontSize: 'clamp(1rem, 3.8vw, 1.35rem)', fontWeight: 900, letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
                   {teacherProfile?.name || 'مستر مايكل شحاتة'}
                 </span>
-                <span className="badge badge-gold" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem' }}>
+                <span className="badge badge-gold hide-on-mobile" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem' }}>
                   The Master 🇬🇧
                 </span>
               </div>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '-2px' }}>
+              <span className="hide-on-mobile" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '-2px' }}>
                 ابتدائي • إعدادي • ثانوي
               </span>
             </div>
@@ -147,11 +147,11 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         </div>
 
         {/* Left Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {/* Teacher Admin Access Button (Requires PIN Every Time) */}
           {isCurrentlyInAdmin ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="badge badge-primary" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="badge badge-primary hide-on-mobile" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
                 ⚙️ أنت الآن في لوحة المستر
               </span>
               <button
@@ -167,7 +167,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           ) : (
             <button
               onClick={handleTeacherAccess}
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm hide-on-mobile"
               style={{
                 gap: '6px',
                 fontWeight: 800,
@@ -185,7 +185,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           {/* Redeem Code Button */}
           <button
             onClick={onOpenCodeModal}
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm hide-on-mobile"
             style={{
               gap: '6px',
               border: '1px solid var(--primary-300)',
@@ -204,8 +204,8 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="btn btn-ghost btn-sm"
                 style={{
-                  gap: '8px',
-                  padding: '4px 10px',
+                  gap: '6px',
+                  padding: '4px 8px',
                   borderRadius: 'var(--radius-full)',
                   border: '1.5px solid #10B981',
                   background: 'rgba(16, 185, 129, 0.08)'
@@ -215,9 +215,9 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 <img
                   src={currentUser.photoURL || currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                   alt={currentUser.name}
-                  style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }}
+                  style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
                 />
-                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#065F46' }}>
+                <span className="hide-on-mobile" style={{ fontWeight: 800, fontSize: '0.85rem', color: '#065F46' }}>
                   {currentUser.name?.split(' ')[0] || 'حسابي'}
                 </span>
                 <ChevronDown size={14} color="#059669" />
@@ -271,14 +271,14 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               onClick={() => openAuthModal ? openAuthModal('login') : null}
               className="btn btn-sm"
               style={{
-                gap: '8px',
+                gap: '6px',
                 fontWeight: 800,
                 background: '#FFFFFF',
                 color: '#1F2937',
                 border: '1.5px solid #D1D5DB',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                 borderRadius: 'var(--radius-full)',
-                padding: '6px 14px',
+                padding: '6px 12px',
                 display: 'flex',
                 alignItems: 'center'
               }}
@@ -290,7 +290,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
               </svg>
-              <span>دخول Google</span>
+              <span className="hide-on-mobile">دخول Google</span>
             </button>
           )}
 
@@ -299,7 +299,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             href={`https://wa.me/${(teacherProfile?.whatsappNumber || '+201012345678').replace(/[^0-9]/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-success btn-sm"
+            className="btn btn-success btn-sm hide-on-mobile"
             style={{ gap: '6px' }}
             title="تواصل مباشر مع المستر"
           >
@@ -384,48 +384,142 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           borderTop: '1px solid var(--border-subtle)',
           borderBottom: '1px solid var(--border-subtle)',
           borderRadius: 0,
-          padding: '1rem',
-          boxShadow: 'var(--shadow-lg)',
+          padding: '1.25rem 1rem',
+          boxShadow: 'var(--shadow-xl)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          background: 'var(--bg-surface)'
+          gap: '12px',
+          background: 'var(--bg-surface)',
+          maxHeight: '80vh',
+          overflowY: 'auto'
         }}>
-          <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('home'); }} 
-            className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
-          >
-            الرئيسية
-          </button>
-          <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('stages'); }} 
-            className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
-          >
-            الصفوف الدراسية
-          </button>
-          <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('achievers'); }} 
-            className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
-          >
-            🏆 لوحة أوائل المستر
-          </button>
-          <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('comprehensive-exams'); }} 
-            className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem', fontWeight: 800 }}
-          >
-            📝 الامتحانات الشاملة
-          </button>
-          <button 
-            onClick={() => { setIsMobileMenuOpen(false); onNavigate('booklets'); }} 
-            className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
-          >
-            المذكرات المطبوعة
-          </button>
+          {/* Quick Primary Mobile Action Blocks */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+            {isCurrentlyInAdmin ? (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); onNavigate('teacher-admin'); }}
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1, gap: '6px', fontWeight: 800 }}
+                >
+                  <LayoutDashboard size={16} />
+                  <span>لوحة تحكم المستر ⚙️</span>
+                </button>
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); handleTeacherLogout(); }}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)', gap: '4px' }}
+                >
+                  <LogOut size={15} />
+                  <span>قفل وخروج 🔒</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); handleTeacherAccess(); }}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: 800,
+                  fontSize: '0.95rem',
+                  background: 'linear-gradient(135deg, #1F4D3A 0%, #296049 55%, #A67C52 100%)',
+                  color: '#FFFFFF',
+                  boxShadow: '0 4px 14px rgba(31, 77, 58, 0.3)'
+                }}
+              >
+                <Lock size={16} />
+                <span>دخول المستر لإدارة المنصة 🔐</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => { setIsMobileMenuOpen(false); onOpenCodeModal(); }}
+              className="btn btn-secondary"
+              style={{ width: '100%', justifyContent: 'center', gap: '8px', fontWeight: 800 }}
+            >
+              <Key size={16} />
+              <span>شحن كود الحصة أو الامتحان 🔑</span>
+            </button>
+
+            <a
+              href={`https://wa.me/${(teacherProfile?.whatsappNumber || '+201012345678').replace(/[^0-9]/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-success"
+              style={{ width: '100%', justifyContent: 'center', gap: '8px', fontWeight: 800 }}
+            >
+              <MessageCircle size={16} />
+              <span>تواصل واتساب مع المستر 💬</span>
+            </a>
+
+            {!currentUser || !currentUser.uid || currentUser.uid === 'teacher-admin' ? (
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); if (openAuthModal) openAuthModal('login'); }}
+                className="btn btn-sm"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: 800,
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                <span>تسجيل الدخول بحساب Google</span>
+              </button>
+            ) : null}
+          </div>
+
+          {/* Navigation Links */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 800, padding: '4px 8px' }}>
+              أقسام المنصة:
+            </span>
+            <button 
+              onClick={() => { setIsMobileMenuOpen(false); onNavigate('home'); }} 
+              className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
+            >
+              الرئيسية
+            </button>
+            <button 
+              onClick={() => { setIsMobileMenuOpen(false); onNavigate('stages'); }} 
+              className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
+            >
+              الصفوف الدراسية
+            </button>
+            <button 
+              onClick={() => { setIsMobileMenuOpen(false); onNavigate('achievers'); }} 
+              className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
+            >
+              🏆 لوحة أوائل المستر
+            </button>
+            <button 
+              onClick={() => { setIsMobileMenuOpen(false); onNavigate('comprehensive-exams'); }} 
+              className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem', fontWeight: 800 }}
+            >
+              📝 الامتحانات الشاملة
+            </button>
+            <button 
+              onClick={() => { setIsMobileMenuOpen(false); onNavigate('booklets'); }} 
+              className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ justifyContent: 'flex-start', width: '100%', fontSize: '0.92rem' }}
+            >
+              المذكرات المطبوعة
+            </button>
+          </div>
         </div>
       )}
     </header>

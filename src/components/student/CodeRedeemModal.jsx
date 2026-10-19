@@ -115,10 +115,12 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
       overflowY: 'auto'
     }}>
       <div 
-        className="card animate-fade-in"
+        className="card animate-fade-in card-modal-responsive"
         style={{
           maxWidth: '520px',
           width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           padding: '2rem',
           position: 'relative',
           borderRadius: 'var(--radius-xl)',

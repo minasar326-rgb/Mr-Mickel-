@@ -92,15 +92,17 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
       justifyContent: 'center',
       backgroundColor: 'rgba(15, 23, 42, 0.85)',
       backdropFilter: 'blur(8px)',
-      padding: '1.5rem',
+      padding: '1rem',
       direction: 'rtl'
     }}>
       <div 
-        className="card animate-fade-in"
+        className="card animate-fade-in card-modal-responsive"
         style={{
           maxWidth: '440px',
           width: '100%',
-          padding: '2.5rem 2rem',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: '2rem 1.5rem',
           position: 'relative',
           borderRadius: '24px',
           background: 'linear-gradient(135deg, #18181D 0%, #0C0C0F 100%)',

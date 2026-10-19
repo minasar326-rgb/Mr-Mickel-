@@ -189,7 +189,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
           display: grid;
           grid-template-columns: 1.2fr 0.85fr;
           gap: 3.5rem;
-          alignItems: center;
+          align-items: center;
         }
 
         @media (max-width: 992px) {
@@ -678,11 +678,8 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
 
             {/* Floating Metric 1: 50/50 Full Marks Badge */}
             <div 
-              className={`card glass ${introPhase === 'complete' ? '' : 'hero-badge-stagger-1'}`} 
+              className={`card glass hero-floating-badge-top ${introPhase === 'complete' ? '' : 'hero-badge-stagger-1'}`} 
               style={{
-                position: 'absolute',
-                top: '-15px',
-                right: '-15px',
                 padding: '0.85rem 1.25rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -690,7 +687,6 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 boxShadow: 'var(--shadow-xl)',
                 borderRadius: 'var(--radius-lg)',
                 border: '2px solid rgba(166, 124, 82, 0.35)',
-                zIndex: 30,
                 opacity: introPhase === 'intro' ? 0 : 1,
                 transition: 'opacity 0.5s ease'
               }}
@@ -719,18 +715,14 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
 
             {/* Floating Metric 2: WhatsApp Hotline */}
             <div 
-              className={`card glass ${introPhase === 'complete' ? '' : 'hero-badge-stagger-2'}`} 
+              className={`card glass hero-floating-badge-bottom ${introPhase === 'complete' ? '' : 'hero-badge-stagger-2'}`} 
               style={{
-                position: 'absolute',
-                bottom: '90px',
-                left: '-20px',
                 padding: '0.85rem 1.25rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 boxShadow: 'var(--shadow-xl)',
                 borderRadius: 'var(--radius-lg)',
-                zIndex: 30,
                 opacity: introPhase === 'intro' ? 0 : 1,
                 transition: 'opacity 0.5s ease'
               }}

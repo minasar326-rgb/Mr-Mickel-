@@ -359,19 +359,23 @@ export default function TeacherAvatar3D({
           zIndex: 40,
           background: 'rgba(15, 36, 28, 0.94)',
           color: '#FFFFFF',
-          padding: '8px 18px',
+          padding: '8px 16px',
           borderRadius: '24px',
-          fontSize: '0.85rem',
+          fontSize: '0.82rem',
           fontWeight: 800,
           border: '2px solid #A67C52',
           boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35), 0 0 15px rgba(166, 124, 82, 0.5)',
-          whiteSpace: 'nowrap',
+          maxWidth: 'min(92vw, 360px)',
+          whiteSpace: 'normal',
+          textAlign: 'center',
+          lineHeight: 1.4,
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: '8px',
           animation: 'avatarFloat3D 3s ease-in-out infinite'
         }}>
-          <Sparkles size={16} color="#A67C52" />
+          <Sparkles size={16} color="#A67C52" style={{ flexShrink: 0 }} />
           <span>{speechText}</span>
           <div style={{
             position: 'absolute',

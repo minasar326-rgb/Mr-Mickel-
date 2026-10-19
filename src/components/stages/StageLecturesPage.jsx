@@ -813,7 +813,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                     ) : (
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                         gap: '1.5rem'
                       }}>
                         {secLectures.map(lec => renderLectureCard(lec))}
@@ -879,7 +879,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               <div style={{ padding: '1.75rem' }}>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                   gap: '1.5rem'
                 }}>
                   {unassignedLectures.map(lec => renderLectureCard(lec))}

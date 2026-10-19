@@ -38,7 +38,7 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
         {/* Stages Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
           gap: '1.75rem'
         }}>
           {(Array.isArray(stages) ? stages : []).map((stage, idx) => {

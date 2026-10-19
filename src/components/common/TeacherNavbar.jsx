@@ -63,7 +63,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         gap: '1rem'
       }}>
         {/* Right Brand & Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div 
             onClick={() => onNavigate('home')}
             style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
@@ -105,45 +105,6 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               </span>
             </div>
           </div>
-
-          {/* Navigation Links (Desktop) */}
-          <nav className="desktop-nav">
-            <button 
-              onClick={() => onNavigate('home')} 
-              className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.9rem' }}
-            >
-              الرئيسية
-            </button>
-            <button 
-              onClick={() => onNavigate('stages')} 
-              className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.9rem' }}
-            >
-              الصفوف الدراسية
-            </button>
-            <button 
-              onClick={() => onNavigate('achievers')} 
-              className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.9rem' }}
-            >
-              🏆 لوحة أوائل المستر
-            </button>
-            <button 
-              onClick={() => onNavigate('comprehensive-exams')} 
-              className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.9rem', fontWeight: 800 }}
-            >
-              📝 الامتحانات الشاملة
-            </button>
-            <button 
-              onClick={() => onNavigate('booklets')} 
-              className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.9rem' }}
-            >
-              المذكرات المطبوعة
-            </button>
-          </nav>
         </div>
 
         {/* Left Action Controls */}
@@ -375,6 +336,104 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+        </div>
+      </div>
+
+      {/* Dedicated Academic Sections Navigation Ribbon (شريط أقسام المنصة الأكاديمي المستقل) */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        borderTop: '1px solid var(--border-subtle)',
+        borderBottom: '1px solid rgba(166, 124, 82, 0.22)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+      }}>
+        <div className="container-wide" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0.4rem 1rem'
+        }}>
+          <nav className="desktop-nav" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.65rem',
+            flexWrap: 'wrap',
+            marginRight: 0
+          }}>
+            <button 
+              onClick={() => onNavigate('home')} 
+              className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                fontSize: '0.92rem',
+                fontWeight: currentPage === 'home' ? 800 : 700,
+                padding: '0.42rem 1.15rem',
+                borderRadius: 'var(--radius-full)',
+                boxShadow: currentPage === 'home' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
+              }}
+            >
+              <span>الرئيسية</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('stages')} 
+              className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                fontSize: '0.92rem',
+                fontWeight: currentPage === 'stages' ? 800 : 700,
+                padding: '0.42rem 1.15rem',
+                borderRadius: 'var(--radius-full)',
+                boxShadow: currentPage === 'stages' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
+              }}
+            >
+              <span>الصفوف الدراسية</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('achievers')} 
+              className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                fontSize: '0.92rem',
+                fontWeight: currentPage === 'achievers' ? 800 : 700,
+                padding: '0.42rem 1.15rem',
+                borderRadius: 'var(--radius-full)',
+                boxShadow: currentPage === 'achievers' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
+              }}
+            >
+              <span>🏆 لوحة أوائل المستر</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('comprehensive-exams')} 
+              className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                fontSize: '0.92rem',
+                fontWeight: 800,
+                padding: '0.42rem 1.25rem',
+                borderRadius: 'var(--radius-full)',
+                border: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
+                  ? '1px solid var(--primary-400)'
+                  : '1px solid rgba(166, 124, 82, 0.4)',
+                background: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
+                  ? undefined
+                  : 'rgba(166, 124, 82, 0.08)',
+                boxShadow: (currentPage === 'comprehensive-exams' || currentPage === 'general-exam')
+                  ? '0 3px 10px rgba(31, 77, 58, 0.3)'
+                  : 'none'
+              }}
+            >
+              <span>📝 الامتحانات الشاملة</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('booklets')} 
+              className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{
+                fontSize: '0.92rem',
+                fontWeight: currentPage === 'booklets' ? 800 : 700,
+                padding: '0.42rem 1.15rem',
+                borderRadius: 'var(--radius-full)',
+                boxShadow: currentPage === 'booklets' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
+              }}
+            >
+              <span>المذكرات المطبوعة</span>
+            </button>
+          </nav>
         </div>
       </div>
 

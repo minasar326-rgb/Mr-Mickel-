@@ -1537,7 +1537,20 @@ export function TeacherProvider({ children }) {
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
 
-    if (hardDelete) {
+    // Strict Owner-Only Hard Deletion Guard
+    const isSuperOwner = (
+      currentUser?.role === 'super_admin' || 
+      currentAdminUser?.role === 'super_admin' || 
+      currentUser?.email === 'mrmichaelshehata@gmail.com' ||
+      currentUser?.uid === 'teacher-admin'
+    );
+    let effectiveHardDelete = Boolean(hardDelete);
+    if (effectiveHardDelete && !isSuperOwner) {
+      addToast('عذراً! الحذف النهائي محصور للمالك الرئيسي فقط 🛡️ تم نقل المحاضرة لسلة المهملات بأمان.', 'warning', 6000);
+      effectiveHardDelete = false;
+    }
+
+    if (effectiveHardDelete) {
       const updated = lectures.filter(l => l.id !== lectureId);
       setLectures(updated);
       await deleteLectureFromFirestore(lectureId);
@@ -3483,7 +3496,20 @@ export function TeacherProvider({ children }) {
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
 
-    if (hardDelete) {
+    // Strict Owner-Only Hard Deletion Guard
+    const isSuperOwner = (
+      currentUser?.role === 'super_admin' || 
+      currentAdminUser?.role === 'super_admin' || 
+      currentUser?.email === 'mrmichaelshehata@gmail.com' ||
+      currentUser?.uid === 'teacher-admin'
+    );
+    let effectiveHardDelete = Boolean(hardDelete);
+    if (effectiveHardDelete && !isSuperOwner) {
+      addToast('عذراً! الحذف النهائي محصور للمالك الرئيسي فقط 🛡️ تم نقل الامتحان لسلة المهملات بأمان.', 'warning', 6000);
+      effectiveHardDelete = false;
+    }
+
+    if (effectiveHardDelete) {
       setGeneralExams(prev => {
         const updated = prev.filter(e => e.id !== examId);
         try {

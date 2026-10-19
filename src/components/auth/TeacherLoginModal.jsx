@@ -64,8 +64,8 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
       if (isMatch) {
         // Reset failed counters
         clearFailedLoginAttempts();
-        // Create secure signed session token with 24h validity
-        createAdminSession({ role: 'super_admin', authMethod: 'master_pin' });
+        // Create secure signed session token with 24h validity (content uploader role)
+        createAdminSession({ role: 'teacher_editor', authMethod: 'master_pin' });
         
         switchRole('instructor');
         addToast('أهلاً بك يا مستر مايكل شحاته في لوحة التحكم والإدارة 👑', 'success');

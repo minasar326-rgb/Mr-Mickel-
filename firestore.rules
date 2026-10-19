@@ -35,6 +35,18 @@ service cloud.firestore {
       );
     }
 
+    // Platform Owner / SuperAdmin: strictly required for hard deletion and security settings
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email in [
+          'mrmichaelshehata@gmail.com',
+          'admin@themaster.com'
+        ] ||
+        request.auth.uid == 'teacher-admin' ||
+        request.auth.token.role == 'super_admin'
+      );
+    }
+
     // ===============================================================
     // Users & Students Collections
     // ===============================================================
@@ -86,17 +98,20 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow create, update: if isTeacherAdmin();
+      allow delete: if isSuperAdmin();
 
       match /lectures/{lectureId} {
         allow read: if true;
-        allow write: if isTeacherAdmin();
+        allow create, update: if isTeacherAdmin();
+        allow delete: if isSuperAdmin();
       }
     }
 
     match /lectures/{lectureId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow create, update: if isTeacherAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // ===============================================================
@@ -132,6 +147,10 @@ service cloud.firestore {
     // Public Content & Platform Configurations
     // ===============================================================
 
+    match /settings/adminAuth {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /settings/{docId} {
       allow read: if true;
       allow write: if isTeacherAdmin();
@@ -158,12 +177,14 @@ service cloud.firestore {
 
     match /sections/{sectionId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow create, update: if isTeacherAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow create, update: if isTeacherAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // ===============================================================
@@ -172,7 +193,8 @@ service cloud.firestore {
 
     match /generalExams/{examId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow create, update: if isTeacherAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /generalExamCodes/{codeId} {
@@ -190,7 +212,8 @@ service cloud.firestore {
     // ===============================================================
 
     match /adminUsers/{adminId} {
-      allow read, write: if isTeacherAdmin();
+      allow read: if isTeacherAdmin();
+      allow write: if isSuperAdmin();
     }
 
     match /auditLogs/{logId} {

@@ -218,9 +218,22 @@ export function createAdminSession(metadata = {}, durationHours = SESSION_DURATI
   const now = Date.now();
   const expiresAt = now + durationHours * 3600 * 1000;
 
+  const role = metadata.role || 'teacher_editor';
+  const isSuperOwner = (role === 'super_admin');
+
   const session = {
     token,
-    role: 'super_admin',
+    role,
+    permissions: {
+      canManageLectures: true,
+      canManageExams: true,
+      canManageSubscriptions: true,
+      canViewFinance: true,
+      canManageCodes: true,
+      canSoftDelete: true,
+      canHardDelete: isSuperOwner,
+      canChangeSecuritySettings: isSuperOwner
+    },
     createdAt: new Date(now).toISOString(),
     expiresAt,
     expiresAtFormatted: new Date(expiresAt).toISOString(),

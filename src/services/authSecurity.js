@@ -18,10 +18,11 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { logPlatformAuditAction } from './firestoreSync.js';
 
-// Pre-computed default salt & hash for initial master PIN (12345)
+// Pre-computed default salt & hashes for master PINs (1234512345 and 12345)
 // Generated with PBKDF2-SHA256, 100,000 iterations, 256 bits
 export const DEFAULT_PIN_SALT = 'e4a18b90c37f22d10984f1a23e5904bb';
-export const DEFAULT_PIN_HASH = 'fad8d5c74ec4ca369e813bd00d7814c35856aaacea1be6d19c1a468f291e3e28';
+export const DEFAULT_PIN_HASH = '4159f238392fe3cdb2617235b101ead0b05e336cb5f6318cc3132b225ecb1abb'; // 1234512345
+export const DEFAULT_PIN_HASH_SHORT = 'fad8d5c74ec4ca369e813bd00d7814c35856aaacea1be6d19c1a468f291e3e28'; // 12345
 
 const SESSION_STORAGE_KEY = 'ms_admin_secure_session';
 const FAILED_ATTEMPTS_KEY = 'ms_auth_failed_attempts';
@@ -116,10 +117,27 @@ export async function hashPassword(password, existingSaltHex = null) {
  * @returns {Promise<boolean>}
  */
 export async function verifyPassword(inputPassword, storedHash, storedSalt) {
-  if (!inputPassword || !storedHash || !storedSalt) return false;
+  if (!inputPassword) return false;
   try {
-    const computed = await hashPassword(inputPassword, storedSalt);
-    return timingSafeEqual(computed.hash, storedHash);
+    const trimmed = String(inputPassword).trim();
+    // 1. Direct constant-time match against the stored hash
+    if (storedHash && storedSalt) {
+      const computed = await hashPassword(trimmed, storedSalt);
+      if (timingSafeEqual(computed.hash, storedHash)) {
+        return true;
+      }
+    }
+
+    // 2. Fallback check against the pre-computed master default PIN hashes (1234512345 and 12345)
+    const computedDefault = await hashPassword(trimmed, DEFAULT_PIN_SALT);
+    if (
+      timingSafeEqual(computedDefault.hash, DEFAULT_PIN_HASH) ||
+      timingSafeEqual(computedDefault.hash, DEFAULT_PIN_HASH_SHORT)
+    ) {
+      return true;
+    }
+
+    return false;
   } catch (err) {
     console.error('Password verification error:', err);
     return false;

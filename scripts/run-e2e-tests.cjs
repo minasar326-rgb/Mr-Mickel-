@@ -149,8 +149,8 @@ async function runE2ETestSuite() {
     }
     recordTest('Rejection of Invalid PIN with Error Alert', Boolean(hasError));
 
-    // 2. Test Correct Password Login Without Account Creation
-    await pinInput.fill('12345');
+    // 2. Test Correct Password Login Without Account Creation (1234512345)
+    await pinInput.fill('1234512345');
     await submitBtn.click().catch(() => pinInput.press('Enter'));
     await pinInput.press('Enter');
     await page1.waitForTimeout(1000);

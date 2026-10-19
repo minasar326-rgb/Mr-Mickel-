@@ -38,12 +38,6 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const lockStatus = getLoginLockoutStatus();
-    if (lockStatus.isLocked) {
-      setErrorMsg(`⚠️ محاولات الدخول مجمدة أمنيًا مؤقتًا. يرجى الانتظار ${lockStatus.remainingSeconds} ثانية.`);
-      return;
-    }
-
     const trimmed = password.trim();
     if (!trimmed) {
       setErrorMsg('يرجى إدخال كلمة المرور.');
@@ -62,8 +56,9 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
       setIsLoading(false);
 
       if (isMatch) {
-        // Reset failed counters
+        // Reset failed counters and lockout immediately
         clearFailedLoginAttempts();
+        setLockoutRemaining(0);
         // Create secure signed session token with 24h validity (content uploader role)
         createAdminSession({ role: 'teacher_editor', authMethod: 'master_pin' });
         
@@ -76,7 +71,7 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
         const result = recordFailedLoginAttempt();
         if (result.isLocked) {
           setLockoutRemaining(result.remainingSeconds);
-          setErrorMsg(`⚠️ تم تجميد محاولات الدخول لمدة ${result.remainingSeconds} ثانية لحماية حساب المستر من التخمين المتكرر.`);
+          setErrorMsg(`⚠️ رمز الدخول غير صحيح. تم تجميد المحاولات لمدة ${result.remainingSeconds} ثانية.`);
         } else {
           setErrorMsg(`رمز الدخول غير صحيح. متبقي ${5 - (result.failedAttempts % 5)} محاولات قبل القفل الأمني.`);
         }
@@ -188,17 +183,17 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder={lockoutRemaining > 0 ? `مغلق مؤقتاً (${lockoutRemaining}s)` : "أدخل الرمز السري هنا..."}
+                placeholder={lockoutRemaining > 0 ? `محظور (${lockoutRemaining}s) - أو أدخل رمز المستر للإلغاء` : "أدخل الرمز السري هنا..."}
                 autoFocus
                 required
-                disabled={lockoutRemaining > 0 || isLoading}
+                disabled={isLoading}
                 style={{
                   width: '100%',
                   padding: '14px 44px 14px 16px',
                   borderRadius: '14px',
                   background: lockoutRemaining > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.07)',
                   border: lockoutRemaining > 0 ? '1px solid #EF4444' : '1px solid rgba(255, 255, 255, 0.2)',
-                  color: lockoutRemaining > 0 ? '#FCA5A5' : 'white',
+                  color: 'white',
                   fontSize: '1.1rem',
                   letterSpacing: showPassword ? 'normal' : '3px',
                   textAlign: 'center',
@@ -239,31 +234,29 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
 
           <button
             type="submit"
-            disabled={isLoading || lockoutRemaining > 0}
+            disabled={isLoading}
             style={{
               padding: '14px',
               borderRadius: '14px',
-              background: lockoutRemaining > 0 ? '#475569' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)',
               color: 'white',
               border: 'none',
               fontWeight: 800,
               fontSize: '1rem',
-              cursor: lockoutRemaining > 0 ? 'not-allowed' : 'pointer',
-              boxShadow: lockoutRemaining > 0 ? 'none' : '0 8px 25px rgba(245, 158, 11, 0.45)',
+              cursor: isLoading ? 'wait' : 'pointer',
+              boxShadow: '0 8px 25px rgba(245, 158, 11, 0.45)',
               transition: 'transform 0.2s, box-shadow 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px'
             }}
-            onMouseEnter={e => { if (lockoutRemaining <= 0) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             <ShieldCheck size={20} />
             <span>
-              {lockoutRemaining > 0 
-                ? `محظور أمنياً: انتظر ${lockoutRemaining} ثانية ⏳` 
-                : isLoading ? 'جاري التحقق...' : 'دخول لوحة تحكم المستر 🚀'}
+              {isLoading ? 'جاري التحقق...' : 'دخول لوحة تحكم المستر 🚀'}
             </span>
           </button>
         </form>

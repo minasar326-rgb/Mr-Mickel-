@@ -3,6 +3,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import { Lock, Eye, EyeOff, X, ShieldCheck, Sparkles, KeyRound } from 'lucide-react';
+import { 
+  verifyPassword, 
+  getStoredMasterAuth, 
+  createAdminSession, 
+  getLoginLockoutStatus, 
+  recordFailedLoginAttempt, 
+  clearFailedLoginAttempts 
+} from '../../services/authSecurity';
 
 export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
   const { switchRole } = useAuth();
@@ -13,21 +21,13 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(() => {
-    return parseInt(localStorage.getItem('ms_login_fails') || '0', 10);
-  });
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
 
   // Check lockout on mount & tick countdown
   React.useEffect(() => {
     const checkLock = () => {
-      const lockUntil = parseInt(localStorage.getItem('ms_login_locked_until') || '0', 10);
-      const now = Date.now();
-      if (lockUntil > now) {
-        setLockoutRemaining(Math.ceil((lockUntil - now) / 1000));
-      } else {
-        setLockoutRemaining(0);
-      }
+      const status = getLoginLockoutStatus();
+      setLockoutRemaining(status.remainingSeconds);
     };
     checkLock();
     const interval = setInterval(checkLock, 1000);
@@ -36,45 +36,55 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
-  // Real teacher configured password ONLY (no hardcoded backdoors)
-  const currentPassword = String(teacherProfile?.password || localStorage.getItem('ms_teacher_pin') || '12345').trim();
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (lockoutRemaining > 0) return;
+    const lockStatus = getLoginLockoutStatus();
+    if (lockStatus.isLocked) {
+      setErrorMsg(`⚠️ محاولات الدخول مجمدة أمنيًا مؤقتًا. يرجى الانتظار ${lockStatus.remainingSeconds} ثانية.`);
+      return;
+    }
+
+    const trimmed = password.trim();
+    if (!trimmed) {
+      setErrorMsg('يرجى إدخال كلمة المرور.');
+      return;
+    }
+
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      // 1. Retrieve stored PBKDF2 hash & salt
+      const masterAuth = await getStoredMasterAuth();
+      // 2. Perform constant-time cryptographic hash verification
+      const isMatch = await verifyPassword(trimmed, masterAuth.hash, masterAuth.salt);
+
       setIsLoading(false);
-      const trimmed = password.trim();
-      const isMatch = trimmed.toLowerCase() === currentPassword.toLowerCase();
 
       if (isMatch) {
-        // Reset failed counter
-        localStorage.removeItem('ms_login_fails');
-        localStorage.removeItem('ms_login_locked_until');
-        setFailedAttempts(0);
+        // Reset failed counters
+        clearFailedLoginAttempts();
+        // Create secure signed session token with 24h validity
+        createAdminSession({ role: 'super_admin', authMethod: 'master_pin' });
+        
         switchRole('instructor');
         addToast('أهلاً بك يا مستر مايكل شحاته في لوحة التحكم والإدارة 👑', 'success');
         setPassword('');
         if (onSuccess) onSuccess();
         onClose();
       } else {
-        const nextFails = failedAttempts + 1;
-        setFailedAttempts(nextFails);
-        localStorage.setItem('ms_login_fails', nextFails.toString());
-
-        if (nextFails >= 5) {
-          const lockTime = Date.now() + 60 * 1000; // 60 seconds lockout
-          localStorage.setItem('ms_login_locked_until', lockTime.toString());
-          setLockoutRemaining(60);
-          setErrorMsg('⚠️ تم تجميد محاولات الدخول لمدة 60 ثانية لحماية حساب المستر من التخمين المتكرر.');
+        const result = recordFailedLoginAttempt();
+        if (result.isLocked) {
+          setLockoutRemaining(result.remainingSeconds);
+          setErrorMsg(`⚠️ تم تجميد محاولات الدخول لمدة ${result.remainingSeconds} ثانية لحماية حساب المستر من التخمين المتكرر.`);
         } else {
-          setErrorMsg(`رمز الدخول غير صحيح. متبقي ${5 - nextFails} محاولات قبل القفل الأمني.`);
+          setErrorMsg(`رمز الدخول غير صحيح. متبقي ${5 - (result.failedAttempts % 5)} محاولات قبل القفل الأمني.`);
         }
       }
-    }, 250);
+    } catch (err) {
+      setIsLoading(false);
+      setErrorMsg('حدث خطأ أثناء التحقق الأمني. يرجى المحاولة لاحقاً.');
+    }
   };
 
   return (

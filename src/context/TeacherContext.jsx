@@ -38,6 +38,7 @@ import {
   logPlatformAuditAction,
   listenToAuditLogs
 } from '../services/firestoreSync';
+import { saveMasterPassword, verifyAdminSession } from '../services/authSecurity';
 import {
   saveMediaFilePermanently,
   getPermanentMediaUrl,
@@ -1159,6 +1160,22 @@ export function TeacherProvider({ children }) {
       }
     });
 
+    const unsubRtdbGeneralExams = listenToRtdbNode('generalExams', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data) {
+        const cloudList = typeof data === 'object' ? Object.values(data) : [];
+        if (cloudList.length > 0) setGeneralExams(cloudList);
+      }
+    });
+
+    const unsubRtdbGeneralCodes = listenToRtdbNode('generalExamCodes', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data) {
+        const cloudList = typeof data === 'object' ? Object.values(data) : [];
+        if (cloudList.length > 0) setGeneralExamCodes(cloudList);
+      }
+    });
+
     // 2. Listen to Firestore collections as secondary backup
     const unsubLectures = listenToLectures((cloudLectures) => {
       if (isCancelled || !Array.isArray(cloudLectures) || cloudLectures.length === 0) return;
@@ -1372,15 +1389,19 @@ export function TeacherProvider({ children }) {
       return { success: false, error: 'كلمة المرور فارغة' };
     }
     const cleanPass = newPassword.trim();
-    localStorage.setItem('ms_teacher_pin', cleanPass);
-    const updated = { ...teacherProfile, password: cleanPass };
+    // 1. Hash and save master password securely (PBKDF2-SHA256 with salt)
+    await saveMasterPassword(cleanPass);
+
+    // 2. Update local state and profile without leaking plaintext
+    const { password: _, ...safeProfile } = teacherProfile;
+    const updated = { ...safeProfile, hasCustomPin: true, pinUpdatedAt: new Date().toISOString() };
     setTeacherProfile(updated);
     try {
       localStorage.setItem('ms_teacher_profile', JSON.stringify(updated));
     } catch (e) {}
     await syncTeacherProfile(updated);
-    addToast(`تم تغيير كلمة مرور المستر بنجاح وحفظها 🔐`, 'success');
-    return { success: true, newPassword: cleanPass };
+    addToast(`تم تشفير وحفظ كلمة مرور المستر بنجاح بتقنية PBKDF2 سحابياً! 🔐`, 'success');
+    return { success: true };
   };
 
   const uploadNewLecture = async (lectureData) => {
@@ -1393,6 +1414,8 @@ export function TeacherProvider({ children }) {
 
     const newLec = {
       ...lectureData,
+      stageId: lectureData.stageId || 'sec-3',
+      sectionId: lectureData.sectionId || '',
       videoUrl: cleanVideoUrl,
       id: lectureData.id || `lec-${Date.now()}`,
       viewsCount: 1,

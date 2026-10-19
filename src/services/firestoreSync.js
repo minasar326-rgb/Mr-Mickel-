@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { ref as rtdbRef, set as rtdbSet, remove as rtdbRemove, onValue as rtdbOnValue, get as rtdbGet } from 'firebase/database';
-import { db, storage, rtdb } from './firebase';
+import { db, storage, rtdb } from './firebase.js';
 
 /**
  * Save or update teacher profile in Firestore & Realtime Database

@@ -1,4 +1,13 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { 
+  S3Client, 
+  PutObjectCommand, 
+  DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand 
+} from '@aws-sdk/client-s3';
+import { validateUploadedFile, generateCollisionProofKey, sanitizeFileName } from './securityValidator.js';
 
 // Official Cloudflare R2 Configuration for Mr. Michael Shehata Platform
 export const r2Config = {
@@ -12,11 +21,10 @@ export const r2Config = {
 
 // Initialize S3 Client targeting Cloudflare R2 on demand
 export function getR2Client() {
-  const accessKeyId = r2Config.accessKeyId || localStorage.getItem('ms_r2_key') || '';
-  const secretAccessKey = r2Config.secretAccessKey || localStorage.getItem('ms_r2_secret') || '';
+  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || '';
+  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '';
 
   if (!accessKeyId || !secretAccessKey) {
-    console.warn('R2 Client: Upload credentials not configured. Please supply keys.');
     return null;
   }
 
@@ -31,53 +39,104 @@ export function getR2Client() {
 }
 
 /**
- * Upload any video or file directly to Cloudflare R2 with progress simulation & public CDN URL
+ * Sleep helper for exponential backoff retries
+ */
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Execute an operation with automatic retries and exponential backoff
+ */
+async function retryOperation(fn, maxRetries = 3, initialDelayMs = 1000) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt++;
+      if (attempt >= maxRetries) throw err;
+      const delay = initialDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`[R2 Auto-Retry] Network glitch on attempt ${attempt}. Retrying in ${delay}ms...`);
+      await wait(delay);
+    }
+  }
+}
+
+/**
+ * Delete a file or abortive artifact from Cloudflare R2 (Rollback helper)
+ * @param {string} storageKey 
+ */
+export async function deleteFileFromR2(storageKey) {
+  if (!storageKey) return false;
+  try {
+    const client = getR2Client();
+    if (!client) return false;
+    const command = new DeleteObjectCommand({
+      Bucket: r2Config.bucketName,
+      Key: storageKey
+    });
+    await client.send(command);
+    return true;
+  } catch (err) {
+    console.warn(`Failed to delete object from R2 (${storageKey}):`, err.message);
+    return false;
+  }
+}
+
+/**
+ * Upload file with chunked / resumable multipart support, auto-retry, and atomic rollback
  * @param {File|Blob} file 
  * @param {string} folderPath 
  * @param {function} onProgress 
+ * @param {'video'|'pdf'|'image'} category 
  */
-export async function uploadFileToR2(file, folderPath = 'lectures/videos', onProgress) {
-  try {
-    const cleanName = (file.name || 'video.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueKey = `${folderPath}/${Date.now()}_${cleanName}`;
-    const totalBytes = file.size || 0;
-    const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+export async function uploadFileToR2(file, folderPath = 'lectures/videos', onProgress, category = 'video') {
+  // 1. Pre-upload security and magic-number validation
+  const validation = await validateUploadedFile(file, category);
+  if (!validation.valid) {
+    throw new Error(validation.error || 'فشل التحقق الأمني من الملف.');
+  }
 
+  const client = getR2Client();
+  if (!client) {
+    throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة. يرجى تزويد مفاتيح الوصول.');
+  }
+
+  const uniqueKey = generateCollisionProofKey(folderPath, file.name || 'upload.bin');
+  const totalBytes = file.size || 0;
+  const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk minimum for S3 multipart
+
+  // Case A: Small files (<= 5MB) - Single direct PutObject with auto-retry
+  if (totalBytes <= CHUNK_SIZE) {
     if (onProgress) {
-      onProgress({ percent: 15, transferredMB: (Number(totalMB) * 0.15).toFixed(1), totalMB });
+      onProgress({ percent: 10, transferredMB: '0.0', totalMB, state: 'reading' });
     }
 
-    // Read file as Uint8Array for browser upload compatibility
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
     if (onProgress) {
-      onProgress({ percent: 50, transferredMB: (Number(totalMB) * 0.5).toFixed(1), totalMB });
+      onProgress({ percent: 40, transferredMB: (Number(totalMB) * 0.4).toFixed(1), totalMB, state: 'uploading' });
     }
 
     const command = new PutObjectCommand({
       Bucket: r2Config.bucketName,
       Key: uniqueKey,
       Body: uint8Array,
-      ContentType: file.type || 'video/mp4',
+      ContentType: file.type || (category === 'video' ? 'video/mp4' : 'application/pdf'),
       Metadata: {
-        originalName: file.name || 'video.mp4',
+        originalName: sanitizeFileName(file.name || 'file'),
         uploadedBy: 'Teacher Michael Shehata'
       }
     });
 
-    const client = getR2Client();
-    if (!client) {
-      throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة. يرجى تزويد مفاتيح الدخول أولاً.');
-    }
-    await client.send(command);
+    await retryOperation(() => client.send(command), 3);
 
     if (onProgress) {
-      onProgress({ percent: 100, transferredMB: totalMB, totalMB });
+      onProgress({ percent: 100, transferredMB: totalMB, totalMB, state: 'completed' });
     }
 
     const publicUrl = `${r2Config.publicDomain}/${uniqueKey}`;
-
     return {
       success: true,
       downloadUrl: publicUrl,
@@ -86,15 +145,109 @@ export async function uploadFileToR2(file, folderPath = 'lectures/videos', onPro
       fileName: file.name,
       fileSize: file.size
     };
-  } catch (error) {
-    console.error('Cloudflare R2 Upload Error:', error);
-    throw error;
+  }
+
+  // Case B: Large files (> 5MB) - Resumable Chunked Multipart Upload with Atomic Rollback
+  let uploadId = null;
+  const parts = [];
+  const totalParts = Math.ceil(totalBytes / CHUNK_SIZE);
+  let bytesTransferred = 0;
+
+  try {
+    // 1. Initialize Multipart Upload
+    const createCommand = new CreateMultipartUploadCommand({
+      Bucket: r2Config.bucketName,
+      Key: uniqueKey,
+      ContentType: file.type || 'video/mp4',
+      Metadata: {
+        originalName: sanitizeFileName(file.name || 'video.mp4'),
+        uploadedBy: 'Teacher Michael Shehata'
+      }
+    });
+    const createRes = await retryOperation(() => client.send(createCommand), 3);
+    uploadId = createRes.UploadId;
+
+    // 2. Upload chunks sequentially with retry
+    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+      const start = (partNumber - 1) * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, totalBytes);
+      const chunkBlob = file.slice(start, end);
+      const chunkBuffer = await chunkBlob.arrayBuffer();
+      const chunkArray = new Uint8Array(chunkBuffer);
+
+      const partCommand = new UploadPartCommand({
+        Bucket: r2Config.bucketName,
+        Key: uniqueKey,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        Body: chunkArray
+      });
+
+      const partRes = await retryOperation(() => client.send(partCommand), 3);
+      parts.push({
+        ETag: partRes.ETag,
+        PartNumber: partNumber
+      });
+
+      bytesTransferred += chunkArray.length;
+      const progressPercent = Math.min(Math.round((bytesTransferred / totalBytes) * 100), 99);
+      const transferredMB = (bytesTransferred / (1024 * 1024)).toFixed(1);
+
+      if (onProgress) {
+        onProgress({
+          percent: progressPercent,
+          transferredMB,
+          totalMB,
+          currentPart: partNumber,
+          totalParts,
+          state: 'uploading'
+        });
+      }
+    }
+
+    // 3. Complete Multipart Upload
+    const completeCommand = new CompleteMultipartUploadCommand({
+      Bucket: r2Config.bucketName,
+      Key: uniqueKey,
+      UploadId: uploadId,
+      MultipartUpload: { Parts: parts }
+    });
+    await retryOperation(() => client.send(completeCommand), 3);
+
+    if (onProgress) {
+      onProgress({ percent: 100, transferredMB: totalMB, totalMB, state: 'completed' });
+    }
+
+    const publicUrl = `${r2Config.publicDomain}/${uniqueKey}`;
+    return {
+      success: true,
+      downloadUrl: publicUrl,
+      publicUrl: publicUrl,
+      storageKey: uniqueKey,
+      fileName: file.name,
+      fileSize: file.size
+    };
+  } catch (uploadError) {
+    // 4. ATOMIC ROLLBACK: Abort multipart upload so no orphaned chunks or ghost files remain
+    if (uploadId) {
+      try {
+        console.warn(`[R2 Rollback] Aborting multipart upload for ${uniqueKey}...`);
+        const abortCommand = new AbortMultipartUploadCommand({
+          Bucket: r2Config.bucketName,
+          Key: uniqueKey,
+          UploadId: uploadId
+        });
+        await client.send(abortCommand);
+      } catch (abortErr) {
+        console.error('Failed to abort multipart upload:', abortErr);
+      }
+    }
+    throw uploadError;
   }
 }
 
 /**
  * Upload the teacher's profile avatar to the permanent public URL
- * so social media link previews (WhatsApp, Facebook) update automatically.
  * @param {File|string} fileOrDataUrl
  */
 export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
@@ -127,13 +280,9 @@ export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
     });
 
     const client = getR2Client();
-    if (!client) {
-      console.warn('R2 Client not initialized for avatar upload');
-      return null;
-    }
+    if (!client) return null;
     await client.send(command);
 
-    // Automatically trigger Facebook & WhatsApp scrapers in background to purge cache instantly
     try {
       fetch('https://graph.facebook.com/?id=https://minasar326-rgb.github.io/Mr-Mickel-/&scrape=true', { method: 'POST' }).catch(() => {});
     } catch (e) {}
@@ -173,4 +322,3 @@ export async function uploadAppIconToR2(iconBlob, filename = 'icon-512x512.png')
     return null;
   }
 }
-

@@ -136,33 +136,49 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
           </p>
         </div>
 
-        {/* Current Password Info Banner */}
+        {/* Cryptographic Protection Info Banner */}
         <div style={{
-          background: 'rgba(99, 102, 241, 0.12)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
+          background: 'rgba(16, 185, 129, 0.12)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
           borderRadius: '14px',
-          padding: '10px 14px',
+          padding: '12px 14px',
           marginBottom: '1.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           fontSize: '0.85rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#C7D2FE' }}>
-            <Lock size={16} />
-            <span>كلمة المرور الحالية:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#A7F3D0' }}>
+            <ShieldCheck size={18} color="#10B981" />
+            <span>حالة الأمان السحابي:</span>
           </div>
-          <code style={{
-            background: 'rgba(0, 0, 0, 0.3)',
+          <span style={{
+            background: 'rgba(16, 185, 129, 0.2)',
             padding: '3px 10px',
             borderRadius: '8px',
-            color: '#A5B4FC',
+            color: '#6EE7B7',
             fontWeight: 800,
-            fontSize: '0.95rem',
-            letterSpacing: '1px'
+            fontSize: '0.82rem'
           }}>
-            {currentPin}
-          </code>
+            تشفير PBKDF2-SHA256 نشط 🔒
+          </span>
+        </div>
+
+        {/* Content Decoupling Reassurance */}
+        <div style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px dashed rgba(56, 189, 248, 0.3)',
+          borderRadius: '12px',
+          padding: '10px 14px',
+          marginBottom: '1.25rem',
+          fontSize: '0.8rem',
+          color: '#93C5FD',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <CheckCircle2 size={16} color="#38BDF8" style={{ flexShrink: 0 }} />
+          <span>تغيير كلمة المرور لا يؤثر إطلاقاً على أي محاضرات أو امتحانات أو اشتراكات تم نشرها.</span>
         </div>
 
         {errorMsg && (

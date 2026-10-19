@@ -20,6 +20,7 @@ import { generatePlatformIconsSuite, generateMasterIconCanvas, loadImage } from 
 import ChangePasswordModal from './ChangePasswordModal';
 import TeacherAvatar3D from '../common/TeacherAvatar3D';
 import { dispatchExternalNotification } from '../../services/pushNotificationService';
+import { validateUploadedFile } from '../../services/securityValidator';
 
 export default function TeacherAdminCenter({ onNavigate }) {
   const { 
@@ -357,6 +358,14 @@ export default function TeacherAdminCenter({ onNavigate }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Security & Magic-Numbers Validation Check
+    const validation = await validateUploadedFile(file, 'video');
+    if (!validation.valid) {
+      setIsUploading(false);
+      addToast(validation.error || 'تم رفض ملف الفيديو لأسباب أمنية', 'error', 6000);
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(5);
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
@@ -465,13 +474,20 @@ export default function TeacherAdminCenter({ onNavigate }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Security & Magic-Numbers Validation Check
+    const validation = await validateUploadedFile(file, 'pdf');
+    if (!validation.valid) {
+      addToast(validation.error || 'تم رفض ملف المذكرة لأسباب أمنية', 'error', 6000);
+      return;
+    }
+
     setPdfFile(file);
     setPdfTitle(file.name);
     setIsUploadingPdf(true);
     addToast(`جاري رفع ملف المذكرة (${file.name}) وتأمينه سحابياً... 📄⚡`, 'info');
 
     try {
-      const res = await uploadFileToR2(file, 'lectures/pdfs');
+      const res = await uploadFileToR2(file, 'lectures/pdfs', null, 'pdf');
       if (res && res.downloadUrl) {
         setPdfDownloadUrl(res.downloadUrl);
         addToast(`✅ تم رفع المذكرة (${file.name}) بنجاح وجاهزة للتنزيل الفوري!`, 'success', 4000);
@@ -488,6 +504,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Security & Magic-Numbers Validation Check
+    const validation = await validateUploadedFile(file, 'pdf');
+    if (!validation.valid) {
+      addToast(validation.error || 'تم رفض ملف المذكرة لأسباب أمنية', 'error', 6000);
+      return;
+    }
+
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
     setNewBkFile(file);
     setNewBkFileSize(`${sizeMB} MB`);
@@ -498,7 +521,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
     addToast(`جاري حفظ وتأمين ملف المذكرة (${file.name}) على السحابة التعليمية... 📄☁️`, 'info');
 
     try {
-      const res = await uploadFileToR2(file, 'booklets/pdfs');
+      const res = await uploadFileToR2(file, 'booklets/pdfs', null, 'pdf');
       if (res && res.downloadUrl) {
         setNewBkDownloadUrl(res.downloadUrl);
         setIsUploadingBk(false);

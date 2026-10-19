@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import { useTheme } from '../../context/ThemeContext';
 import { 
   BookOpen, Award, Key, Phone, MessageCircle, Sun, Moon, 
-  User, LogOut, LayoutDashboard, ChevronDown, CheckCircle2, 
+  User, LogOut, LayoutDashboard, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, 
   Send, Sparkles, Bell, ShieldCheck, Flame, Video, Settings, Trash2, Edit, Lock, Menu, X
 } from 'lucide-react';
 
@@ -18,6 +18,46 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
   const [isAnnouncementsOpen, setIsAnnouncementsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navScrollRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const scrollNav = (direction) => {
+    if (!navScrollRef.current) return;
+    const scrollAmount = 260;
+    const delta = direction === 'left' ? -scrollAmount : scrollAmount;
+    navScrollRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
+  const handleMouseDown = (e) => {
+    if (!navScrollRef.current) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - navScrollRef.current.offsetLeft;
+    scrollLeftRef.current = navScrollRef.current.scrollLeft;
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDraggingRef.current || !navScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - navScrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    navScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleWheel = (e) => {
+    if (navScrollRef.current && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      navScrollRef.current.scrollBy({
+        left: e.deltaY,
+        behavior: 'auto'
+      });
+    }
+  };
 
   const handleTeacherAccess = () => {
     if (onOpenTeacherLogin) onOpenTeacherLogin();
@@ -339,101 +379,182 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         </div>
       </div>
 
-      {/* Dedicated Academic Sections Navigation Ribbon (شريط أقسام المنصة الأكاديمي المستقل) */}
+      {/* Dedicated Academic Sections Navigation Ribbon (شريط أقسام المنصة الأكاديمي المتحرك يمين وشمال) */}
       <div style={{
         background: 'var(--bg-surface)',
         borderTop: '1px solid var(--border-subtle)',
         borderBottom: '1px solid rgba(166, 124, 82, 0.22)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+        position: 'relative'
       }}>
         <div className="container-wide" style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '0.4rem 1rem'
+          padding: '0.35rem 0.5rem',
+          position: 'relative',
+          gap: '8px'
         }}>
-          <nav className="desktop-nav" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.65rem',
-            flexWrap: 'wrap',
-            marginRight: 0
-          }}>
-            <button 
-              onClick={() => onNavigate('home')} 
-              className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: currentPage === 'home' ? 800 : 700,
-                padding: '0.42rem 1.15rem',
-                borderRadius: 'var(--radius-full)',
-                boxShadow: currentPage === 'home' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
-              }}
-            >
-              <span>الرئيسية</span>
-            </button>
-            <button 
-              onClick={() => onNavigate('stages')} 
-              className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: currentPage === 'stages' ? 800 : 700,
-                padding: '0.42rem 1.15rem',
-                borderRadius: 'var(--radius-full)',
-                boxShadow: currentPage === 'stages' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
-              }}
-            >
-              <span>الصفوف الدراسية</span>
-            </button>
-            <button 
-              onClick={() => onNavigate('achievers')} 
-              className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: currentPage === 'achievers' ? 800 : 700,
-                padding: '0.42rem 1.15rem',
-                borderRadius: 'var(--radius-full)',
-                boxShadow: currentPage === 'achievers' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
-              }}
-            >
-              <span>🏆 لوحة أوائل المستر</span>
-            </button>
-            <button 
-              onClick={() => onNavigate('comprehensive-exams')} 
-              className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: 800,
-                padding: '0.42rem 1.25rem',
-                borderRadius: 'var(--radius-full)',
-                border: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
-                  ? '1px solid var(--primary-400)'
-                  : '1px solid rgba(166, 124, 82, 0.4)',
-                background: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
-                  ? undefined
-                  : 'rgba(166, 124, 82, 0.08)',
-                boxShadow: (currentPage === 'comprehensive-exams' || currentPage === 'general-exam')
-                  ? '0 3px 10px rgba(31, 77, 58, 0.3)'
-                  : 'none'
-              }}
-            >
-              <span>📝 الامتحانات الشاملة</span>
-            </button>
-            <button 
-              onClick={() => onNavigate('booklets')} 
-              className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: currentPage === 'booklets' ? 800 : 700,
-                padding: '0.42rem 1.15rem',
-                borderRadius: 'var(--radius-full)',
-                boxShadow: currentPage === 'booklets' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none'
-              }}
-            >
-              <span>المذكرات المطبوعة</span>
-            </button>
-          </nav>
+          {/* Scroll Right Button */}
+          <button
+            onClick={() => scrollNav('right')}
+            className="btn btn-ghost btn-icon-only"
+            style={{
+              width: '32px',
+              height: '32px',
+              minWidth: '32px',
+              borderRadius: '50%',
+              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-surface)',
+              color: 'var(--primary-600)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+              zIndex: 10,
+              flexShrink: 0
+            }}
+            title="تحريك الأقسام لليمين"
+            aria-label="تحريك لليمين"
+          >
+            <ChevronRight size={18} />
+          </button>
+
+          {/* Smooth Scrollable Sections Container */}
+          <div
+            ref={navScrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeaveOrUp}
+            onMouseUp={handleMouseLeaveOrUp}
+            onMouseMove={handleMouseMove}
+            onWheel={handleWheel}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              whiteSpace: 'nowrap',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+              cursor: 'grab',
+              userSelect: 'none',
+              padding: '2px 4px',
+              maxWidth: '100%'
+            }}
+          >
+            <nav className="desktop-nav" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.65rem',
+              flexWrap: 'nowrap',
+              marginRight: 0
+            }}>
+              <button 
+                onClick={() => onNavigate('home')} 
+                className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: '0.92rem',
+                  fontWeight: currentPage === 'home' ? 800 : 700,
+                  padding: '0.42rem 1.15rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: currentPage === 'home' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span>الرئيسية</span>
+              </button>
+              <button 
+                onClick={() => onNavigate('stages')} 
+                className={`btn ${currentPage === 'stages' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: '0.92rem',
+                  fontWeight: currentPage === 'stages' ? 800 : 700,
+                  padding: '0.42rem 1.15rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: currentPage === 'stages' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span>الصفوف الدراسية</span>
+              </button>
+              <button 
+                onClick={() => onNavigate('achievers')} 
+                className={`btn ${currentPage === 'achievers' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: '0.92rem',
+                  fontWeight: currentPage === 'achievers' ? 800 : 700,
+                  padding: '0.42rem 1.15rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: currentPage === 'achievers' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span>🏆 لوحة أوائل المستر</span>
+              </button>
+              <button 
+                onClick={() => onNavigate('comprehensive-exams')} 
+                className={`btn ${currentPage === 'comprehensive-exams' || currentPage === 'general-exam' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: '0.92rem',
+                  fontWeight: 800,
+                  padding: '0.42rem 1.25rem',
+                  borderRadius: 'var(--radius-full)',
+                  border: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
+                    ? '1px solid var(--primary-400)'
+                    : '1px solid rgba(166, 124, 82, 0.4)',
+                  background: currentPage === 'comprehensive-exams' || currentPage === 'general-exam'
+                    ? undefined
+                    : 'rgba(166, 124, 82, 0.08)',
+                  boxShadow: (currentPage === 'comprehensive-exams' || currentPage === 'general-exam')
+                    ? '0 3px 10px rgba(31, 77, 58, 0.3)'
+                    : 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span>📝 الامتحانات الشاملة</span>
+              </button>
+              <button 
+                onClick={() => onNavigate('booklets')} 
+                className={`btn ${currentPage === 'booklets' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: '0.92rem',
+                  fontWeight: currentPage === 'booklets' ? 800 : 700,
+                  padding: '0.42rem 1.15rem',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: currentPage === 'booklets' ? '0 3px 10px rgba(31, 77, 58, 0.3)' : 'none',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span>المذكرات المطبوعة</span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Scroll Left Button */}
+          <button
+            onClick={() => scrollNav('left')}
+            className="btn btn-ghost btn-icon-only"
+            style={{
+              width: '32px',
+              height: '32px',
+              minWidth: '32px',
+              borderRadius: '50%',
+              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-surface)',
+              color: 'var(--primary-600)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+              zIndex: 10,
+              flexShrink: 0
+            }}
+            title="تحريك الأقسام لليسار"
+            aria-label="تحريك لليسار"
+          >
+            <ChevronLeft size={18} />
+          </button>
         </div>
       </div>
 

@@ -93,14 +93,14 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: 'clamp(1rem, 3.8vw, 1.35rem)', fontWeight: 900, letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '1.35rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
                   {teacherProfile?.name || 'مستر مايكل شحاتة'}
                 </span>
-                <span className="badge badge-gold hide-on-mobile" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem' }}>
+                <span className="badge badge-gold" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem' }}>
                   The Master 🇬🇧
                 </span>
               </div>
-              <span className="hide-on-mobile" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '-2px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '-2px' }}>
                 ابتدائي • إعدادي • ثانوي
               </span>
             </div>
@@ -147,11 +147,11 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
         </div>
 
         {/* Left Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {/* Teacher Admin Access Button (Requires PIN Every Time) */}
           {isCurrentlyInAdmin ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-primary hide-on-mobile" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="badge badge-primary" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
                 ⚙️ أنت الآن في لوحة المستر
               </span>
               <button
@@ -167,7 +167,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           ) : (
             <button
               onClick={handleTeacherAccess}
-              className="btn btn-ghost btn-sm hide-on-mobile"
+              className="btn btn-ghost btn-sm"
               style={{
                 gap: '6px',
                 fontWeight: 800,
@@ -185,7 +185,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
           {/* Redeem Code Button */}
           <button
             onClick={onOpenCodeModal}
-            className="btn btn-ghost btn-sm hide-on-mobile"
+            className="btn btn-ghost btn-sm"
             style={{
               gap: '6px',
               border: '1px solid var(--primary-300)',
@@ -204,8 +204,8 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="btn btn-ghost btn-sm"
                 style={{
-                  gap: '6px',
-                  padding: '4px 8px',
+                  gap: '8px',
+                  padding: '4px 10px',
                   borderRadius: 'var(--radius-full)',
                   border: '1.5px solid #10B981',
                   background: 'rgba(16, 185, 129, 0.08)'
@@ -215,9 +215,9 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 <img
                   src={currentUser.photoURL || currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}
                   alt={currentUser.name}
-                  style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
+                  style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }}
                 />
-                <span className="hide-on-mobile" style={{ fontWeight: 800, fontSize: '0.85rem', color: '#065F46' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#065F46' }}>
                   {currentUser.name?.split(' ')[0] || 'حسابي'}
                 </span>
                 <ChevronDown size={14} color="#059669" />
@@ -271,14 +271,14 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
               onClick={() => openAuthModal ? openAuthModal('login') : null}
               className="btn btn-sm"
               style={{
-                gap: '6px',
+                gap: '8px',
                 fontWeight: 800,
                 background: '#FFFFFF',
                 color: '#1F2937',
                 border: '1.5px solid #D1D5DB',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
                 borderRadius: 'var(--radius-full)',
-                padding: '6px 12px',
+                padding: '6px 14px',
                 display: 'flex',
                 alignItems: 'center'
               }}
@@ -290,7 +290,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
                 <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
               </svg>
-              <span className="hide-on-mobile">دخول Google</span>
+              <span>دخول Google</span>
             </button>
           )}
 
@@ -299,7 +299,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             href={`https://wa.me/${(teacherProfile?.whatsappNumber || '+201012345678').replace(/[^0-9]/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-success btn-sm hide-on-mobile"
+            className="btn btn-success btn-sm"
             style={{ gap: '6px' }}
             title="تواصل مباشر مع المستر"
           >

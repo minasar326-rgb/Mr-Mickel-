@@ -8,7 +8,26 @@
     <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512x512.png?v=20261019" />
     <link rel="shortcut icon" href="./favicon.png?v=20261019" />
     <link rel="image_src" href="https://minasar326-rgb.github.io/Mr-Mickel-/teacher-avatar.jpg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=1240, user-scalable=yes, viewport-fit=cover" id="ms-viewport-meta" />
+    <script>
+      (function() {
+        function adaptViewport() {
+          var meta = document.getElementById('ms-viewport-meta') || document.querySelector('meta[name="viewport"]');
+          if (!meta) return;
+          var targetWidth = 1240;
+          var screenW = window.screen && window.screen.width ? window.screen.width : window.innerWidth;
+          if (screenW && screenW < targetWidth && screenW > 0) {
+            var scale = Number((screenW / targetWidth).toFixed(4));
+            meta.setAttribute('content', 'width=' + targetWidth + ', initial-scale=' + scale + ', minimum-scale=' + (scale * 0.4).toFixed(4) + ', maximum-scale=3.0, user-scalable=yes, viewport-fit=cover');
+          } else {
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover');
+          }
+        }
+        adaptViewport();
+        window.addEventListener('resize', adaptViewport);
+        window.addEventListener('orientationchange', adaptViewport);
+      })();
+    </script>
     <meta name="description" content="المنصة التعليمية الرسمية لمستر مايكل شحاتة لطلاب المرحلة الابتدائية والإعدادية والثانوية، وتقدم شرحًا مبسطًا ومنظمًا، فيديوهات تعليمية، تدريبات، أسئلة، اختبارات ومتابعة للطلاب." />
     <meta name="keywords" content="منصة مستر مايكل شحاتة, مستر مايكل شحاتة, منصة مستر مايكل, مايكل شحاتة لغة إنجليزية, إنجليزي ابتدائي, إنجليزي إعدادي, إنجليزي ثانوي, The Master, Mr Michael Shehata" />
     <meta name="author" content="Mr. Michael Shehata" />

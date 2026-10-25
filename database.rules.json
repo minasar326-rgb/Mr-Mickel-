@@ -3,34 +3,39 @@
     ".read": false,
     ".write": false,
 
+    "settings": {
+      ".read": true,
+      ".write": true
+    },
+
     "teacherProfile": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "stages": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "lectures": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "booklets": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "achievers": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "announcements": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": true
     },
 
     "students": {

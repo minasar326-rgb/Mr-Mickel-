@@ -1539,10 +1539,12 @@ export function TeacherProvider({ children }) {
 
     // Strict Owner-Only Hard Deletion Guard
     const isSuperOwner = (
+      role === 'instructor' ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||
-      currentUser?.uid === 'teacher-admin'
+      currentUser?.uid === 'teacher-admin' ||
+      Boolean(verifyAdminSession()?.isValid)
     );
     let effectiveHardDelete = Boolean(hardDelete);
     if (effectiveHardDelete && !isSuperOwner) {
@@ -1553,7 +1555,10 @@ export function TeacherProvider({ children }) {
     if (effectiveHardDelete) {
       const updated = lectures.filter(l => l.id !== lectureId);
       setLectures(updated);
-      await deleteLectureFromFirestore(lectureId);
+      try {
+        localStorage.setItem('ms_lectures', JSON.stringify(updated));
+      } catch (e) {}
+      await deleteLectureFromFirestore(lectureId, targetLecture?.stageId);
       if (targetLecture?.localMediaKey) {
         await deleteMediaPermanently(targetLecture.localMediaKey);
       }
@@ -1583,6 +1588,9 @@ export function TeacherProvider({ children }) {
         return l;
       });
       setLectures(updated);
+      try {
+        localStorage.setItem('ms_lectures', JSON.stringify(updated));
+      } catch (e) {}
       const softLec = updated.find(l => l.id === lectureId);
       if (softLec) {
         await saveLectureToFirestore(softLec);
@@ -2074,8 +2082,8 @@ export function TeacherProvider({ children }) {
   const canAccessLecture = (lecture, stageId) => {
     if (!lecture) return { allowed: false, reason: 'المحاضرة غير موجودة' };
 
-    // 1. Instructor role bypasses all locks
-    if (role === 'instructor') {
+    // 1. Instructor role or valid admin session bypasses all locks
+    if (role === 'instructor' || Boolean(verifyAdminSession()?.isValid)) {
       return { allowed: true, isTeacherOverride: true, reason: 'حساب المعلم (وصول كامل)' };
     }
 
@@ -2159,9 +2167,15 @@ export function TeacherProvider({ children }) {
       }
     }
 
+    // If it's a free lecture, it is always directly open to preview without progression gating
+    if (isFree) {
+      return { allowed: true, reason: 'محاضرة مجانية متاحة للمشاهدة فوراً' };
+    }
+
     // 4. Sequential progression check within the same month/course/stage
     // Find cohort of lectures sharing the same section (or stage if no section)
     const cohort = (lectures || [])
+      .filter(l => !l.isDeleted)
       .filter(l => {
         if (lecture.sectionId) {
           return l.sectionId === lecture.sectionId;
@@ -2196,7 +2210,11 @@ export function TeacherProvider({ children }) {
 
     // Condition 2: If previous lecture had an exam, student must have passed with > 50%
     const prevExam = prevLec.exam || (examsData && examsData[prevLec.id]);
-    const prevExamRequired = prevLec.examRequired !== false && Boolean(prevExam);
+    const prevExamRequired = prevLec.examRequired !== false && 
+      Boolean(prevExam) && 
+      prevExam.status !== 'draft' && 
+      Array.isArray(prevExam.questions) && 
+      prevExam.questions.length > 0;
 
     if (prevExamRequired) {
       // 2a. Check if student submitted exam and is pending manual teacher grading
@@ -3498,10 +3516,12 @@ export function TeacherProvider({ children }) {
 
     // Strict Owner-Only Hard Deletion Guard
     const isSuperOwner = (
+      role === 'instructor' ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||
-      currentUser?.uid === 'teacher-admin'
+      currentUser?.uid === 'teacher-admin' ||
+      Boolean(verifyAdminSession()?.isValid)
     );
     let effectiveHardDelete = Boolean(hardDelete);
     if (effectiveHardDelete && !isSuperOwner) {

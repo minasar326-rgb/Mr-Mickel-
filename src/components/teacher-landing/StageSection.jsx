@@ -42,7 +42,7 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
           gap: '1.75rem'
         }}>
           {(Array.isArray(stages) ? stages : []).map((stage, idx) => {
-            const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => l && l.stageId === stage.id);
+            const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => l && !l.isDeleted && l.stageId === stage.id);
             const sub = getSubscriptionStatus ? getSubscriptionStatus(stage.id) : { isSubscribed: false };
             const isSubscribed = sub.isSubscribed;
             const isFeatured = idx === 0 || stage.id === 'sec-3';

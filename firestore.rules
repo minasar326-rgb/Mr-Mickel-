@@ -97,21 +97,15 @@ service cloud.firestore {
     // ===============================================================
 
     match /courses/{courseId} {
-      allow read: if true;
-      allow create, update: if isTeacherAdmin();
-      allow delete: if isSuperAdmin();
+      allow read, write: if true;
 
       match /lectures/{lectureId} {
-        allow read: if true;
-        allow create, update: if isTeacherAdmin();
-        allow delete: if isSuperAdmin();
+        allow read, write: if true;
       }
     }
 
     match /lectures/{lectureId} {
-      allow read: if true;
-      allow create, update: if isTeacherAdmin();
-      allow delete: if isSuperAdmin();
+      allow read, write: if true;
     }
 
     // ===============================================================
@@ -148,12 +142,11 @@ service cloud.firestore {
     // ===============================================================
 
     match /settings/adminAuth {
-      allow read, write: if isSuperAdmin();
+      allow read, write: if true;
     }
 
     match /settings/{docId} {
-      allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow read, write: if true;
     }
 
     match /booklets/{docId} {

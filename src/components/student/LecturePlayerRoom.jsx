@@ -4,11 +4,50 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import EnglishExamModal from './EnglishExamModal';
 import { downloadPdfFile } from '../../services/pdfDownloader';
+import { verifyAdminSession } from '../../services/authSecurity';
 import { 
   Play, Pause, RotateCcw, FastForward, Volume2, VolumeX, Maximize, 
   CheckCircle2, ArrowRight, ArrowLeft, Volume1, Mic, MicOff, Download, 
   FileText, Upload, HelpCircle, Award, Eye, Sparkles, BookOpen, AlertCircle, Clock, Image, X, Lock, Key, MessageCircle, Loader2
 } from 'lucide-react';
+
+export function getEmbedInfo(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+
+  // YouTube detection (youtube.com, youtu.be, embed, shorts)
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'youtube',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`,
+      id: ytMatch[1]
+    };
+  }
+
+  // Vimeo detection
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/i);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return {
+      type: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[3]}?autoplay=1&color=0d9488`,
+      id: vimeoMatch[3]
+    };
+  }
+
+  // Google Drive detection
+  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))/i);
+  if (driveMatch) {
+    const fileId = driveMatch[1] || driveMatch[2];
+    return {
+      type: 'drive',
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      id: fileId
+    };
+  }
+
+  return null;
+}
 
 export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeModal }) {
   const { 
@@ -29,12 +68,18 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const { currentUser, role, openAuthModal } = useAuth();
   const { addToast } = useToast();
 
-  const lecture = lectures.find(l => l.id === lectureId) || lectures[0];
+  const lecture = (lectures && lectures.length > 0)
+    ? (lectures.find(l => l.id === lectureId) || lectures[0])
+    : null;
   const currentStage = (stages || []).find(s => s.id === lecture?.stageId);
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  const accessCheck = canAccessLecture ? canAccessLecture(lecture, lecture?.stageId) : { allowed: true };
+  const isTeacherOrAdmin = role === 'instructor' || role === 'super_admin' || verifyAdminSession()?.isValid;
+  const accessCheck = isTeacherOrAdmin 
+    ? { allowed: true } 
+    : (canAccessLecture && lecture ? canAccessLecture(lecture, lecture?.stageId) : { allowed: true });
   const isAllowedToWatch = accessCheck.allowed;
+  const stageSub = (getSubscriptionStatus && lecture) ? getSubscriptionStatus(lecture.stageId) : {};
 
   // Video State
   const videoRef = useRef(null);
@@ -43,6 +88,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
+  const [videoHasError, setVideoHasError] = useState(false);
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState(
     lecture?.videoUrl && !lecture.videoUrl.startsWith('blob:') ? lecture.videoUrl : ''
   );
@@ -93,7 +139,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const hwFileInputRef = useRef(null);
   const [hwPhotos, setHwPhotos] = useState([]);
   const [hwNotes, setHwNotes] = useState('');
-  const [isHwSubmitted, setIsHwSubmitted] = useState(!!homeworkSubmissions[lecture.id]);
+  const [isHwSubmitted, setIsHwSubmitted] = useState(!!(lecture && homeworkSubmissions?.[lecture.id]));
 
   // Anti-Piracy Watermark Coordinates Animation
   const [watermarkPos, setWatermarkPos] = useState({ top: '15%', left: '20%' });
@@ -227,13 +273,38 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
 
   const handleHwSubmit = (e) => {
     e.preventDefault();
+    if (!lecture) return;
     submitHomework(lecture.id, hwPhotos[0] || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80', hwNotes);
     setIsHwSubmitted(true);
   };
 
-  const studentWatermarkText = `الطالب: ${currentUser?.name || 'طالب الثانوية العامة'} | هاتف: ${currentUser?.phone || '01012345678'} | كود: MS-SEC3-2026 | منصة ${teacherProfile?.name || 'مستر مايكل شحاته'}`;
+  const studentWatermarkText = isTeacherOrAdmin
+    ? `المعلم: ${teacherProfile?.name || 'مستر مايكل شحاته'} | وضع معاينة المحاضرة 👑`
+    : `الطالب: ${currentUser?.name || 'طالب الثانوية العامة'} | هاتف: ${currentUser?.phone || '01012345678'} | كود: MS-SEC3-2026 | منصة ${teacherProfile?.name || 'مستر مايكل شحاته'}`;
 
-  const examResult = examResults[lecture.id];
+  const examResult = lecture ? examResults[lecture.id] : null;
+  const embedInfo = getEmbedInfo(resolvedVideoUrl);
+
+  if (!lecture) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', color: 'var(--text-main)', padding: '2rem' }}>
+        <div className="card text-center" style={{ maxWidth: '480px', padding: '2.5rem', borderRadius: 'var(--radius-xl)' }}>
+          <Loader2 size={40} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto 1.5rem' }} />
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.75rem' }}>جاري تحميل بيانات المحاضرة...</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+            إذا لم تظهر المحاضرة بعد ثوانٍ، قد تكون المحاضرة غير متوفرة أو تم حذفها.
+          </p>
+          <button
+            onClick={() => onNavigate('stage-lectures')}
+            className="btn btn-secondary"
+            style={{ width: '100%' }}
+          >
+            العودة لقائمة المحاضرات
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-main)' }}>
@@ -271,6 +342,12 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isTeacherOrAdmin && (
+            <span className="badge badge-success" style={{ gap: '4px', fontSize: '0.75rem', padding: '4px 8px' }}>
+              <Sparkles size={13} />
+              معاينة كمعلم 👑
+            </span>
+          )}
           <button
             onClick={() => setIsExamModalOpen(true)}
             className="btn btn-primary btn-sm"
@@ -543,19 +620,53 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {resolvedVideoUrl ? (
-            <video
-              ref={videoRef}
-              src={resolvedVideoUrl}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onClick={togglePlay}
-              controlsList="nodownload nofullscreen noremoteplayback"
-              disablePictureInPicture
-              disableRemotePlayback
-              onContextMenu={e => e.preventDefault()}
+          {embedInfo ? (
+            <iframe
+              src={embedInfo.embedUrl}
+              title={lecture.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                position: 'relative',
+                zIndex: 1
+              }}
             />
+          ) : resolvedVideoUrl ? (
+            videoHasError ? (
+              <div style={{ textAlign: 'center', color: '#EF4444', padding: '2rem', zIndex: 2 }}>
+                <AlertCircle size={40} style={{ margin: '0 auto 1rem', opacity: 0.9 }} />
+                <h4 style={{ margin: '0 0 6px', color: '#F87171', fontWeight: 800 }}>تعذر تشغيل الفيديو</h4>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#CBD5E1' }}>
+                  يرجى التأكد من اتصال الإنترنت أو صحة صيغة الملف المرفوع.
+                </p>
+                <button
+                  onClick={() => {
+                    setVideoHasError(false);
+                    if (videoRef.current) videoRef.current.load();
+                  }}
+                  className="btn btn-sm btn-secondary"
+                >
+                  إعادة المحاولة 🔄
+                </button>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                src={resolvedVideoUrl}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onClick={togglePlay}
+                onError={() => setVideoHasError(true)}
+                controlsList="nodownload nofullscreen noremoteplayback"
+                disablePictureInPicture
+                disableRemotePlayback
+                onContextMenu={e => e.preventDefault()}
+              />
+            )
           ) : (
             <div style={{ textAlign: 'center', color: '#94A3B8', padding: '2rem' }}>
               <div style={{
@@ -619,8 +730,8 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
             {currentUser?.email || currentUser?.uid?.slice(0, 10) || 'THE-MASTER-PROTECTED'}
           </div>
 
-          {/* Big Play Button Overlay */}
-          {!isPlaying && (
+          {/* Big Play Button Overlay (only for native video when paused) */}
+          {!embedInfo && resolvedVideoUrl && !isPlaying && !videoHasError && (
             <button
               onClick={togglePlay}
               style={{
@@ -646,7 +757,8 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
             </button>
           )}
 
-          {/* Video Controls Bar */}
+          {/* Video Controls Bar (only for native video) */}
+          {!embedInfo && resolvedVideoUrl && !videoHasError && (
           <div style={{
             position: 'absolute',
             bottom: 0,
@@ -718,6 +830,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               </div>
             </div>
           </div>
+          )}
         </div>
         )}
 

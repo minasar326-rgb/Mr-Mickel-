@@ -7,8 +7,6 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
   const { teacherProfile, changeTeacherPassword } = useTeacher();
   const { addToast } = useToast();
 
-  const currentPin = teacherProfile?.password || localStorage.getItem('ms_teacher_pin') || '12345';
-
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

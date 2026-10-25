@@ -37,7 +37,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   const canonStageId = normalizeStageId(stageId);
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
   const stage = currentStages.find(s => s.id === stageId || s.id === canonStageId || normalizeStageId(s.id) === canonStageId) || currentStages[0] || { id: stageId, name: 'المرحلة الدراسية', badge: 'دفعة 2026', description: 'منهج تدريبي متكامل لشرح المنهج وحل التدريبات.' };
-  const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => l.stageId === stage.id || normalizeStageId(l.stageId) === canonStageId);
+  const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => !l.isDeleted && (l.stageId === stage.id || normalizeStageId(l.stageId) === canonStageId));
 
   // Dynamic sections (Months & Courses) belonging to this stage
   const stageSections = (Array.isArray(sections) ? sections : [])

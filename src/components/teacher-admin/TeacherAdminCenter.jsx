@@ -2756,10 +2756,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   className={`btn btn-sm ${lectureStageFilter === 'all' ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ borderRadius: 'var(--radius-full)', fontWeight: 800 }}
                 >
-                  🌟 جميع المراحل ({lectures.length})
+                  🌟 جميع المراحل ({lectures.filter(l => !l.isDeleted).length})
                 </button>
                 {stages.map(s => {
-                  const count = (Array.isArray(lectures) ? lectures : []).filter(l => l.stageId === s.id).length;
+                  const count = (Array.isArray(lectures) ? lectures : []).filter(l => !l.isDeleted && l.stageId === s.id).length;
                   return (
                     <button
                       key={s.id}
@@ -2776,7 +2776,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {lectures
-                  .filter(l => lectureStageFilter === 'all' ? true : l.stageId === lectureStageFilter)
+                  .filter(l => !l.isDeleted && (lectureStageFilter === 'all' ? true : l.stageId === lectureStageFilter))
                   .map(lec => (
                   <div
                     key={lec.id}
@@ -2853,8 +2853,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm(`هل أنت متأكد من رغبتك في حذف محاضرة "${lec.title}" نهائياً؟`)) {
-                            deleteLecture(lec.id);
+                          if (window.confirm(`هل أنت متأكد من رغبتك في حذف محاضرة "${lec.title}" نهائياً من قاعدة البيانات والمنصة؟`)) {
+                            deleteLecture(lec.id, true);
                           }
                         }}
                         className="btn btn-ghost btn-sm"
@@ -3047,7 +3047,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   {sections
                     .filter(sec => selectedSectionStageFilter === 'all' || sec.stageId === selectedSectionStageFilter)
                     .map(sec => {
-                      const secLecs = lectures.filter(l => l.sectionId === sec.id);
+                      const secLecs = lectures.filter(l => !l.isDeleted && l.sectionId === sec.id);
                       return (
                         <div key={sec.id} style={{ 
                           display: 'flex', 
@@ -5063,8 +5063,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       كلمة مرور دخول المستر للوحة التحكم (Teacher Admin PIN) 🔐
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                      كلمة المرور الحالية المعتمدة: <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 10px', borderRadius: '6px', fontSize: '0.92rem' }}>{teacherProfile?.password || localStorage.getItem('ms_teacher_pin') || '12345'}</strong>
-                      <span style={{ marginRight: '8px', color: 'var(--text-muted)' }}>(الافتراضية: 12345)</span>
+                      حالة الحماية: {teacherProfile?.hasCustomPin || (typeof localStorage !== 'undefined' && localStorage.getItem('ms_auth_hash')) ? (
+                        <strong style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 10px', borderRadius: '6px', fontSize: '0.92rem' }}>
+                          كلمة مرور مخصصة ونشطة (مشفرة بـ PBKDF2 سحابياً) 🔐
+                        </strong>
+                      ) : (
+                        <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 10px', borderRadius: '6px', fontSize: '0.92rem' }}>
+                          كلمة المرور الافتراضية الأولية (1234512345)
+                        </strong>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -5671,8 +5678,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 <div>
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 3px' }}>أمان الحساب وكلمة مرور المستر 🔐</h4>
                   <span style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                    كلمة المرور الحالية المعتمدة: <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 8px', borderRadius: '6px' }}>{teacherProfile?.password || localStorage.getItem('ms_teacher_pin') || '12345'}</strong>
-                    <span style={{ marginRight: '8px', color: 'var(--text-muted)' }}>(الافتراضية: 12345)</span>
+                    حالة الحماية: {teacherProfile?.hasCustomPin || (typeof localStorage !== 'undefined' && localStorage.getItem('ms_auth_hash')) ? (
+                      <strong style={{ color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+                        كلمة مرور مخصصة ونشطة (PBKDF2) 🔐
+                      </strong>
+                    ) : (
+                      <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 8px', borderRadius: '6px' }}>
+                        كلمة المرور الافتراضية الأولية (1234512345)
+                      </strong>
+                    )}
                   </span>
                 </div>
               </div>

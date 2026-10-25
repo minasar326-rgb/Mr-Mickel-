@@ -15,7 +15,8 @@
  */
 
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase.js';
+import { ref as rtdbRef, get as rtdbGet, set as rtdbSet } from 'firebase/database';
+import { db, rtdb } from './firebase.js';
 import { logPlatformAuditAction } from './firestoreSync.js';
 
 // Pre-computed default salt & hashes for master PINs (1234512345 and 12345)
@@ -126,9 +127,12 @@ export async function verifyPassword(inputPassword, storedHash, storedSalt) {
       if (timingSafeEqual(computed.hash, storedHash)) {
         return true;
       }
+      // CRITICAL FIX: When a stored hash exists, any non-matching password
+      // MUST be strictly rejected! NEVER fall back to old default passwords.
+      return false;
     }
 
-    // 2. Fallback check against the pre-computed master default PIN hashes (1234512345 and 12345)
+    // 2. Only if no stored hash exists at all (initial unconfigured platform):
     const computedDefault = await hashPassword(trimmed, DEFAULT_PIN_SALT);
     if (
       timingSafeEqual(computedDefault.hash, DEFAULT_PIN_HASH) ||
@@ -145,41 +149,84 @@ export async function verifyPassword(inputPassword, storedHash, storedSalt) {
 }
 
 /**
- * Retrieve master security credentials from Firestore settings/adminAuth
- * Falls back to default secure salt & hash if document does not exist yet.
+ * Retrieve master security credentials from Firestore & RTDB settings/adminAuth
+ * Falls back to local storage, and then default secure salt & hash if not configured.
  */
 export async function getStoredMasterAuth() {
+  // 1. Try Firestore settings/adminAuth
   try {
     if (db) {
       const authDoc = await getDoc(doc(db, 'settings', 'adminAuth'));
       if (authDoc.exists()) {
         const data = authDoc.data();
         if (data.passwordHash && data.passwordSalt) {
+          // Cache locally for offline resilience
+          if (typeof localStorage !== 'undefined') {
+            try {
+              localStorage.setItem('ms_auth_hash', data.passwordHash);
+              localStorage.setItem('ms_auth_salt', data.passwordSalt);
+            } catch (_) {}
+          }
           return {
             hash: data.passwordHash,
             salt: data.passwordSalt,
-            updatedAt: data.updatedAt || null
+            updatedAt: data.updatedAt || null,
+            isDefault: false
           };
         }
       }
     }
   } catch (err) {
-    console.warn('Could not read adminAuth from cloud:', err.message);
+    console.warn('Could not read adminAuth from Firestore:', err.message);
   }
 
-  // Fallback to locally cached or default credentials
+  // 2. Try Realtime Database settings/adminAuth
+  try {
+    if (rtdb) {
+      const snap = await rtdbGet(rtdbRef(rtdb, 'settings/adminAuth'));
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data && data.passwordHash && data.passwordSalt) {
+          if (typeof localStorage !== 'undefined') {
+            try {
+              localStorage.setItem('ms_auth_hash', data.passwordHash);
+              localStorage.setItem('ms_auth_salt', data.passwordSalt);
+            } catch (_) {}
+          }
+          return {
+            hash: data.passwordHash,
+            salt: data.passwordSalt,
+            updatedAt: data.updatedAt || null,
+            isDefault: false
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Could not read adminAuth from RTDB:', err.message);
+  }
+
+  // 3. Fallback to locally cached credentials
   const localHash = typeof localStorage !== 'undefined' ? localStorage.getItem('ms_auth_hash') : null;
   const localSalt = typeof localStorage !== 'undefined' ? localStorage.getItem('ms_auth_salt') : null;
 
+  if (localHash && localSalt) {
+    return {
+      hash: localHash,
+      salt: localSalt,
+      isDefault: false
+    };
+  }
+
   return {
-    hash: localHash || DEFAULT_PIN_HASH,
-    salt: localSalt || DEFAULT_PIN_SALT,
-    isDefault: !localHash
+    hash: DEFAULT_PIN_HASH,
+    salt: DEFAULT_PIN_SALT,
+    isDefault: true
   };
 }
 
 /**
- * Save new master password hash and salt securely to Firestore & local cache
+ * Save new master password hash and salt securely to Firestore, RTDB & local cache.
  * Plaintext password is NEVER saved or transmitted.
  * @param {string} newPassword 
  */
@@ -189,21 +236,37 @@ export async function saveMasterPassword(newPassword) {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('ms_auth_hash', hash);
     localStorage.setItem('ms_auth_salt', salt);
-    // Remove obsolete plaintext PIN if present
+    // Remove all obsolete plaintext PIN keys to prevent stale overrides
     localStorage.removeItem('ms_teacher_pin');
+    localStorage.removeItem('teacher_pin');
+    localStorage.removeItem('ms_pin');
+    localStorage.removeItem('madarek_teacher_pin');
   }
+
+  const payload = {
+    passwordHash: hash,
+    passwordSalt: salt,
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'Teacher Michael Shehata'
+  };
 
   try {
     if (db) {
       await setDoc(doc(db, 'settings', 'adminAuth'), {
-        passwordHash: hash,
-        passwordSalt: salt,
-        updatedAt: serverTimestamp(),
-        updatedBy: 'Teacher Michael Shehata'
+        ...payload,
+        updatedAt: serverTimestamp()
       }, { merge: true });
     }
   } catch (err) {
     console.warn('Failed to sync master auth to Firestore:', err.message);
+  }
+
+  try {
+    if (rtdb) {
+      await rtdbSet(rtdbRef(rtdb, 'settings/adminAuth'), payload);
+    }
+  } catch (err) {
+    console.warn('Failed to sync master auth to RTDB:', err.message);
   }
 
   await logPlatformAuditAction({

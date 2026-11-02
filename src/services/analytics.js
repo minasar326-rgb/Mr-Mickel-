@@ -72,6 +72,13 @@ export function trackLogin(method = 'google') {
   });
 }
 
+export function trackAuthError(errorCode = 'unknown', browserType = 'unknown') {
+  sendEvent('auth_error', {
+    error_code: String(errorCode),
+    browser_type: browserType
+  });
+}
+
 /**
  * 3. Track Search Queries
  */

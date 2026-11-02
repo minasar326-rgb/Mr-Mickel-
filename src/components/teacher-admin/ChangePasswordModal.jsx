@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import { Lock, KeyRound, Eye, EyeOff, X, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { getStoredMasterAuth, verifyPassword } from '../../services/authSecurity';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
   const { teacherProfile, changeTeacherPassword } = useTeacher();
@@ -9,6 +10,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -24,12 +26,17 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       setErrorMsg('يرجى كتابة كلمة المرور الجديدة.');
       return;
     }
-    if (trimmed.length < 3) {
-      setErrorMsg('كلمة المرور يجب أن تتكون من 3 أحرف أو أرقام على الأقل.');
+    if (trimmed.length < 12) {
+      setErrorMsg('كلمة المرور يجب أن تتكون من 12 حرفاً على الأقل.');
       return;
     }
     if (trimmed !== confirmPassword.trim()) {
       setErrorMsg('كلمتا المرور غير متطابقتين. يرجى التأكد من كتابتهما بنفس الشكل.');
+      return;
+    }
+    const currentAuth = await getStoredMasterAuth();
+    if (!currentAuth.hash || !currentAuth.salt || !(await verifyPassword(oldPassword.trim(), currentAuth.hash, currentAuth.salt))) {
+      setErrorMsg('كلمة المرور القديمة غير صحيحة.');
       return;
     }
 
@@ -46,15 +53,6 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       setIsLoading(false);
       setErrorMsg('حدث خطأ أثناء حفظ كلمة المرور. يرجى المحاولة مرة أخرى.');
     }
-  };
-
-  const handleResetToDefault = async () => {
-    setIsLoading(true);
-    await changeTeacherPassword('12345');
-    setIsLoading(false);
-    setNewPassword('');
-    setConfirmPassword('');
-    onClose();
   };
 
   return (
@@ -200,6 +198,12 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
         )}
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', color: '#E2E8F0' }}>
+              كلمة المرور القديمة:
+            </label>
+            <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} placeholder="أدخل كلمة المرور الحالية..." required style={{ width: '100%', padding: '14px 16px', borderRadius: '14px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', boxSizing: 'border-box' }} />
+          </div>
           {/* New Password */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', color: '#E2E8F0' }}>
@@ -318,28 +322,6 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
             >
               <CheckCircle2 size={18} />
               <span>{isLoading ? 'جاري الحفظ...' : 'حفظ كلمة المرور الجديدة 🔐'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetToDefault}
-              title="إعادة تعيين إلى كلمة المرور الافتراضية (12345)"
-              style={{
-                padding: '14px 18px',
-                borderRadius: '14px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#CBD5E1',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <RefreshCw size={16} />
-              <span>استعادة 12345</span>
             </button>
           </div>
         </form>

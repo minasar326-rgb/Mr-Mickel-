@@ -5069,7 +5069,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                         </strong>
                       ) : (
                         <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 10px', borderRadius: '6px', fontSize: '0.92rem' }}>
-                          كلمة المرور الافتراضية الأولية (1234512345)
+                          كلمة مرور المستر قوية ولا توجد كلمة افتراضية
                         </strong>
                       )}
                     </p>
@@ -5684,7 +5684,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </strong>
                     ) : (
                       <strong style={{ color: 'var(--primary-600)', background: 'var(--bg-subtle)', padding: '2px 8px', borderRadius: '6px' }}>
-                        كلمة المرور الافتراضية الأولية (1234512345)
+                        كلمة مرور المستر قوية ولا توجد كلمة افتراضية
                       </strong>
                     )}
                   </span>
@@ -8781,4 +8781,3 @@ export default function TeacherAdminCenter({ onNavigate }) {
     </div>
   );
 }
-

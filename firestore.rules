@@ -142,11 +142,13 @@ service cloud.firestore {
     // ===============================================================
 
     match /settings/adminAuth {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isTeacherAdmin();
     }
 
     match /settings/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if docId != 'adminAuth' || isTeacherAdmin();
     }
 
     match /booklets/{docId} {
@@ -226,4 +228,3 @@ service cloud.firestore {
     }
   }
 }
-

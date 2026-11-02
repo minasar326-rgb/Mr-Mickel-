@@ -4,11 +4,25 @@ import { useToast } from '../../context/ToastContext';
 import { X, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthModalOpen, closeAuthModal, loginWithGoogle, authLoading } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, authLoading, authError } = useAuth();
   const { addToast } = useToast();
   const [errorMsg, setErrorMsg] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState('login');
 
   if (!isAuthModalOpen) return null;
+
+  const userAgent = navigator.userAgent || '';
+  const inAppBrowser = /FBAN|FBAV|Instagram|TikTok|WhatsApp|Messenger/i.test(userAgent);
+  const copySiteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      addToast('تم نسخ رابط المنصة. افتحه في Chrome.', 'success');
+    } catch (_) {
+      addToast('انسخ رابط الصفحة من شريط عنوان المتصفح.', 'info');
+    }
+  };
 
   const handleGoogleSignIn = async (forceRedirect = false) => {
     setErrorMsg('');
@@ -22,6 +36,19 @@ export default function AuthModal() {
       closeAuthModal();
     } else if (res?.error) {
       setErrorMsg(res.error);
+    }
+  };
+
+  const handleEmailAuth = async (event) => {
+    event.preventDefault();
+    setErrorMsg('');
+    const result = authMode === 'register'
+      ? await registerWithEmail(email, password)
+      : await loginWithEmail(email, password);
+    if (result.success) {
+      addToast(authMode === 'register' ? 'تم إنشاء الحساب بنجاح' : 'تم تسجيل الدخول بنجاح', 'success');
+    } else {
+      setErrorMsg(result.error);
     }
   };
 
@@ -99,6 +126,19 @@ export default function AuthModal() {
           سجل دخولك بنقرة واحدة للوصول إلى اشتراكاتك ومحاضراتك والاحتفاظ بها دائماً في حسابك.
         </p>
 
+        {inAppBrowser && (
+          <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem', textAlign: 'center' }}>
+            <strong>افتح الرابط في Chrome</strong>
+            <p style={{ fontSize: '0.82rem', margin: '0.5rem 0' }}>لا يسمح Google بتسجيل الدخول داخل متصفح التطبيق الداخلي.</p>
+            <button type="button" className="btn" onClick={copySiteLink} style={{ width: '100%', marginBottom: '0.5rem' }}>نسخ الرابط</button>
+            {/Android/i.test(userAgent) && (
+              <a className="btn btn-secondary" style={{ width: '100%', display: 'block', textDecoration: 'none' }} href={`intent://${window.location.host}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;end`}>
+                فتح في Chrome
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Security / No-Password Notice */}
         <div style={{
           background: 'var(--bg-subtle)',
@@ -127,8 +167,27 @@ export default function AuthModal() {
           </div>
         </div>
 
+        {!inAppBrowser && (
+          <form onSubmit={handleEmailAuth} style={{ display: 'grid', gap: '8px', marginBottom: '1rem', textAlign: 'right' }}>
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+              <button type="button" onClick={() => setAuthMode('login')} className={authMode === 'login' ? 'btn' : 'btn btn-secondary'} style={{ padding: '6px 10px' }}>دخول بالإيميل</button>
+              <button type="button" onClick={() => setAuthMode('register')} className={authMode === 'register' ? 'btn' : 'btn btn-secondary'} style={{ padding: '6px 10px' }}>إنشاء حساب</button>
+            </div>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني" autoComplete="email" style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }} />
+            <input type="password" required minLength={authMode === 'register' ? 6 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور" autoComplete={authMode === 'register' ? 'new-password' : 'current-password'} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }} />
+            <button type="submit" className="btn" disabled={authLoading}>{authMode === 'register' ? 'إنشاء حساب' : 'تسجيل الدخول'}</button>
+            {authMode === 'login' && (
+              <button type="button" onClick={async () => {
+                if (!email) { setErrorMsg('اكتب البريد الإلكتروني أولاً.'); return; }
+                const result = await resetPassword(email);
+                setErrorMsg(result.success ? 'تم إرسال رابط إعادة تعيين كلمة المرور.' : result.error);
+              }} style={{ border: 0, background: 'transparent', color: 'var(--primary-600)', cursor: 'pointer' }}>نسيت كلمة المرور؟</button>
+            )}
+          </form>
+        )}
+
         {/* Error message if any */}
-        {errorMsg && (
+        {(errorMsg || authError) && (
           <div style={{
             background: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -143,7 +202,7 @@ export default function AuthModal() {
             textAlign: 'right'
           }}>
             <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{errorMsg}</span>
+            <span>{errorMsg || authError}</span>
           </div>
         )}
 
@@ -180,7 +239,7 @@ export default function AuthModal() {
           <span>{authLoading ? 'جاري الاتصال بـ Google...' : 'تسجيل الدخول باستخدام Google'}</span>
         </button>
 
-        {errorMsg && (
+        {(errorMsg || authError) && (
           <button
             onClick={() => handleGoogleSignIn(true)}
             disabled={authLoading}

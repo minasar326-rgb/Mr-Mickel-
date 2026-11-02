@@ -412,7 +412,7 @@ export function TeacherProvider({ children }) {
 
   // 1. Teacher Profile
   const [teacherProfile, setTeacherProfile] = useState(() => {
-    const savedPin = localStorage.getItem('ms_teacher_pin') || '12345';
+    const savedPin = '';
     try {
       const saved = localStorage.getItem('ms_teacher_profile');
       if (saved) {
@@ -1389,6 +1389,10 @@ export function TeacherProvider({ children }) {
       return { success: false, error: 'كلمة المرور فارغة' };
     }
     const cleanPass = newPassword.trim();
+    if (cleanPass.length < 12) {
+      addToast('كلمة مرور المستر يجب أن تكون 12 حرفاً على الأقل', 'error');
+      return { success: false, error: 'PASSWORD_TOO_SHORT' };
+    }
     // 1. Hash and save master password securely (PBKDF2-SHA256 with salt)
     await saveMasterPassword(cleanPass);
 

@@ -19,11 +19,7 @@ import { ref as rtdbRef, get as rtdbGet, set as rtdbSet } from 'firebase/databas
 import { db, rtdb } from './firebase.js';
 import { logPlatformAuditAction } from './firestoreSync.js';
 
-// Pre-computed default salt & hashes for master PINs (1234512345 and 12345)
 // Generated with PBKDF2-SHA256, 100,000 iterations, 256 bits
-export const DEFAULT_PIN_SALT = 'e4a18b90c37f22d10984f1a23e5904bb';
-export const DEFAULT_PIN_HASH = '4159f238392fe3cdb2617235b101ead0b05e336cb5f6318cc3132b225ecb1abb'; // 1234512345
-export const DEFAULT_PIN_HASH_SHORT = 'fad8d5c74ec4ca369e813bd00d7814c35856aaacea1be6d19c1a468f291e3e28'; // 12345
 
 const SESSION_STORAGE_KEY = 'ms_admin_secure_session';
 const FAILED_ATTEMPTS_KEY = 'ms_auth_failed_attempts';
@@ -132,15 +128,6 @@ export async function verifyPassword(inputPassword, storedHash, storedSalt) {
       return false;
     }
 
-    // 2. Only if no stored hash exists at all (initial unconfigured platform):
-    const computedDefault = await hashPassword(trimmed, DEFAULT_PIN_SALT);
-    if (
-      timingSafeEqual(computedDefault.hash, DEFAULT_PIN_HASH) ||
-      timingSafeEqual(computedDefault.hash, DEFAULT_PIN_HASH_SHORT)
-    ) {
-      return true;
-    }
-
     return false;
   } catch (err) {
     console.error('Password verification error:', err);
@@ -218,11 +205,7 @@ export async function getStoredMasterAuth() {
     };
   }
 
-  return {
-    hash: DEFAULT_PIN_HASH,
-    salt: DEFAULT_PIN_SALT,
-    isDefault: true
-  };
+  return { hash: null, salt: null, isDefault: true, needsSetup: true };
 }
 
 /**
@@ -231,6 +214,9 @@ export async function getStoredMasterAuth() {
  * @param {string} newPassword 
  */
 export async function saveMasterPassword(newPassword) {
+  if (typeof newPassword !== 'string' || newPassword.trim().length < 12) {
+    throw new Error('يجب أن تكون كلمة مرور المستر 12 حرفاً على الأقل');
+  }
   const { hash, salt } = await hashPassword(newPassword);
 
   if (typeof localStorage !== 'undefined') {
@@ -317,6 +303,7 @@ export function createAdminSession(metadata = {}, durationHours = SESSION_DURATI
     },
     createdAt: new Date(now).toISOString(),
     expiresAt,
+    lastActivityAt: now,
     expiresAtFormatted: new Date(expiresAt).toISOString(),
     metadata: {
       ...metadata,
@@ -387,8 +374,15 @@ export function verifyAdminSession() {
       revokeAdminSession();
       return { valid: false, session: null, reason: 'Session expired' };
     }
-
-    return { valid: true, session };
+    const lastActivityAt = Number(session.lastActivityAt) || Date.parse(session.createdAt || '') || now;
+    if (now - lastActivityAt > 30 * 60 * 1000) {
+      revokeAdminSession();
+      return { valid: false, isValid: false, session: null, reason: 'Idle timeout' };
+    }
+    session.lastActivityAt = now;
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    return { valid: true, isValid: true, session };
   } catch (err) {
     revokeAdminSession();
     return { valid: false, session: null, reason: 'Failed to parse session' };

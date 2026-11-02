@@ -1,5 +1,5 @@
 // Service Worker for Mr. Michael Shehata LMS (The Master)
-const CACHE_NAME = 'ms-lms-v2.1.0-icons';
+const CACHE_NAME = 'ms-lms-v2.1.1-auth';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -9,8 +9,7 @@ const STATIC_ASSETS = [
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/icon-maskable-192x192.png',
-  './icons/icon-maskable-512x512.png',
-  'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap'
+  './icons/icon-maskable-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -46,9 +45,24 @@ self.addEventListener('fetch', (event) => {
   if (
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('firebaseapp.com') ||
+    url.pathname.startsWith('/__/auth/') ||
+    url.pathname.startsWith('/__/firebase/') ||
     url.pathname.endsWith('.mp4') ||
     url.pathname.endsWith('.m3u8')
   ) {
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', networkResponse.clone()));
+        }
+        return networkResponse;
+      }).catch(() => caches.match('./index.html').then((cached) => cached || caches.match('./')))
+    );
     return;
   }
 

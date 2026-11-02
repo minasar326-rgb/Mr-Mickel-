@@ -5,7 +5,15 @@ import {
   signInWithRedirect,
   getRedirectResult,
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  linkWithCredential,
+  fetchSignInMethodsForEmail,
+  linkWithPopup,
+  updateProfile
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { 
@@ -14,7 +22,78 @@ import {
   saveStudentSubscriptionToFirestore,
   listenToStudentAccount
 } from '../services/firestoreSync';
-import { trackLogin, trackSignUp } from '../services/analytics';
+import { trackLogin, trackSignUp, trackAuthError } from '../services/analytics';
+
+const pendingStudentProfiles = new Map();
+
+async function ensureStudentProfile(firebaseUser) {
+  if (!firebaseUser?.uid) return null;
+  if (pendingStudentProfiles.has(firebaseUser.uid)) {
+    return pendingStudentProfiles.get(firebaseUser.uid);
+  }
+
+  const promise = (async () => {
+    let profile = await getStudentAccountFromFirestore(firebaseUser.uid);
+    if (!profile) {
+      profile = {
+        uid: firebaseUser.uid,
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'طالب جديد',
+        email: firebaseUser.email || '',
+        photoURL: firebaseUser.photoURL || '',
+        avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
+        createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        subscriptions: {},
+        role: 'student'
+      };
+      let saveResult = await saveStudentAccountToFirestore(profile);
+      if (!saveResult?.success) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        saveResult = await saveStudentAccountToFirestore(profile);
+      }
+      if (!saveResult?.success) {
+        throw new Error(saveResult?.error || 'تعذر حفظ حساب الطالب في Firestore');
+      }
+    } else {
+      profile.uid = firebaseUser.uid;
+      profile.id = firebaseUser.uid;
+      profile.lastLoginAt = new Date().toISOString();
+      if (firebaseUser.displayName) profile.name = firebaseUser.displayName;
+      if (firebaseUser.photoURL) {
+        profile.photoURL = firebaseUser.photoURL;
+        profile.avatar = firebaseUser.photoURL;
+      }
+
+      const validSubs = {};
+      if (profile.subscriptions && typeof profile.subscriptions === 'object') {
+        Object.keys(profile.subscriptions).forEach((key) => {
+          const subscription = profile.subscriptions[key];
+          if (!subscription.userId || subscription.userId === firebaseUser.uid) {
+            validSubs[key] = { ...subscription, userId: firebaseUser.uid };
+          }
+        });
+      }
+      profile.subscriptions = validSubs;
+      let saveResult = await saveStudentAccountToFirestore(profile);
+      if (!saveResult?.success) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        saveResult = await saveStudentAccountToFirestore(profile);
+      }
+      if (!saveResult?.success) {
+        throw new Error(saveResult?.error || 'تعذر تحديث حساب الطالب في Firestore');
+      }
+    }
+    return profile;
+  })();
+
+  pendingStudentProfiles.set(firebaseUser.uid, promise);
+  try {
+    return await promise;
+  } finally {
+    pendingStudentProfiles.delete(firebaseUser.uid);
+  }
+}
 
 function normalizeStageId(targetId, stageName = '') {
   if (!targetId && !stageName) return 'sec-3';
@@ -75,6 +154,8 @@ export function AuthProvider({ children }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   // Sync state to localStorage safely with UID validation
   useEffect(() => {
@@ -118,50 +199,16 @@ export function AuthProvider({ children }) {
         } catch (e) {}
 
         try {
-          // 1. Fetch persistent student account & subscriptions strictly for newUid from Firestore
-          let profile = await getStudentAccountFromFirestore(newUid);
-
-          if (!profile) {
-            // First time login: create clean new student record with NO leaked subscriptions
-            profile = {
-              uid: newUid,
-              id: newUid,
-              name: firebaseUser.displayName || 'طالب جديد',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || '',
-              avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
-              createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-              subscriptions: {}, // strictly empty! No leaking from other accounts
-              role: 'student'
-            };
-            await saveStudentAccountToFirestore(profile);
-          } else {
-            // Existing user
-            if (firebaseUser.displayName && firebaseUser.displayName !== profile.name) {
-              profile.name = firebaseUser.displayName;
-            }
-            if (firebaseUser.photoURL && firebaseUser.photoURL !== profile.photoURL) {
-              profile.photoURL = firebaseUser.photoURL;
-              profile.avatar = firebaseUser.photoURL;
-            }
-            profile.uid = newUid;
-            profile.id = newUid;
-
-            // Strictly filter subscriptions to only those belonging to newUid
-            const validSubs = {};
-            if (profile.subscriptions && typeof profile.subscriptions === 'object') {
-              Object.keys(profile.subscriptions).forEach(k => {
-                const s = profile.subscriptions[k];
-                if (!s.userId || s.userId === newUid) {
-                  validSubs[k] = { ...s, userId: newUid };
-                }
-              });
-            }
-            profile.subscriptions = validSubs;
-          }
+          // Idempotent student bootstrap: popup, redirect, and auth state all converge here.
+          const profile = await ensureStudentProfile(firebaseUser);
 
           setCurrentUser(profile);
+          setIsAuthModalOpen(false);
+          setAuthError('');
+          try {
+            localStorage.setItem('ms_active_uid', firebaseUser.uid);
+            localStorage.setItem('madarek_user', JSON.stringify(profile));
+          } catch (_) {}
           if (role !== 'instructor') {
             setRole('student');
           }
@@ -196,6 +243,8 @@ export function AuthProvider({ children }) {
 
         } catch (err) {
           console.warn('Error fetching student profile from Firestore:', err);
+          const message = getAuthErrorMessage(err);
+          setAuthError(message);
           // Offline fallback: ONLY use cached profile if UID matches newUid exactly
           let cachedProfile = null;
           try {
@@ -231,6 +280,8 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('ms_unlocked_uid');
         } catch (e) {}
       }
+      setAuthLoading(false);
+      setAuthReady(true);
     });
 
     return () => {
@@ -239,129 +290,164 @@ export function AuthProvider({ children }) {
         unsubStudentProfile();
       }
     };
-  }, [role]);
-
-  // Handle redirect result if returning from a Google redirect sign-in
-  useEffect(() => {
-    if (!auth) return;
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result && result.user) {
-          const user = result.user;
-          let profile = await getStudentAccountFromFirestore(user.uid);
-          if (!profile) {
-            profile = {
-              uid: user.uid,
-              id: user.uid,
-              name: user.displayName || 'طالب جديد',
-              email: user.email || '',
-              photoURL: user.photoURL || '',
-              avatar: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
-              createdAt: user.metadata?.creationTime || new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-              subscriptions: {},
-              role: 'student'
-            };
-            await saveStudentAccountToFirestore(profile);
-          }
-          setCurrentUser(profile);
-          setIsAuthModalOpen(false);
-        }
-      })
-      .catch((err) => {
-        if (err.code !== 'auth/popup-closed-by-user') {
-          console.warn('Redirect sign-in notice:', err);
-        }
-      });
   }, []);
 
-  // Google Sign-In with Firebase Auth (Supports both Popup & Redirect to bypass COOP / browser popup blockers)
+  const getBrowserType = () => {
+    if (typeof navigator === 'undefined') return 'unknown';
+    const ua = navigator.userAgent;
+    if (/Instagram/i.test(ua)) return 'instagram-in-app';
+    if (/FBAN|FBAV/i.test(ua)) return 'facebook-in-app';
+    if (/TikTok/i.test(ua)) return 'tiktok-in-app';
+    if (/Line\//i.test(ua)) return 'line-in-app';
+    if (/WhatsApp/i.test(ua)) return 'whatsapp-in-app';
+    if (/Twitter/i.test(ua)) return 'twitter-in-app';
+    if (/Messenger/i.test(ua)) return 'messenger-in-app';
+    if (/Android/i.test(ua)) return 'android-browser';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios-browser';
+    return 'desktop-browser';
+  };
+
+  const getAuthErrorMessage = (error) => {
+    const messages = {
+      'auth/popup-closed-by-user': 'تم إغلاق نافذة Google. حاول مرة أخرى.',
+      'auth/popup-blocked': 'حظر المتصفح النافذة المنبثقة.',
+      'auth/unauthorized-domain': 'النطاق غير مصرح به في إعدادات Firebase.',
+      'auth/operation-not-allowed': 'طريقة تسجيل الدخول غير مفعلة.',
+      'auth/network-request-failed': 'تعذر الاتصال بخوادم Google. تحقق من الإنترنت.',
+      'auth/account-exists-with-different-credential': 'الحساب موجود بطريقة دخول مختلفة. استخدم الربط من صفحة الحساب.',
+      'auth/invalid-credential': 'بيانات الدخول غير صحيحة.',
+      'auth/user-not-found': 'لا يوجد حساب بهذا البريد.',
+      'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+      'auth/too-many-requests': 'محاولات كثيرة. حاول لاحقاً.',
+      'auth/email-already-in-use': 'البريد مستخدم بالفعل. سجّل دخولاً ثم اربط Google.'
+    };
+    return `${messages[error?.code] || 'حدث خطأ أثناء تسجيل الدخول.'} (${error?.code || 'unknown'})`;
+  };
+
+  useEffect(() => {
+    if (!auth) return;
+    let handled = false;
+    const finishRedirect = async () => {
+      if (handled) return;
+      handled = true;
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          const profile = await ensureStudentProfile(result.user);
+          setCurrentUser(profile);
+          trackLogin('google');
+          setIsAuthModalOpen(false);
+        }
+      } catch (error) {
+        trackAuthError(error?.code || 'unknown', getBrowserType());
+        console.warn('Redirect sign-in error:', error?.code || error?.message);
+        if (error?.code) {
+          setAuthError(getAuthErrorMessage(error));
+          setIsAuthModalOpen(true);
+        }
+      }
+    };
+    finishRedirect();
+  }, []);
+
   const loginWithGoogle = async (forceRedirect = false) => {
     setAuthLoading(true);
+    setAuthError('');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-
-    // If forceRedirect or mobile device, directly redirect without popup
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (forceRedirect || isMobile) {
-      try {
-        await signInWithRedirect(auth, provider);
-        return { success: true, redirecting: true };
-      } catch (err) {
-        console.warn('signInWithRedirect error:', err);
-      }
-    }
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
 
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Fetch or create student document in Firestore
-      let studentDoc = await getStudentAccountFromFirestore(user.uid);
-      if (!studentDoc) {
-        studentDoc = {
-          uid: user.uid,
-          id: user.uid,
-          name: user.displayName || 'طالب جديد',
-          email: user.email || '',
-          photoURL: user.photoURL || '',
-          avatar: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
-          createdAt: user.metadata?.creationTime || new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          subscriptions: {},
-          role: 'student'
-        };
-        await saveStudentAccountToFirestore(studentDoc);
-        trackSignUp('google');
-      } else {
-        studentDoc.uid = user.uid;
-        studentDoc.id = user.uid;
-        studentDoc.lastLoginAt = new Date().toISOString();
-        if (user.displayName) studentDoc.name = user.displayName;
-        if (user.photoURL) {
-          studentDoc.photoURL = user.photoURL;
-          studentDoc.avatar = user.photoURL;
-        }
-        await saveStudentAccountToFirestore(studentDoc);
-        trackLogin('google');
+      if (forceRedirect || isMobile) {
+        await signInWithRedirect(auth, provider);
+        return { success: true, redirecting: true };
       }
-
-      setCurrentUser(studentDoc);
+      const result = await signInWithPopup(auth, provider);
+      const profile = await ensureStudentProfile(result.user);
+      setCurrentUser(profile);
       setRole('student');
       setIsAuthModalOpen(false);
-      return { success: true, user: studentDoc };
+      trackLogin('google');
+      return { success: true, user: profile };
     } catch (error) {
-      // If popup was blocked or failed due to COOP / closed popup:
-      if (
-        error.code === 'auth/popup-blocked' ||
-        error.code === 'auth/cancelled-popup-request' ||
-        (error.message && error.message.includes('Cross-Origin-Opener-Policy'))
-      ) {
+      trackAuthError(error?.code || 'unknown', getBrowserType());
+      const message = getAuthErrorMessage(error);
+      setAuthError(message);
+      if (!forceRedirect && error?.code && ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user'].includes(error.code)) {
         try {
-          console.log('Switching to redirect sign-in to bypass popup / COOP policy...');
           await signInWithRedirect(auth, provider);
           return { success: true, redirecting: true };
-        } catch (redirectErr) {
-          console.error('Redirect fallback failed:', redirectErr);
+        } catch (redirectError) {
+          trackAuthError(redirectError?.code || 'unknown', getBrowserType());
+          return { success: false, error: getAuthErrorMessage(redirectError), code: redirectError?.code };
         }
       }
-
-      console.warn('Google Sign-In notice:', error.code || error.message);
-      let errorMsg = 'حدث خطأ أثناء تسجيل الدخول بحساب Google';
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMsg = 'تم إغلاق نافذة تسجيل الدخول. يمكنك المحاولة مجدداً أو النقر على "الدخول المباشر".';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMsg = 'تم حظر النافذة المنبثقة من قِبل المتصفح. يمكنك استخدام زر "الدخول المباشر".';
-      } else if (error.code === 'auth/unauthorized-domain') {
-        errorMsg = 'تعذر التحقق من نطاق الموقع حالياً. يرجى التواصل مع الدعم الفني أو المحاولة لاحقاً.';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMsg = 'خدمة تسجيل الدخول بحساب Google قيد التحديث المؤقت. يرجى المحاولة بعد لحظات.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMsg = 'تعذر الاتصال بخوادم Google. يرجى التحقق من اتصالك بالإنترنت.';
-      }
-      return { success: false, error: errorMsg, code: error.code };
+      return { success: false, error: getAuthErrorMessage(error), code: error?.code };
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  const loginWithEmail = async (email, password) => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const profile = await ensureStudentProfile(result.user);
+      setCurrentUser(profile);
+      setRole('student');
+      setIsAuthModalOpen(false);
+      trackLogin('email');
+      return { success: true, user: profile };
+    } catch (error) {
+      trackAuthError(error?.code || 'unknown', getBrowserType());
+      const message = getAuthErrorMessage(error);
+      setAuthError(message);
+      return { success: false, error: message, code: error?.code };
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const registerWithEmail = async (email, password, displayName) => {
+    setAuthLoading(true);
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      if (displayName && result.user) await updateProfile(result.user, { displayName });
+      const profile = await ensureStudentProfile(result.user);
+      setCurrentUser(profile);
+      setRole('student');
+      setIsAuthModalOpen(false);
+      trackSignUp('email');
+      return { success: true, user: profile };
+    } catch (error) {
+      trackAuthError(error?.code || 'unknown', getBrowserType());
+      return { success: false, error: getAuthErrorMessage(error), code: error?.code };
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { success: true };
+    } catch (error) {
+      trackAuthError(error?.code || 'unknown', getBrowserType());
+      return { success: false, error: getAuthErrorMessage(error), code: error?.code };
+    }
+  };
+
+  const linkGoogleAccount = async () => {
+    if (!auth.currentUser) return { success: false, error: 'يجب تسجيل الدخول أولاً. (auth/no-current-user)' };
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await linkWithPopup(auth.currentUser, provider);
+      return { success: true };
+    } catch (error) {
+      trackAuthError(error?.code || 'unknown', getBrowserType());
+      return { success: false, error: getAuthErrorMessage(error), code: error?.code };
     }
   };
 
@@ -510,10 +596,16 @@ export function AuthProvider({ children }) {
       value={{
         currentUser,
         role,
+        authReady,
         authLoading,
+        authError,
         isAuthModalOpen,
         authModalMode,
         loginWithGoogle,
+        loginWithEmail,
+        registerWithEmail,
+        resetPassword,
+        linkGoogleAccount,
         logout,
         deleteAccount,
         switchRole,
@@ -530,4 +622,3 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-

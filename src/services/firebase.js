@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, indexedDBLocalPersistence, browserSessionPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
@@ -8,7 +8,7 @@ import { getAnalytics, isSupported } from 'firebase/analytics';
 // The Master Academy - Official Firebase Configuration
 export const firebaseConfig = {
   apiKey: "AIzaSyBK43fujfiuROPkv_VPSWajlleNDfarqKI",
-  authDomain: "mr-mi-586d2.firebaseapp.com",
+  authDomain: 'mr-mi-586d2.firebaseapp.com',
   databaseURL: "https://mr-mi-586d2-default-rtdb.firebaseio.com",
   projectId: "mr-mi-586d2",
   storageBucket: "mr-mi-586d2.firebasestorage.app",
@@ -24,9 +24,21 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 // Enforce local persistence so login sessions persist across browser tabs and device restarts
 if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence).catch((err) => {
-    console.warn('Firebase auth persistence warning:', err);
-  });
+  (async () => {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (_) {
+      try {
+        await setPersistence(auth, indexedDBLocalPersistence);
+      } catch (_) {
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+        } catch (err) {
+          console.warn('Firebase auth persistence warning:', err?.code || err?.message || 'unknown');
+        }
+      }
+    }
+  })();
 }
 
 export const db = getFirestore(app);

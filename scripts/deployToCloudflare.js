@@ -17,13 +17,22 @@ try {
 } catch (e) {}
 
 const r2Config = {
-  accountId: process.env.R2_ACCOUNT_ID || '13683452db95c0fd11352a54efc368b4',
-  bucketName: process.env.R2_BUCKET_NAME || 'educational-videos',
-  publicDomain: process.env.R2_PUBLIC_DOMAIN || 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
-  endpoint: process.env.R2_ENDPOINT || 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
-  accessKeyId: process.env.VITE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID || 'e2511c27de74bb1b59dff09039768fd4',
-  secretAccessKey: process.env.VITE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_ACCESS_KEY || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
+  accountId: process.env.R2_ACCOUNT_ID,
+  bucketName: process.env.R2_BUCKET_NAME,
+  publicDomain: process.env.R2_PUBLIC_DOMAIN,
+  endpoint: process.env.R2_ENDPOINT,
+  accessKeyId: process.env.R2_ACCESS_KEY_ID || process.env.VITE_R2_ACCESS_KEY_ID,
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || process.env.VITE_R2_SECRET_ACCESS_KEY
 };
+
+const missingR2Env = Object.entries(r2Config)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingR2Env.length > 0) {
+  console.error(`R2 deployment configuration missing: ${missingR2Env.join(', ')}`);
+  process.exit(1);
+}
 
 const s3 = new S3Client({
   region: 'auto',

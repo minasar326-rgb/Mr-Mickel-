@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, indexedDBLocalPersistence, browserSessionPersistence, setPersistence } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
@@ -17,30 +17,11 @@ export const firebaseConfig = {
   measurementId: "G-840M4BY79F"
 };
 
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase App idempotently
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firebase Services
+// Initialize Firebase Auth
 export const auth = getAuth(app);
-// Enforce local persistence so login sessions persist across browser tabs and device restarts
-if (typeof window !== 'undefined') {
-  (async () => {
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-    } catch (_) {
-      try {
-        await setPersistence(auth, indexedDBLocalPersistence);
-      } catch (_) {
-        try {
-          await setPersistence(auth, browserSessionPersistence);
-        } catch (err) {
-          console.warn('Firebase auth persistence warning:', err?.code || err?.message || 'unknown');
-        }
-      }
-    }
-  })();
-}
-
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);

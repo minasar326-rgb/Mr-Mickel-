@@ -24,13 +24,9 @@ export default function AuthModal() {
     }
   };
 
-  const handleGoogleSignIn = async (forceRedirect = false) => {
+  const handleGoogleSignIn = async () => {
     setErrorMsg('');
-    const res = await loginWithGoogle(forceRedirect);
-    if (res?.redirecting) {
-      addToast('جاري تحويلك بأمان إلى صفحة تسجيل الدخول الرسمية لـ Google...', 'info', 4000);
-      return;
-    }
+    const res = await loginWithGoogle();
     if (res?.success) {
       addToast(`أهلاً بك يا ${res.user?.name || 'بطل الثانوية العامة'}! تم تسجيل الدخول بحساب Google بنجاح 🎓`, 'success');
       closeAuthModal();
@@ -208,7 +204,7 @@ export default function AuthModal() {
 
         {/* Google Sign-In Action Button */}
         <button
-          onClick={() => handleGoogleSignIn(false)}
+          onClick={handleGoogleSignIn}
           disabled={authLoading}
           className="btn"
           style={{
@@ -239,23 +235,7 @@ export default function AuthModal() {
           <span>{authLoading ? 'جاري الاتصال بـ Google...' : 'تسجيل الدخول باستخدام Google'}</span>
         </button>
 
-        {(errorMsg || authError) && (
-          <button
-            onClick={() => handleGoogleSignIn(true)}
-            disabled={authLoading}
-            className="btn btn-secondary"
-            style={{ 
-              width: '100%', 
-              marginTop: '0.85rem', 
-              fontSize: '0.86rem', 
-              fontWeight: 800,
-              gap: '8px',
-              padding: '10px 16px'
-            }}
-          >
-            <span>🔄 تجربة الدخول المباشر (في نفس الصفحة بدون نافذة منبثقة)</span>
-          </button>
-        )}
+
 
         <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           🔒 تسجيل دخول رسمي ومؤمن ومشفر بحساب Google المعتمد

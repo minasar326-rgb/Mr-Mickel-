@@ -214,8 +214,8 @@ export async function getStoredMasterAuth() {
  * @param {string} newPassword 
  */
 export async function saveMasterPassword(newPassword) {
-  if (typeof newPassword !== 'string' || newPassword.trim().length < 12) {
-    throw new Error('يجب أن تكون كلمة مرور المستر 12 حرفاً على الأقل');
+  if (typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+    throw new Error('يجب أن تكون كلمة مرور المستر 6 أحرف على الأقل');
   }
   const { hash, salt } = await hashPassword(newPassword);
 

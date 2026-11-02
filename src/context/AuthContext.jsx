@@ -33,7 +33,16 @@ async function ensureStudentProfile(firebaseUser) {
   }
 
   const promise = (async () => {
-    let profile = await getStudentAccountFromFirestore(firebaseUser.uid);
+    let profile = null;
+    try {
+      // Fast fetch with 2.5s timeout to prevent hanging on offline / slow mobile connections
+      const fetchPromise = getStudentAccountFromFirestore(firebaseUser.uid);
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 2500));
+      profile = await Promise.race([fetchPromise, timeoutPromise]);
+    } catch (e) {
+      console.warn('Could not read existing profile from Firestore:', e);
+    }
+
     if (!profile) {
       profile = {
         uid: firebaseUser.uid,
@@ -47,14 +56,6 @@ async function ensureStudentProfile(firebaseUser) {
         subscriptions: {},
         role: 'student'
       };
-      let saveResult = await saveStudentAccountToFirestore(profile);
-      if (!saveResult?.success) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        saveResult = await saveStudentAccountToFirestore(profile);
-      }
-      if (!saveResult?.success) {
-        throw new Error(saveResult?.error || 'تعذر حفظ حساب الطالب في Firestore');
-      }
     } else {
       profile.uid = firebaseUser.uid;
       profile.id = firebaseUser.uid;
@@ -75,15 +76,20 @@ async function ensureStudentProfile(firebaseUser) {
         });
       }
       profile.subscriptions = validSubs;
-      let saveResult = await saveStudentAccountToFirestore(profile);
-      if (!saveResult?.success) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        saveResult = await saveStudentAccountToFirestore(profile);
-      }
-      if (!saveResult?.success) {
-        throw new Error(saveResult?.error || 'تعذر تحديث حساب الطالب في Firestore');
-      }
     }
+
+    // Always guarantee active profile is saved locally first
+    try {
+      localStorage.setItem('ms_active_uid', firebaseUser.uid);
+      localStorage.setItem('madarek_user', JSON.stringify(profile));
+    } catch (_) {}
+
+    // Asynchronously synchronize with Cloud Firestore & RTDB in the background
+    // (Crucial: never throw an error here to prevent blocking valid Google logins!)
+    saveStudentAccountToFirestore(profile).catch(err => {
+      console.warn('Background student account Firestore sync notice:', err?.message || err);
+    });
+
     return profile;
   })();
 
@@ -243,9 +249,6 @@ export function AuthProvider({ children }) {
 
         } catch (err) {
           console.warn('Error fetching student profile from Firestore:', err);
-          const message = getAuthErrorMessage(err);
-          setAuthError(message);
-          // Offline fallback: ONLY use cached profile if UID matches newUid exactly
           let cachedProfile = null;
           try {
             const saved = JSON.parse(localStorage.getItem('madarek_user') || 'null');
@@ -254,7 +257,7 @@ export function AuthProvider({ children }) {
             }
           } catch (e) {}
 
-          setCurrentUser(cachedProfile || {
+          const fallbackProfile = cachedProfile || {
             uid: newUid,
             id: newUid,
             name: firebaseUser.displayName || 'طالب المنصة',
@@ -264,7 +267,14 @@ export function AuthProvider({ children }) {
             createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString(),
             subscriptions: {},
             role: 'student'
-          });
+          };
+          setCurrentUser(fallbackProfile);
+          setIsAuthModalOpen(false);
+          setAuthError('');
+          try {
+            localStorage.setItem('ms_active_uid', newUid);
+            localStorage.setItem('madarek_user', JSON.stringify(fallbackProfile));
+          } catch (_) {}
         }
       } else {
         // Logged out / Guest mode: Clean up state & storage completely!
@@ -340,49 +350,55 @@ export function AuthProvider({ children }) {
         }
       } catch (error) {
         trackAuthError(error?.code || 'unknown', getBrowserType());
-        console.warn('Redirect sign-in error:', error?.code || error?.message);
-        if (error?.code) {
-          setAuthError(getAuthErrorMessage(error));
-          setIsAuthModalOpen(true);
-        }
+        console.warn('Redirect sign-in notice:', error?.code || error?.message);
       }
     };
     finishRedirect();
   }, []);
 
-  const loginWithGoogle = async (forceRedirect = false) => {
+  const loginWithGoogle = async () => {
     setAuthLoading(true);
     setAuthError('');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
 
     try {
-      if (forceRedirect || isMobile) {
-        await signInWithRedirect(auth, provider);
-        return { success: true, redirecting: true };
-      }
+      // Use signInWithPopup across ALL platforms (Desktop, iPhone, Android, Tablet)
+      // This preserves page state, prevents disruptive full-page reloads, and avoids
+      // third-party cookie blocking / partitioned storage failure on GitHub Pages / static hosting.
       const result = await signInWithPopup(auth, provider);
-      const profile = await ensureStudentProfile(result.user);
-      setCurrentUser(profile);
-      setRole('student');
-      setIsAuthModalOpen(false);
-      trackLogin('google');
-      return { success: true, user: profile };
+      if (result?.user) {
+        const profile = await ensureStudentProfile(result.user);
+        setCurrentUser(profile);
+        setRole('student');
+        try {
+          localStorage.setItem('ms_active_uid', result.user.uid);
+          localStorage.setItem('madarek_user', JSON.stringify(profile));
+        } catch (_) {}
+        setIsAuthModalOpen(false);
+        trackLogin('google');
+        return { success: true, user: profile };
+      }
+      return { success: false, error: 'تعذر الحصول على بيانات المستخدم من Google.' };
     } catch (error) {
       trackAuthError(error?.code || 'unknown', getBrowserType());
+      console.warn('Google sign-in error:', error?.code, error?.message);
+
+      if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') {
+        const message = 'تم إغلاق نافذة تسجيل الدخول. يمكنك الضغط والمحاولة مرة أخرى.';
+        setAuthError(message);
+        return { success: false, error: message, code: error?.code };
+      }
+
+      if (error?.code === 'auth/popup-blocked') {
+        const message = 'قام المتصفح بحظر النافذة المنبثقة. يرجى السماح بالنوافذ المنبثقة (Popups) من إعدادات المتصفح ثم المحاولة مجدداً.';
+        setAuthError(message);
+        return { success: false, error: message, code: error?.code };
+      }
+
       const message = getAuthErrorMessage(error);
       setAuthError(message);
-      if (!forceRedirect && error?.code && ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user'].includes(error.code)) {
-        try {
-          await signInWithRedirect(auth, provider);
-          return { success: true, redirecting: true };
-        } catch (redirectError) {
-          trackAuthError(redirectError?.code || 'unknown', getBrowserType());
-          return { success: false, error: getAuthErrorMessage(redirectError), code: redirectError?.code };
-        }
-      }
-      return { success: false, error: getAuthErrorMessage(error), code: error?.code };
+      return { success: false, error: message, code: error?.code };
     } finally {
       setAuthLoading(false);
     }

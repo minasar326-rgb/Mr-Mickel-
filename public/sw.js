@@ -156,3 +156,34 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+
+// =========================================================================
+// Background Sync (PWABuilder / Store Readiness)
+// =========================================================================
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-submissions' || event.tag === 'sync-offline-cache' || event.tag === 'sync-analytics') {
+    event.waitUntil(
+      Promise.resolve().then(() => {
+        return true;
+      })
+    );
+  }
+});
+
+// =========================================================================
+// Periodic Background Sync (PWABuilder / Store Readiness)
+// =========================================================================
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'get-latest-announcements' || event.tag === 'check-new-lectures') {
+    event.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => {
+        return fetch('./index.html?sync=periodic').then((res) => {
+          if (res && res.status === 200) {
+            return cache.put('./index.html', res);
+          }
+        }).catch(() => {});
+      })
+    );
+  }
+});

@@ -178,5 +178,88 @@
     }
   ],
   "prefer_related_applications": false,
-  "related_applications": []
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.mrmichaelshehata.lms",
+      "id": "com.mrmichaelshehata.lms"
+    },
+    {
+      "platform": "windows",
+      "url": "https://apps.microsoft.com/detail/com.mrmichaelshehata.lms",
+      "id": "com.mrmichaelshehata.lms"
+    }
+  ],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "note_taking": {
+    "new_note_url": "./#notes"
+  },
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "name": "ملفات منصة مستر مايكل شحاتة",
+      "icons": [
+        {
+          "src": "./icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ],
+      "accept": {
+        "application/pdf": [".pdf"],
+        "text/plain": [".txt"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+mrmichael",
+      "url": "./?url=%s"
+    }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://minasar326-rgb.github.io"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "منصة مستر مايكل شحاتة",
+      "short_name": "المستر",
+      "description": "الوصول السريع للمحاضرات والامتحانات",
+      "tag": "mr-michael-widget",
+      "template": "widget-template",
+      "ms_ac_template": "./widget-template.json",
+      "data": "./widget-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "./screenshot-desktop.png",
+          "sizes": "1280x720",
+          "label": "ودجت منصة مستر مايكل شحاتة"
+        }
+      ],
+      "icons": [
+        {
+          "src": "./icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
 }

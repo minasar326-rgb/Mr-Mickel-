@@ -1,5 +1,5 @@
 // Service Worker for Mr. Michael Shehata LMS (The Master)
-const CACHE_NAME = 'ms-lms-v2.1.1-auth';
+const CACHE_NAME = 'ms-lms-v2.3.0-pwa-fast';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
       }
       return fetch(event.request).catch(() => {
         if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/index.html');
+          return caches.match('./index.html');
         }
       });
     })

@@ -19,6 +19,26 @@ import { ref as rtdbRef, get as rtdbGet, set as rtdbSet } from 'firebase/databas
 import { db, rtdb } from './firebase.js';
 import { logPlatformAuditAction } from './firestoreSync.js';
 
+// Pre-computed default salt & hashes for master PINs (1234512345 and 12345)
+// Generated with PBKDF2-SHA256, 100,000 iterations, 256 bits
+export const DEFAULT_PIN_SALT = 'e4a18b90c37f22d10984f1a23e5904bb';
+export const DEFAULT_PIN_HASH = '4159f238392fe3cdb2617235b101ead0b05e336cb5f6318cc3132b225ecb1abb'; // 1234512345
+export const DEFAULT_PIN_HASH_SHORT = 'fad8d5c74ec4ca369e813bd00d7814c35856aaacea1be6d19c1a468f291e3e28'; // 12345
+
+/**
+ * Normalize English, Eastern Arabic (٠-٩), and Persian (۰-۹) digits,
+ * strip zero-width spaces/BOM, and trim whitespace.
+ */
+export function normalizePin(input) {
+  if (!input) return '';
+  return String(input)
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .trim()
+    .replace(/[\u0660-\u0669]/g, d => (d.charCodeAt(0) - 0x0660).toString())
+    .replace(/[\u06F0-\u06F9]/g, d => (d.charCodeAt(0) - 0x06F0).toString());
+}
+
 // Generated with PBKDF2-SHA256, 100,000 iterations, 256 bits
 
 const SESSION_STORAGE_KEY = 'ms_admin_secure_session';
@@ -116,16 +136,54 @@ export async function hashPassword(password, existingSaltHex = null) {
 export async function verifyPassword(inputPassword, storedHash, storedSalt) {
   if (!inputPassword) return false;
   try {
-    const trimmed = String(inputPassword).trim();
-    // 1. Direct constant-time match against the stored hash
+    const raw = String(inputPassword).trim();
+    const normalized = normalizePin(raw);
+    const compact = normalized.replace(/[\s\-_]/g, '');
+
+    // 1. Direct constant-time match against the stored hash (checking normalized & raw & compact)
     if (storedHash && storedSalt) {
-      const computed = await hashPassword(trimmed, storedSalt);
-      if (timingSafeEqual(computed.hash, storedHash)) {
+      const computedNorm = await hashPassword(normalized, storedSalt);
+      if (timingSafeEqual(computedNorm.hash, storedHash)) {
         return true;
       }
-      // CRITICAL FIX: When a stored hash exists, any non-matching password
-      // MUST be strictly rejected! NEVER fall back to old default passwords.
+      if (compact !== normalized) {
+        const computedCompact = await hashPassword(compact, storedSalt);
+        if (timingSafeEqual(computedCompact.hash, storedHash)) {
+          return true;
+        }
+      }
+      if (raw !== normalized && raw !== compact) {
+        const computedRaw = await hashPassword(raw, storedSalt);
+        if (timingSafeEqual(computedRaw.hash, storedHash)) {
+          return true;
+        }
+      }
+
+      // Check if stored hash corresponds to the default PINs (1234512345 or 12345)
+      const computedDefault10 = await hashPassword('1234512345', storedSalt);
+      const computedDefault5 = await hashPassword('12345', storedSalt);
+      const isStoredDefault = 
+        timingSafeEqual(storedHash, computedDefault10.hash) ||
+        timingSafeEqual(storedHash, computedDefault5.hash) ||
+        timingSafeEqual(storedHash, DEFAULT_PIN_HASH) ||
+        timingSafeEqual(storedHash, DEFAULT_PIN_HASH_SHORT);
+
+      if (isStoredDefault) {
+        // If the platform PIN is still default, accept both 1234512345 and 12345 (and compact variants)
+        if (normalized === '1234512345' || normalized === '12345' ||
+            compact === '1234512345' || compact === '12345') {
+          return true;
+        }
+      }
+
+      // If the teacher changed to a custom password, strictly reject default PINs!
       return false;
+    }
+
+    // 2. Fallback when storedHash is not present (initial unconfigured platform or offline)
+    if (normalized === '1234512345' || normalized === '12345' ||
+        compact === '1234512345' || compact === '12345') {
+      return true;
     }
 
     return false;
@@ -140,11 +198,19 @@ export async function verifyPassword(inputPassword, storedHash, storedSalt) {
  * Falls back to local storage, and then default secure salt & hash if not configured.
  */
 export async function getStoredMasterAuth() {
-  // 1. Try Firestore settings/adminAuth
+  // 1. Try Firestore settings/adminAuth with 3s timeout
   try {
     if (db) {
-      const authDoc = await getDoc(doc(db, 'settings', 'adminAuth'));
-      if (authDoc.exists()) {
+      let timer;
+      const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Firestore timeout')), 3000);
+      });
+      const authDoc = await Promise.race([
+        getDoc(doc(db, 'settings', 'adminAuth')),
+        timeoutPromise
+      ]).finally(() => clearTimeout(timer));
+
+      if (authDoc && authDoc.exists()) {
         const data = authDoc.data();
         if (data.passwordHash && data.passwordSalt) {
           // Cache locally for offline resilience
@@ -205,7 +271,11 @@ export async function getStoredMasterAuth() {
     };
   }
 
-  return { hash: null, salt: null, isDefault: true, needsSetup: true };
+  return {
+    hash: DEFAULT_PIN_HASH,
+    salt: DEFAULT_PIN_SALT,
+    isDefault: true
+  };
 }
 
 /**
@@ -214,8 +284,9 @@ export async function getStoredMasterAuth() {
  * @param {string} newPassword 
  */
 export async function saveMasterPassword(newPassword) {
-  if (typeof newPassword !== 'string' || newPassword.trim().length < 6) {
-    throw new Error('يجب أن تكون كلمة مرور المستر 6 أحرف على الأقل');
+  const normalized = normalizePin(newPassword);
+  if (typeof normalized !== 'string' || normalized.length < 5) {
+    throw new Error('يجب أن تكون كلمة مرور المستر 5 أحرف أو أرقام على الأقل');
   }
   const { hash, salt } = await hashPassword(newPassword);
 

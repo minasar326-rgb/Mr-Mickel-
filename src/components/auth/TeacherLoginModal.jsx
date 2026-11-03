@@ -4,7 +4,8 @@ import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import { Lock, Eye, EyeOff, X, ShieldCheck, Sparkles, KeyRound } from 'lucide-react';
 import { 
-  verifyPassword, 
+  verifyPassword,
+  normalizePin, 
   getStoredMasterAuth, 
   saveMasterPassword,
   createAdminSession, 
@@ -39,7 +40,7 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const trimmed = password.trim();
+    const trimmed = normalizePin(password);
     if (!trimmed) {
       setErrorMsg('يرجى إدخال كلمة المرور.');
       return;
@@ -51,23 +52,7 @@ export default function TeacherLoginModal({ isOpen, onClose, onSuccess }) {
     try {
       // 1. Retrieve stored PBKDF2 hash & salt
       const masterAuth = await getStoredMasterAuth();
-      if (masterAuth.needsSetup) {
-        if (trimmed.length < 12) {
-          setIsLoading(false);
-          setErrorMsg('يجب تحديد كلمة مرور قوية بطول 12 حرفاً على الأقل.');
-          return;
-        }
-        await saveMasterPassword(trimmed);
-        clearFailedLoginAttempts();
-        setLockoutRemaining(0);
-        createAdminSession({ role: 'teacher_editor', authMethod: 'master_pin_setup' });
-        switchRole('instructor');
-        addToast('تم تحديد كلمة مرور المستر بنجاح', 'success');
-        setPassword('');
-        if (onSuccess) onSuccess();
-        onClose();
-        return;
-      }
+
       // 2. Perform constant-time cryptographic hash verification
       const isMatch = await verifyPassword(trimmed, masterAuth.hash, masterAuth.salt);
 

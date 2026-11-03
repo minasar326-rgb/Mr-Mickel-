@@ -2,12 +2,14 @@
  * Automated Verification Script:
  * 1. Test lecture video embed URL detection (YouTube, Vimeo, Google Drive, Direct MP4).
  * 2. Test password change security & exclusivity (old password rejected, new password accepted).
- * 3. Test permanent deletion filtering across lists.
+ * 3. Test Arabic digits normalization & alternate default PIN acceptance (12345 & 1234512345).
+ * 4. Test permanent deletion filtering across lists.
  */
 
 const { 
   verifyPassword, 
-  hashPassword 
+  hashPassword,
+  normalizePin 
 } = require('../src/services/authSecurity.js');
 
 function getEmbedInfo(url) {
@@ -79,12 +81,29 @@ async function runVerification() {
   }
   console.log('  ✅ Direct MP4 returns null to render high-performance native video player.');
 
-  // --- TEST 2: Password Change Exclusivity ---
+  // --- TEST 2: Password Change Exclusivity & Arabic Normalization ---
   console.log('\n[2] Testing Password Exclusivity & Hash Verification...');
   const defaultCheck = await verifyPassword('1234512345');
-  console.log('  Initial PIN (1234512345) valid?', defaultCheck);
+  if (defaultCheck !== true) throw new Error('FAILED: Default 1234512345 should be accepted');
+  console.log('  ✅ Initial PIN (1234512345) accepted.');
 
-  // Hash check directly
+  const defaultShort = await verifyPassword('12345');
+  if (defaultShort !== true) throw new Error('FAILED: Default 12345 should be accepted');
+  console.log('  ✅ Initial short PIN (12345) accepted.');
+
+  const arabicLong = await verifyPassword('١٢٣٤٥١٢٣٤٥');
+  if (arabicLong !== true) throw new Error('FAILED: Arabic PIN (١٢٣٤٥١٢٣٤٥) should be accepted');
+  console.log('  ✅ Arabic numeral PIN (١٢٣٤٥١٢٣٤٥) accepted.');
+
+  const arabicShort = await verifyPassword('١٢٣٤٥');
+  if (arabicShort !== true) throw new Error('FAILED: Arabic short PIN (١٢٣٤٥) should be accepted');
+  console.log('  ✅ Arabic numeral short PIN (١٢٣٤٥) accepted.');
+
+  const withSpaces = await verifyPassword(' 12345 12345 ');
+  if (withSpaces !== true) throw new Error('FAILED: PIN with whitespace should be accepted');
+  console.log('  ✅ PIN with spaced digits (12345 12345) accepted.');
+
+  // Hash check directly for custom password
   const newSecret = 'TeacherNewPass2026';
   const hashed = await hashPassword(newSecret);
 
@@ -97,6 +116,12 @@ async function runVerification() {
     throw new Error('CRITICAL SECURITY FAILED: Old password was accepted after change!');
   }
   console.log('  ✅ Old default password (1234512345) is STRICTLY REJECTED after change.');
+
+  const oldShortRejected = await verifyPassword('12345', hashed.hash, hashed.salt);
+  if (oldShortRejected !== false) {
+    throw new Error('CRITICAL SECURITY FAILED: Old short password was accepted after change!');
+  }
+  console.log('  ✅ Old short password (12345) is STRICTLY REJECTED after change.');
 
   const newAccepted = await verifyPassword(newSecret, hashed.hash, hashed.salt);
   if (newAccepted !== true) {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useToast } from '../../context/ToastContext';
 import { Lock, KeyRound, Eye, EyeOff, X, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import { getStoredMasterAuth, verifyPassword } from '../../services/authSecurity';
+import { getStoredMasterAuth, verifyPassword, normalizePin } from '../../services/authSecurity';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
   const { teacherProfile, changeTeacherPassword } = useTeacher();
@@ -21,13 +21,13 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
     e.preventDefault();
     setErrorMsg('');
 
-    const trimmed = newPassword.trim();
+    const trimmed = normalizePin(newPassword);
     if (!trimmed) {
       setErrorMsg('يرجى كتابة كلمة المرور الجديدة.');
       return;
     }
-    if (trimmed.length < 12) {
-      setErrorMsg('كلمة المرور يجب أن تتكون من 12 حرفاً على الأقل.');
+    if (trimmed.length < 5) {
+      setErrorMsg('كلمة المرور يجب أن تتكون من 5 أحرف أو أرقام على الأقل.');
       return;
     }
     if (trimmed !== confirmPassword.trim()) {
@@ -35,7 +35,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       return;
     }
     const currentAuth = await getStoredMasterAuth();
-    if (!currentAuth.hash || !currentAuth.salt || !(await verifyPassword(oldPassword.trim(), currentAuth.hash, currentAuth.salt))) {
+    if (!currentAuth.hash || !currentAuth.salt || !(await verifyPassword(normalizePin(oldPassword),  currentAuth.hash, currentAuth.salt))) {
       setErrorMsg('كلمة المرور القديمة غير صحيحة.');
       return;
     }

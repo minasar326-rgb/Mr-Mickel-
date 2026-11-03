@@ -38,7 +38,7 @@ import {
   logPlatformAuditAction,
   listenToAuditLogs
 } from '../services/firestoreSync';
-import { saveMasterPassword, verifyAdminSession } from '../services/authSecurity';
+import { saveMasterPassword, verifyAdminSession, normalizePin } from '../services/authSecurity';
 import {
   saveMediaFilePermanently,
   getPermanentMediaUrl,
@@ -1388,9 +1388,9 @@ export function TeacherProvider({ children }) {
       addToast('يرجى إدخال كلمة مرور صالحة', 'error');
       return { success: false, error: 'كلمة المرور فارغة' };
     }
-    const cleanPass = newPassword.trim();
-    if (cleanPass.length < 12) {
-      addToast('كلمة مرور المستر يجب أن تكون 12 حرفاً على الأقل', 'error');
+    const cleanPass = normalizePin(newPassword);
+    if (cleanPass.length < 5) {
+      addToast('كلمة مرور المستر يجب ألا تقل عن 5 أحرف أو أرقام', 'error');
       return { success: false, error: 'PASSWORD_TOO_SHORT' };
     }
     // 1. Hash and save master password securely (PBKDF2-SHA256 with salt)

@@ -21,33 +21,50 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
     e.preventDefault();
     setErrorMsg('');
 
-    const trimmed = normalizePin(newPassword);
-    if (!trimmed) {
+    const trimmedOld = normalizePin(oldPassword);
+    const trimmedNew = normalizePin(newPassword);
+    const trimmedConfirm = normalizePin(confirmPassword);
+
+    if (!trimmedOld) {
+      setErrorMsg('يرجى إدخال كلمة المرور الحالية.');
+      return;
+    }
+
+    if (!trimmedNew) {
       setErrorMsg('يرجى كتابة كلمة المرور الجديدة.');
       return;
     }
-    if (trimmed.length < 5) {
-      setErrorMsg('كلمة المرور يجب أن تتكون من 5 أحرف أو أرقام على الأقل.');
+    if (trimmedNew.length < 5) {
+      setErrorMsg('كلمة المرور يجب ألا تقل عن 5 أحرف أو أرقام.');
       return;
     }
-    if (trimmed !== confirmPassword.trim()) {
-      setErrorMsg('كلمتا المرور غير متطابقتين. يرجى التأكد من كتابتهما بنفس الشكل.');
-      return;
-    }
-    const currentAuth = await getStoredMasterAuth();
-    if (!currentAuth.hash || !currentAuth.salt || !(await verifyPassword(normalizePin(oldPassword),  currentAuth.hash, currentAuth.salt))) {
-      setErrorMsg('كلمة المرور القديمة غير صحيحة.');
+    if (trimmedNew !== trimmedConfirm) {
+      setErrorMsg('كلمتا المرور غير متطابقتين. يرجى التأكد من تطابق كلمة المرور وتأكيدها.');
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const res = await changeTeacherPassword(trimmed);
+      const currentAuth = await getStoredMasterAuth();
+      const isOldMatch = await verifyPassword(trimmedOld, currentAuth.hash, currentAuth.salt);
+      if (!isOldMatch) {
+        setIsLoading(false);
+        setErrorMsg('كلمة المرور الحالية غير صحيحة.');
+        return;
+      }
+
+      const res = await changeTeacherPassword(trimmedNew);
       setIsLoading(false);
-      if (res.success) {
+      if (res && res.success) {
         setNewPassword('');
         setConfirmPassword('');
+        setOldPassword('');
         onClose();
+      } else if (res && res.error) {
+        setErrorMsg(res.error === 'PASSWORD_TOO_SHORT' 
+          ? 'كلمة المرور يجب ألا تقل عن 5 أحرف أو أرقام.' 
+          : 'حدث خطأ أثناء حفظ كلمة المرور.');
       }
     } catch (err) {
       setIsLoading(false);
@@ -207,14 +224,14 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
           {/* New Password */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px', color: '#E2E8F0' }}>
-              كلمة المرور الجديدة:
+              كلمة المرور الجديدة (5 أحرف أو أرقام على الأقل):
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور الجديدة..."
+                placeholder="أدخل كلمة المرور الجديدة (5 أحرف أو أرقام على الأقل)..."
                 required
                 autoFocus
                 style={{
@@ -222,7 +239,11 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                   padding: '14px 44px 14px 16px',
                   borderRadius: '14px',
                   background: 'rgba(255, 255, 255, 0.07)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  border: newPassword && normalizePin(newPassword).length >= 5 
+                    ? '1px solid #10B981' 
+                    : newPassword 
+                    ? '1px solid #F59E0B' 
+                    : '1px solid rgba(255, 255, 255, 0.2)',
                   color: 'white',
                   fontSize: '1rem',
                   outline: 'none',
@@ -250,6 +271,23 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {newPassword && (
+              <div style={{ 
+                marginTop: '6px', 
+                fontSize: '0.78rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                color: normalizePin(newPassword).length >= 5 ? '#34D399' : '#F59E0B' 
+              }}>
+                {normalizePin(newPassword).length >= 5 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                <span>
+                  {normalizePin(newPassword).length >= 5 
+                    ? 'طول كلمة المرور صالح (5 أحرف أو أرقام على الأقل) ✓' 
+                    : `يجب ألا تقل عن 5 أحرف أو أرقام (المكتوب: ${normalizePin(newPassword).length})`}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Confirm Password */}
@@ -269,9 +307,9 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                   padding: '14px 44px 14px 16px',
                   borderRadius: '14px',
                   background: 'rgba(255, 255, 255, 0.07)',
-                  border: confirmPassword && confirmPassword === newPassword 
+                  border: confirmPassword && normalizePin(confirmPassword) === normalizePin(newPassword)
                     ? '1px solid #10B981' 
-                    : confirmPassword && confirmPassword !== newPassword 
+                    : confirmPassword && normalizePin(confirmPassword) !== normalizePin(newPassword) 
                     ? '1px solid #EF4444' 
                     : '1px solid rgba(255, 255, 255, 0.2)',
                   color: 'white',
@@ -287,13 +325,18 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
                   right: '14px', 
                   top: '50%', 
                   transform: 'translateY(-50%)', 
-                  color: confirmPassword && confirmPassword === newPassword ? '#10B981' : '#818CF8' 
+                  color: confirmPassword && normalizePin(confirmPassword) === normalizePin(newPassword) ? '#10B981' : '#818CF8' 
                 }} 
               />
             </div>
-            {confirmPassword && confirmPassword === newPassword && (
+            {confirmPassword && normalizePin(confirmPassword) === normalizePin(newPassword) && (
               <span style={{ fontSize: '0.75rem', color: '#34D399', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
                 <CheckCircle2 size={14} /> كلمتا المرور متطابقتان تماماً ✓
+              </span>
+            )}
+            {confirmPassword && newPassword && normalizePin(confirmPassword) !== normalizePin(newPassword) && (
+              <span style={{ fontSize: '0.75rem', color: '#F87171', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
+                <AlertCircle size={14} /> كلمتا المرور غير متطابقتين
               </span>
             )}
           </div>

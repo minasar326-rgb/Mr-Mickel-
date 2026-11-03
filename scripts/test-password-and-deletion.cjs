@@ -135,6 +135,15 @@ async function runVerification() {
   }
   console.log('  ✅ Random incorrect password is rejected.');
 
+  // Test 5-character password support
+  const fiveCharPass = '54321';
+  const hashedFive = await hashPassword(fiveCharPass);
+  const fiveAccepted = await verifyPassword('54321', hashedFive.hash, hashedFive.salt);
+  if (fiveAccepted !== true) throw new Error('FAILED: 5-character password must be accepted');
+  const fiveArabicAccepted = await verifyPassword('٥٤٣٢١', hashedFive.hash, hashedFive.salt);
+  if (fiveArabicAccepted !== true) throw new Error('FAILED: 5-character Arabic digits password must be accepted');
+  console.log('  ✅ 5-character / 5-digit custom password (54321 & ٥٤٣٢١) accepted.');
+
   // --- TEST 3: Deletion Filtering ---
   console.log('\n[3] Testing Lecture List Deletion Filtering...');
   const testLectures = [

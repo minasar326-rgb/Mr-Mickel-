@@ -134,8 +134,7 @@ async function runE2ETestSuite() {
     // 1. Test Wrong Password
     await pinInput.fill('wrong_password_999');
     const submitBtn = page1.locator('button[type="submit"]').first();
-    await submitBtn.click().catch(() => pinInput.press('Enter'));
-    await pinInput.press('Enter');
+    try { await submitBtn.click(); } catch (_) { await pinInput.press('Enter').catch(() => {}); }
     
     // Wait up to 5s for async PBKDF2 hash verification & error alert render
     let hasError = false;
@@ -155,12 +154,16 @@ async function runE2ETestSuite() {
     await pinInput.press('Enter');
     await page1.waitForTimeout(1000);
 
-    // Check if Admin Dashboard / Center is active
-    await page1.waitForTimeout(1200);
-    const isAdminOpen = await page1.evaluate(() => {
-      const text = document.body.innerText;
-      return text.includes('استوديو إدارة') || text.includes('لوحة الإدارة') || text.includes('لوحة المستر');
-    });
+    // Poll up to 6s for Admin Dashboard / Center to be active
+    let isAdminOpen = false;
+    for (let i = 0; i < 30; i++) {
+      isAdminOpen = await page1.evaluate(() => {
+        const text = document.body.innerText;
+        return text.includes('استوديو إدارة') || text.includes('لوحة الإدارة') || text.includes('لوحة المستر');
+      });
+      if (isAdminOpen) break;
+      await page1.waitForTimeout(200);
+    }
     recordTest('Teacher Logs In via PIN Without Account Creation', Boolean(isAdminOpen));
 
     // Verify Session Token in Cookie & Storage

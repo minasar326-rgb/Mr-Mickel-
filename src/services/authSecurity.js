@@ -193,17 +193,24 @@ export async function verifyPassword(inputPassword, storedHash, storedSalt) {
   }
 }
 
+let memoryAuthCache = null;
+let lastAuthFetchTime = 0;
+
 /**
  * Retrieve master security credentials from Firestore & RTDB settings/adminAuth
  * Falls back to local storage, and then default secure salt & hash if not configured.
  */
 export async function getStoredMasterAuth() {
-  // 1. Try Firestore settings/adminAuth with 3s timeout
+  if (memoryAuthCache && Date.now() - lastAuthFetchTime < 60000) {
+    return memoryAuthCache;
+  }
+
+  // 1. Try Firestore settings/adminAuth with 1.8s timeout
   try {
     if (db) {
       let timer;
       const timeoutPromise = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Firestore timeout')), 3000);
+        timer = setTimeout(() => reject(new Error('Firestore timeout')), 1800);
       });
       const authDoc = await Promise.race([
         getDoc(doc(db, 'settings', 'adminAuth')),
@@ -220,12 +227,14 @@ export async function getStoredMasterAuth() {
               localStorage.setItem('ms_auth_salt', data.passwordSalt);
             } catch (_) {}
           }
-          return {
+          memoryAuthCache = {
             hash: data.passwordHash,
             salt: data.passwordSalt,
             updatedAt: data.updatedAt || null,
             isDefault: false
           };
+          lastAuthFetchTime = Date.now();
+          return memoryAuthCache;
         }
       }
     }
@@ -289,6 +298,14 @@ export async function saveMasterPassword(newPassword) {
     throw new Error('يجب أن تكون كلمة مرور المستر 5 أحرف أو أرقام على الأقل');
   }
   const { hash, salt } = await hashPassword(newPassword);
+
+  memoryAuthCache = {
+    hash,
+    salt,
+    updatedAt: new Date().toISOString(),
+    isDefault: false
+  };
+  lastAuthFetchTime = Date.now();
 
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('ms_auth_hash', hash);

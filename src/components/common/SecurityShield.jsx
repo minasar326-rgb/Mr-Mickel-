@@ -163,7 +163,7 @@ export default function SecurityShield({ children }) {
         },
         disableMenu: true,
         clearLog: true,
-        interval: 150,
+        interval: 2500,
         detectors: 'all',
         ignore: () => {
           return role === 'instructor' || (window.sessionStorage && window.sessionStorage.getItem('ms_dev_bypass') === 'true');
@@ -173,34 +173,19 @@ export default function SecurityShield({ children }) {
       console.warn('DevTool Shield initialized');
     }
 
-    // Additional fallback dimensions and debugger ticker
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Lightweight desktop-only dimensions check (skips heavy loops on mobile)
+    const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) return;
+
     const checkDevTools = () => {
-      if (!isMobile) {
-        const widthDiff = window.outerWidth - window.innerWidth;
-        const heightDiff = window.outerHeight - window.innerHeight;
-        if (widthDiff > 165 || heightDiff > 165) {
-          triggerFreeze('Dimension check');
-          return;
-        }
-      }
-
-      const t0 = performance.now();
-      try {
-        const debugFn = new Function('debugger');
-        debugFn();
-      } catch (_) {}
-      const t1 = performance.now();
-
-      if (t1 - t0 > 100) {
-        freezeCountRef.current += 1;
-        if (freezeCountRef.current >= 1) {
-          triggerFreeze('Debugger timing pause');
-        }
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
+      if (widthDiff > 165 || heightDiff > 165) {
+        triggerFreeze('Dimension check');
       }
     };
 
-    const interval = setInterval(checkDevTools, 400);
+    const interval = setInterval(checkDevTools, 3500);
     window.addEventListener('resize', checkDevTools);
 
     return () => {

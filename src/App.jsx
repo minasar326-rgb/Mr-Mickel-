@@ -32,6 +32,8 @@ import TeacherAdminCenter from './components/teacher-admin/TeacherAdminCenter';
 import SecurityShield from './components/common/SecurityShield';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import NotificationPermissionBanner from './components/common/NotificationPermissionBanner';
+import MobileBottomNav from './components/common/MobileBottomNav';
+import MobileAppInstallBanner from './components/common/MobileAppInstallBanner';
 
 function AppContent() {
   const { role, switchRole } = useAuth();
@@ -188,6 +190,9 @@ function AppContent() {
   return (
     <SecurityShield>
       <div className="app-container">
+        {/* Mobile App Installation Banner */}
+        <MobileAppInstallBanner />
+
         {/* External Push Notification Permission Banner */}
         <NotificationPermissionBanner />
 
@@ -429,6 +434,14 @@ function AppContent() {
           </div>
         </div>
       </footer>
+
+        {/* Native Mobile App Bottom Navigation Bar */}
+        <MobileBottomNav
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onOpenCodeModal={handleOpenCodeModal}
+          onOpenTeacherLogin={handleOpenTeacherLogin}
+        />
       </div>
     </SecurityShield>
   );

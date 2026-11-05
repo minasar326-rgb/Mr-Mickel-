@@ -15,14 +15,14 @@ export const r2Config = {
   bucketName: 'educational-videos',
   publicDomain: 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
   endpoint: 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
-  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || '',
-  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || ''
+  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || 'e2511c27de74bb1b59dff09039768fd4',
+  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
 };
 
 // Initialize S3 Client targeting Cloudflare R2 on demand
 export function getR2Client() {
-  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || '';
-  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '';
+  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || 'e2511c27de74bb1b59dff09039768fd4';
+  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978';
 
   if (!accessKeyId || !secretAccessKey) {
     return null;

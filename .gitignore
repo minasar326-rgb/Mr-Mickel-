@@ -15,6 +15,7 @@ dist-ssr
 
 # Environment variables & Private Keys
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local

@@ -454,6 +454,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
         console.warn('Cloud storage fallback notice:', cloudErr);
         setIsUploading(false);
         setUploadDetails(prev => ({ ...prev, isCloudReady: false, cloudNotice: true }));
+        addToast('⚠️ تعذر رفع الفيديو إلى السحابة التعليمية. يرجى التحقق من اتصال الإنترنت وإعادة اختيار الملف لضمان إتاحته لكافة الطلاب.', 'error', 6000);
       });
     });
   };
@@ -1239,6 +1240,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
     const targetStage = stages.find(s => s.id === stageId) || stages[0];
     const cleanVideoUrl = (videoUrl && !videoUrl.startsWith('blob:')) ? videoUrl : '';
+    if (videoMode === 'file' && videoFileName && !cleanVideoUrl) {
+      addToast('⚠️ لم يكتمل رفع الفيديو إلى السحابة بنجاح بعد! يرجى الانتظار حتى اكتمال الرفع 100% أو إعادة اختيار الملف لضمان تشغيله لدى كافة الطلاب على جميع الأجهزة.', 'error', 6000);
+      return;
+    }
 
     let examPayload = null;
     if (hasLectureExam) {
@@ -1832,7 +1837,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                                   padding: '6px 14px', background: '#ECFDF5', color: '#065F46', 
                                   borderRadius: '20px', fontSize: '0.84rem', fontWeight: 800, border: '1px solid #A7F3D0' 
                                 }}>
-                                  <CheckCircle2 size={16} color="#059669" /> ✅ الفيديو جاهز للنشر والمشاهدة فوراً! (يمكنك الضغط على نشر المحاضرة)
+                                  {videoUrl ? (<><CheckCircle2 size={16} color="#059669" /> ✅ تم رفع وتأمين الفيديو سحابياً بنجاح! متاح لجميع الطلاب فور النشر</>) : (<><AlertCircle size={16} color="#DC2626" /> ⚠️ لم يتم استكمال الرفع السحابي بعد - يرجى الانتظار أو إعادة المحاولة</>)}
                                 </span>
                                 {uploadDetails.isCloudReady ? (
                                   <span style={{ 
@@ -2702,6 +2707,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                 }}>
                   <button
                     type="submit"
+                    disabled={isUploading}
                     className="btn btn-primary btn-lg"
                     style={{
                       flex: 1,
@@ -2709,14 +2715,18 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       padding: '1rem 1.75rem',
                       fontSize: '1.05rem',
                       fontWeight: 800,
+                      opacity: isUploading ? 0.7 : 1,
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
                       background: editingLectureId ? 'var(--accent-gradient, #4f46e5)' : 'var(--primary-gradient)'
                     }}
                   >
                     <Upload size={20} />
                     <span>
-                      {editingLectureId 
-                        ? '💾 حفظ وتثبيت تعديلات المحاضرة والامتحان الآن' 
-                        : (hasLectureExam ? '🚀 نشر المحاضرة والامتحان الآن لجميع الطلاب' : '🚀 نشر المحاضرة والفيديو الآن لجميع الطلاب')}
+                      {isUploading 
+                        ? `⏳ جاري استكمال رفع الفيديو إلى السحابة... (${uploadProgress}%)`
+                        : (editingLectureId 
+                          ? '💾 حفظ وتثبيت تعديلات المحاضرة والامتحان الآن' 
+                          : (hasLectureExam ? '🚀 نشر المحاضرة والامتحان الآن لجميع الطلاب' : '🚀 نشر المحاضرة والفيديو الآن لجميع الطلاب'))}
                     </span>
                   </button>
 
@@ -2809,6 +2819,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                             }
                             return <span className="badge" style={{ background: '#E2E8F0', color: '#475569', fontSize: '0.72rem' }}>محاضرة عامة</span>;
                           })()}
+                          {lec.videoUrl && (lec.videoUrl.startsWith('https://') || lec.videoUrl.startsWith('http://')) ? (
+                            <span className="badge" style={{ fontSize: '0.72rem', background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', fontWeight: 700 }}>
+                              🟢 فيديو سحابي نشط
+                            </span>
+                          ) : (
+                            <span className="badge" style={{ fontSize: '0.72rem', background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', fontWeight: 800 }}>
+                              ⚠️ يحتاج رفع الفيديو سحابياً
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           <span>المرحلة: {stages.find(s => s.id === lec.stageId)?.name || lec.stageId}</span>

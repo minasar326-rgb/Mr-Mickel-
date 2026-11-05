@@ -45,8 +45,10 @@ import {
   deleteMediaPermanently,
   persistCollectionLocally,
   loadCollectionFromLocal,
-  STORES
+  STORES,
+  updateMediaCloudUrl
 } from '../services/persistentStorage';
+import { uploadFileToR2 } from '../services/r2Storage';
 
 const TeacherContext = createContext();
 
@@ -1220,6 +1222,37 @@ export function TeacherProvider({ children }) {
       if (typeof unsubAuditLogs === 'function') unsubAuditLogs();
     };
   }, []);
+
+  
+  // Automatic Cloud Video Auto-Repair: Upload any locally cached lecture video to Cloudflare R2
+  useEffect(() => {
+    if (!Array.isArray(lectures) || lectures.length === 0) return;
+    const candidates = lectures.filter(l => !l.isDeleted && (!l.videoUrl || l.videoUrl === '') && l.localMediaKey);
+    if (candidates.length === 0) return;
+
+    candidates.forEach(async (lec) => {
+      try {
+        const idbRes = await getPermanentMediaUrl(lec.localMediaKey);
+        if (idbRes.found && idbRes.blob) {
+          console.log(`[Auto-Repair] Found local video blob for "${lec.title}". Uploading to Cloudflare R2...`);
+          const fileToUpload = new File([idbRes.blob], lec.videoFileName || `${lec.title}.mp4`, {
+            type: idbRes.blob.type || 'video/mp4'
+          });
+          const res = await uploadFileToR2(fileToUpload, 'lectures/videos');
+          if (res && res.downloadUrl) {
+            console.log(`[Auto-Repair] Successfully uploaded "${lec.title}" to R2:`, res.downloadUrl);
+            const updated = { ...lec, videoUrl: res.downloadUrl };
+            await saveLectureToFirestore(updated);
+            setLectures(prev => prev.map(l => l.id === lec.id ? updated : l));
+            await updateMediaCloudUrl(lec.localMediaKey, res.downloadUrl);
+            addToast(`✅ تم رفع وتأمين فيديو المحاضرة "${lec.title}" إلى السحابة تلقائياً! وهو متاح الآن لكافة الطلاب 🎬`, 'success', 6000);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Auto-Repair Notice] Could not auto-upload lecture ${lec.id}:`, err);
+      }
+    });
+  }, [lectures]);
 
   // Sync state safely to localStorage & IndexedDB on every change
   useEffect(() => {

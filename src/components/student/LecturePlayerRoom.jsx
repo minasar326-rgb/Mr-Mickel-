@@ -687,6 +687,26 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#94A3B8' }}>
                 سيتم تفعيل فيديو الشرح قريباً، يمكنك مراجعة المذكرات والكلمات أدناه
               </p>
+              {isTeacher && (
+                <div style={{ marginTop: '1rem' }}>
+                  <button 
+                    onClick={() => onNavigate && onNavigate('teacher-admin')}
+                    className="btn btn-sm btn-secondary"
+                    style={{ gap: '6px', fontSize: '0.82rem', borderColor: '#F59E0B', color: '#F59E0B' }}
+                  >
+                    ✏️ أنت مسجل كمدرس: انقر لتعديل المحاضرة ورفع الفيديو سحابياً ليعمل لدى كافة الطلاب
+                  </button>
+                </div>
+              )}
+              <div style={{ marginTop: '0.75rem' }}>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="btn btn-sm btn-ghost" 
+                  style={{ fontSize: '0.78rem', color: '#94A3B8' }}
+                >
+                  إعادة المحاولة / تحديث الصفحة 🔄
+                </button>
+              </div>
             </div>
           )}
 

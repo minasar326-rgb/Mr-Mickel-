@@ -11,18 +11,18 @@ import { validateUploadedFile, generateCollisionProofKey, sanitizeFileName } fro
 
 // Official Cloudflare R2 Configuration for Mr. Michael Shehata Platform
 export const r2Config = {
-  accountId: '13683452db95c0fd11352a54efc368b4',
+  accountId: '819fc4abad6f24879c065cd0dac920ed',
   bucketName: 'educational-videos',
-  publicDomain: 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev',
-  endpoint: 'https://13683452db95c0fd11352a54efc368b4.r2.cloudflarestorage.com',
-  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || 'e2511c27de74bb1b59dff09039768fd4',
-  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978'
+  publicDomain: 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev',
+  endpoint: 'https://819fc4abad6f24879c065cd0dac920ed.r2.cloudflarestorage.com',
+  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || '720c71c362801fdd04575a8d62562b49',
+  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || '610a605c26d80b82b7958c6da7bd7f44f0df3196b7f2910d87b9e0f3968f1bc8'
 };
 
 // Initialize S3 Client targeting Cloudflare R2 on demand
 export function getR2Client() {
-  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || 'e2511c27de74bb1b59dff09039768fd4';
-  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '8ccb099cca5fd7ba3456f5dd57fae4a527c37ff28ae7fd25648ffadbb7d41978';
+  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || '720c71c362801fdd04575a8d62562b49';
+  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '610a605c26d80b82b7958c6da7bd7f44f0df3196b7f2910d87b9e0f3968f1bc8';
 
   if (!accessKeyId || !secretAccessKey) {
     return null;

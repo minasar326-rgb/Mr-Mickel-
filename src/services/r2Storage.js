@@ -1,374 +1,147 @@
-import { 
-  S3Client, 
-  PutObjectCommand, 
-  DeleteObjectCommand,
-  CreateMultipartUploadCommand,
-  UploadPartCommand,
-  CompleteMultipartUploadCommand,
-  AbortMultipartUploadCommand 
-} from '@aws-sdk/client-s3';
-import { validateUploadedFile, generateCollisionProofKey, sanitizeFileName } from './securityValidator.js';
+// r2Storage.js — الرفع بيتم عن طريق سيرفر الرفع (Cloudflare Worker)، مفيش أي مفاتيح R2 في المتصفح.
+import { auth } from './firebase';
+import { validateUploadedFile } from './securityValidator.js';
+import { createUploader, UploadError } from './uploadCore.js';
 
-// Official Cloudflare R2 Configuration for Mr. Michael Shehata Platform
+export { UploadError };
+
+// إعدادات عامة (بدون أسرار). publicDomain للروابط القديمة المرفوعة قبل كده.
 export const r2Config = {
-  accountId: '819fc4abad6f24879c065cd0dac920ed',
   bucketName: 'educational-videos',
   publicDomain: 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev',
-  endpoint: 'https://819fc4abad6f24879c065cd0dac920ed.r2.cloudflarestorage.com',
-  accessKeyId: import.meta.env?.VITE_R2_ACCESS_KEY_ID || '720c71c362801fdd04575a8d62562b49',
-  secretAccessKey: import.meta.env?.VITE_R2_SECRET_ACCESS_KEY || '610a605c26d80b82b7958c6da7bd7f44f0df3196b7f2910d87b9e0f3968f1bc8'
 };
 
-// Initialize S3 Client targeting Cloudflare R2 on demand
-export function getR2Client() {
-  const accessKeyId = r2Config.accessKeyId || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_key') : '') || '720c71c362801fdd04575a8d62562b49';
-  const secretAccessKey = r2Config.secretAccessKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('ms_r2_secret') : '') || '610a605c26d80b82b7958c6da7bd7f44f0df3196b7f2910d87b9e0f3968f1bc8';
+// عنوان سيرفر الرفع (Cloudflare Worker). ملفات .env.* مش بتترفع على GitHub (متجاهلة في .gitignore)،
+// فالـ build على GitHub Actions مش هيشوفها. العنوان مش سر، فبنحطه هنا كقيمة افتراضية.
+// بعد ما تنشر الـ Worker (npx wrangler deploy) هيطلعلك عنوان زي https://almister-api.xxxx.workers.dev
+// الصقه مكان القيمة اللي تحت (وسيبه من غير / في الآخر).
+const DEFAULT_UPLOAD_API_URL = 'https://almister-api.YOUR-SUBDOMAIN.workers.dev';
+const envUrl = (import.meta.env?.VITE_UPLOAD_API_URL || '').trim();
+const resolved = (envUrl || DEFAULT_UPLOAD_API_URL).replace(/\/+$/, '');
+// لو لسه فيه YOUR-SUBDOMAIN يبقى متضبطش، والرفع هيرجّع رسالة واضحة بدل ما يفشل بصمت
+export const UPLOAD_API_URL = resolved.includes('YOUR-SUBDOMAIN') ? '' : resolved;
 
-  if (!accessKeyId || !secretAccessKey) {
+async function getFirebaseToken() {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new UploadError(
+      'NOT_SIGNED_IN',
+      'لازم تسجل دخول بحساب Google الخاص بالمدرس قبل رفع الملفات، وبعدين جرّب تاني.'
+    );
+  }
+  return user.getIdToken();
+}
+
+const uploader = createUploader({ apiBase: UPLOAD_API_URL, getToken: getFirebaseToken });
+
+/**
+ * رفع ملف (فيديو / PDF / صورة) على R2 عن طريق سيرفر الرفع.
+ * بيرمي UploadError برسالة عربية واضحة لو فشل، ومبيرجعش نجاح كاذب أبدًا.
+ */
+export async function uploadFileToR2(file, folderPath = 'lectures/videos', onProgress, category = 'video', signal) {
+  const validation = await validateUploadedFile(file, category);
+  if (!validation.valid) {
+    throw new UploadError('INVALID_FILE', validation.error || 'فشل التحقق الأمني من الملف.');
+  }
+  const res = await uploader.uploadFile(file, { folder: folderPath, category, onProgress, signal });
+  return {
+    success: true,
+    downloadUrl: res.url,
+    publicUrl: res.url,
+    storageKey: res.key,
+    fileName: file.name,
+    fileSize: file.size,
+  };
+}
+
+async function toBlob(fileOrDataUrl, fallbackType) {
+  if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('data:')) {
+    const [meta, b64] = fileOrDataUrl.split(';base64,');
+    const type = meta.split(':')[1] || fallbackType;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type });
+  }
+  if (fileOrDataUrl instanceof Blob) return fileOrDataUrl;
+  return null;
+}
+
+/** صورة المدرس (مفتاح ثابت teacher-avatar.jpg) */
+export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
+  try {
+    const blob = await toBlob(fileOrDataUrl, 'image/jpeg');
+    if (!blob) return null;
+    await uploader.uploadFixed(blob, 'teacher-avatar.jpg');
+    try {
+      fetch('https://graph.facebook.com/?id=https://minasar326-rgb.github.io/Mr-Mickel-/&scrape=true', { method: 'POST' }).catch(() => {});
+    } catch (_) {}
+    return `${r2Config.publicDomain}/teacher-avatar.jpg`;
+  } catch (err) {
+    console.error('Failed to update teacher-avatar.jpg:', err);
     return null;
   }
-
-  return new S3Client({
-    region: 'auto',
-    endpoint: r2Config.endpoint,
-    credentials: {
-      accessKeyId,
-      secretAccessKey
-    }
-  });
 }
 
-/**
- * Sleep helper for exponential backoff retries
- */
-const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Execute an operation with automatic retries and exponential backoff
- */
-async function retryOperation(fn, maxRetries = 3, initialDelayMs = 1000) {
-  let attempt = 0;
-  while (attempt < maxRetries) {
-    try {
-      return await fn();
-    } catch (err) {
-      attempt++;
-      if (attempt >= maxRetries) throw err;
-      const delay = initialDelayMs * Math.pow(2, attempt - 1);
-      console.warn(`[R2 Auto-Retry] Network glitch on attempt ${attempt}. Retrying in ${delay}ms...`);
-      await wait(delay);
-    }
+/** أيقونات التطبيق (icons/<name>.png) */
+export async function uploadAppIconToR2(iconBlob, filename = 'icon-512x512.png') {
+  try {
+    const key = `icons/${filename}`;
+    await uploader.uploadFixed(iconBlob, key);
+    return `${r2Config.publicDomain}/${key}`;
+  } catch (err) {
+    console.warn('Failed to upload app icon:', err);
+    return null;
   }
 }
 
-/**
- * Delete a file or abortive artifact from Cloudflare R2 (Rollback helper)
- * @param {string} storageKey 
- */
+/** حذف ملف (للتراجع عن رفع) */
 export async function deleteFileFromR2(storageKey) {
   if (!storageKey) return false;
   try {
-    const client = getR2Client();
-    if (!client) return false;
-    const command = new DeleteObjectCommand({
-      Bucket: r2Config.bucketName,
-      Key: storageKey
-    });
-    await client.send(command);
+    await uploader.deleteObject(storageKey);
     return true;
   } catch (err) {
-    console.warn(`Failed to delete object from R2 (${storageKey}):`, err.message);
+    console.warn(`Failed to delete object (${storageKey}):`, err.message);
     return false;
   }
 }
 
 /**
- * Upload file with chunked / resumable multipart support, auto-retry, and atomic rollback
- * @param {File|Blob} file 
- * @param {string} folderPath 
- * @param {function} onProgress 
- * @param {'video'|'pdf'|'image'} category 
- */
-export async function uploadFileToR2(file, folderPath = 'lectures/videos', onProgress, category = 'video') {
-  // 1. Pre-upload security and magic-number validation
-  const validation = await validateUploadedFile(file, category);
-  if (!validation.valid) {
-    throw new Error(validation.error || 'فشل التحقق الأمني من الملف.');
-  }
-
-  const client = getR2Client();
-  if (!client) {
-    throw new Error('بيانات الاتصال بـ Cloudflare R2 غير مهيأة. يرجى تزويد مفاتيح الوصول.');
-  }
-
-  const uniqueKey = generateCollisionProofKey(folderPath, file.name || 'upload.bin');
-  const totalBytes = file.size || 0;
-  const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
-  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunk minimum for S3 multipart
-
-  // Case A: Small files (<= 5MB) - Single direct PutObject with auto-retry
-  if (totalBytes <= CHUNK_SIZE) {
-    if (onProgress) {
-      onProgress({ percent: 10, transferredMB: '0.0', totalMB, state: 'reading' });
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    if (onProgress) {
-      onProgress({ percent: 40, transferredMB: (Number(totalMB) * 0.4).toFixed(1), totalMB, state: 'uploading' });
-    }
-
-    const command = new PutObjectCommand({
-      Bucket: r2Config.bucketName,
-      Key: uniqueKey,
-      Body: uint8Array,
-      ContentType: file.type || (category === 'video' ? 'video/mp4' : 'application/pdf'),
-      Metadata: {
-        originalName: sanitizeFileName(file.name || 'file'),
-        uploadedBy: 'Teacher Michael Shehata'
-      }
-    });
-
-    await retryOperation(() => client.send(command), 3);
-
-    if (onProgress) {
-      onProgress({ percent: 100, transferredMB: totalMB, totalMB, state: 'completed' });
-    }
-
-    const publicUrl = `${r2Config.publicDomain}/${uniqueKey}`;
-    return {
-      success: true,
-      downloadUrl: publicUrl,
-      publicUrl: publicUrl,
-      storageKey: uniqueKey,
-      fileName: file.name,
-      fileSize: file.size
-    };
-  }
-
-  // Case B: Large files (> 5MB) - Resumable Chunked Multipart Upload with Atomic Rollback
-  let uploadId = null;
-  const parts = [];
-  const totalParts = Math.ceil(totalBytes / CHUNK_SIZE);
-  let bytesTransferred = 0;
-
-  try {
-    // 1. Initialize Multipart Upload
-    const createCommand = new CreateMultipartUploadCommand({
-      Bucket: r2Config.bucketName,
-      Key: uniqueKey,
-      ContentType: file.type || 'video/mp4',
-      Metadata: {
-        originalName: sanitizeFileName(file.name || 'video.mp4'),
-        uploadedBy: 'Teacher Michael Shehata'
-      }
-    });
-    const createRes = await retryOperation(() => client.send(createCommand), 3);
-    uploadId = createRes.UploadId;
-
-    // 2. Upload chunks sequentially with retry
-    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-      const start = (partNumber - 1) * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, totalBytes);
-      const chunkBlob = file.slice(start, end);
-      const chunkBuffer = await chunkBlob.arrayBuffer();
-      const chunkArray = new Uint8Array(chunkBuffer);
-
-      const partCommand = new UploadPartCommand({
-        Bucket: r2Config.bucketName,
-        Key: uniqueKey,
-        UploadId: uploadId,
-        PartNumber: partNumber,
-        Body: chunkArray
-      });
-
-      const partRes = await retryOperation(() => client.send(partCommand), 3);
-      parts.push({
-        ETag: partRes.ETag,
-        PartNumber: partNumber
-      });
-
-      bytesTransferred += chunkArray.length;
-      const progressPercent = Math.min(Math.round((bytesTransferred / totalBytes) * 100), 99);
-      const transferredMB = (bytesTransferred / (1024 * 1024)).toFixed(1);
-
-      if (onProgress) {
-        onProgress({
-          percent: progressPercent,
-          transferredMB,
-          totalMB,
-          currentPart: partNumber,
-          totalParts,
-          state: 'uploading'
-        });
-      }
-    }
-
-    // 3. Complete Multipart Upload
-    const completeCommand = new CompleteMultipartUploadCommand({
-      Bucket: r2Config.bucketName,
-      Key: uniqueKey,
-      UploadId: uploadId,
-      MultipartUpload: { Parts: parts }
-    });
-    await retryOperation(() => client.send(completeCommand), 3);
-
-    if (onProgress) {
-      onProgress({ percent: 100, transferredMB: totalMB, totalMB, state: 'completed' });
-    }
-
-    const publicUrl = `${r2Config.publicDomain}/${uniqueKey}`;
-    return {
-      success: true,
-      downloadUrl: publicUrl,
-      publicUrl: publicUrl,
-      storageKey: uniqueKey,
-      fileName: file.name,
-      fileSize: file.size
-    };
-  } catch (uploadError) {
-    // 4. ATOMIC ROLLBACK: Abort multipart upload so no orphaned chunks or ghost files remain
-    if (uploadId) {
-      try {
-        console.warn(`[R2 Rollback] Aborting multipart upload for ${uniqueKey}...`);
-        const abortCommand = new AbortMultipartUploadCommand({
-          Bucket: r2Config.bucketName,
-          Key: uniqueKey,
-          UploadId: uploadId
-        });
-        await client.send(abortCommand);
-      } catch (abortErr) {
-        console.error('Failed to abort multipart upload:', abortErr);
-      }
-    }
-    throw uploadError;
-  }
-}
-
-/**
- * Upload the teacher's profile avatar to the permanent public URL
- * @param {File|string} fileOrDataUrl
- */
-export async function uploadTeacherAvatarToR2(fileOrDataUrl) {
-  try {
-    let uint8Array;
-    let contentType = 'image/jpeg';
-
-    if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('data:')) {
-      const parts = fileOrDataUrl.split(';base64,');
-      contentType = parts[0].split(':')[1] || 'image/jpeg';
-      const binaryString = atob(parts[1]);
-      uint8Array = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        uint8Array[i] = binaryString.charCodeAt(i);
-      }
-    } else if (fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File) {
-      const buffer = await fileOrDataUrl.arrayBuffer();
-      uint8Array = new Uint8Array(buffer);
-      contentType = fileOrDataUrl.type || 'image/jpeg';
-    } else {
-      return null;
-    }
-
-    const command = new PutObjectCommand({
-      Bucket: r2Config.bucketName,
-      Key: 'teacher-avatar.jpg',
-      Body: uint8Array,
-      ContentType: contentType,
-      CacheControl: 'no-cache, no-store, max-age=0, must-revalidate'
-    });
-
-    const client = getR2Client();
-    if (!client) return null;
-    await client.send(command);
-
-    try {
-      fetch('https://graph.facebook.com/?id=https://minasar326-rgb.github.io/Mr-Mickel-/&scrape=true', { method: 'POST' }).catch(() => {});
-    } catch (e) {}
-
-    return `${r2Config.publicDomain}/teacher-avatar.jpg`;
-  } catch (err) {
-    console.error('Failed to update teacher-avatar.jpg on R2:', err);
-    return null;
-  }
-}
-
-/**
- * Upload the dynamically generated branded App Icon to Cloudflare R2
- * @param {Blob} iconBlob 
- * @param {string} filename 
- */
-export async function uploadAppIconToR2(iconBlob, filename = 'icon-512x512.png') {
-  try {
-    const arrayBuffer = await iconBlob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const key = `icons/${filename}`;
-
-    const command = new PutObjectCommand({
-      Bucket: r2Config.bucketName,
-      Key: key,
-      Body: uint8Array,
-      ContentType: 'image/png',
-      CacheControl: 'no-cache, no-store, max-age=0, must-revalidate'
-    });
-
-    const client = getR2Client();
-    if (!client) return null;
-    await client.send(command);
-    return `${r2Config.publicDomain}/${key}`;
-  } catch (err) {
-    console.warn('Failed to upload app icon to R2:', err);
-    return null;
-  }
-}
-
-/**
- * Verify whether a remote video URL is genuinely reachable and playable
- * Performs a lightweight HEAD / Range check before allowing a lecture to be saved.
- * @param {string} url 
- * @returns {Promise<{ valid: boolean, status?: number, error?: string, isCors?: boolean }>}
+ * تأكد إن رابط الفيديو شغال فعلاً (HEAD أو Range) قبل ما المحاضرة تتنشر.
  */
 export async function verifyVideoUrl(url) {
-  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+  if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
     return { valid: false, error: 'رابط الفيديو غير صالح أو ليس رابط ويب مباشر' };
   }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    let res = null;
+    let res;
     try {
       res = await fetch(url, { method: 'HEAD', signal: controller.signal });
     } catch (_) {
-      res = await fetch(url, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1024' },
-        signal: controller.signal
-      });
+      res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-1024' }, signal: controller.signal });
     }
-    clearTimeout(timeoutId);
-
     if (res && (res.status === 200 || res.status === 206 || res.status === 304)) {
       return {
         valid: true,
         status: res.status,
         contentLength: res.headers.get('content-length'),
-        contentType: res.headers.get('content-type') || 'video/mp4'
+        contentType: res.headers.get('content-type') || 'video/mp4',
       };
     }
-    return {
-      valid: false,
-      status: res?.status || 0,
-      error: `استجاب السيرفر بكود خطأ (${res?.status})`
-    };
+    return { valid: false, status: res?.status || 0, error: `استجاب السيرفر بكود خطأ (${res?.status})` };
   } catch (err) {
-    const isCors = err.name === 'TypeError' && err.message.includes('Failed to fetch');
+    const isCors = err.name === 'TypeError';
     return {
       valid: false,
       isCors,
-      error: isCors 
-        ? 'خطأ في سياسة CORS على السحابة يمنع المتصفح من قراءة الملف'
-        : (err.message || 'تعذر الاتصال برابط الفيديو')
+      error: isCors
+        ? 'المتصفح مقدرش يوصل لرابط الفيديو (مشكلة اتصال أو CORS).'
+        : (err.message || 'تعذر الاتصال برابط الفيديو'),
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

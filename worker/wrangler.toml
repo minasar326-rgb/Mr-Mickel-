@@ -1,0 +1,14 @@
+name = "almister-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "educational-videos"
+
+[vars]
+FIREBASE_PROJECT_ID = "mr-mi-586d2"
+# حط هنا إيميل (أو إيميلات) حساب Google بتاع المدرس مفصولة بفاصلة
+TEACHER_EMAILS = "mrmichaelshehata@gmail.com"
+# دومينات الموقع المسموح لها ترفع (بدون / في الآخر)
+ALLOWED_ORIGINS = "https://minasar326-rgb.github.io,http://localhost:5173,http://localhost:4173"

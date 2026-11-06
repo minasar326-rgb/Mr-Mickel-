@@ -21,6 +21,8 @@ import ChangePasswordModal from './ChangePasswordModal';
 import TeacherAvatar3D from '../common/TeacherAvatar3D';
 import { dispatchExternalNotification } from '../../services/pushNotificationService';
 import { validateUploadedFile } from '../../services/securityValidator';
+import { useAuth } from '../../context/AuthContext';
+import { auth } from '../../services/firebase';
 
 export default function TeacherAdminCenter({ onNavigate }) {
   const { 
@@ -170,6 +172,13 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [videoFileName, setVideoFileName] = useState('');
   const [videoFileSize, setVideoFileSize] = useState('');
   const [videoStatus, setVideoStatus] = useState('none'); // 'none' | 'uploading' | 'ready' | 'failed'
+  const { loginWithGoogle } = useAuth();
+  const [googleUser, setGoogleUser] = useState(auth?.currentUser || null);
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = auth.onAuthStateChanged(u => setGoogleUser(u));
+    return () => unsub();
+  }, []);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
   const [duration, setDuration] = useState('1:30:00');
   const [thumbnailPreview, setThumbnailPreview] = useState('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
@@ -351,6 +360,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
   // Refs for hidden file inputs
   const videoFileInputRef = useRef(null);
+  const lastVideoFileRef = useRef(null);
   const thumbnailFileInputRef = useRef(null);
   const pdfFileInputRef = useRef(null);
   const profileAvatarInputRef = useRef(null);
@@ -362,11 +372,73 @@ export default function TeacherAdminCenter({ onNavigate }) {
   // -------------------------------------------------------------
   // File Upload Handlers (Reading from local device + Cloud Sync)
   // -------------------------------------------------------------
+  // -------------------------------------------------------------
+  // رفع الفيديو: لا نشر بفيديو غير مرفوع فعلاً على السحابة
+  // -------------------------------------------------------------
+  const startVideoUpload = async (file) => {
+    lastVideoFileRef.current = file;
+    setIsUploading(true);
+    setVideoStatus('uploading');
+    setVideoUrl('');            // مفيش رابط إلا بعد نجاح الرفع والتحقق
+    setLocalMediaKey(null);     // مفيش اعتماد على IndexedDB في التشغيل
+    setUploadProgress(2);
+    setUploadDetails((prev) => ({
+      ...prev,
+      percent: 2,
+      transferredMB: '0',
+      isCloudReady: false,
+      cloudNotice: false,
+      errorMessage: ''
+    }));
+
+    const r2Folder = stageId ? `stages/${stageId}/lectures/videos` : 'lectures/videos';
+    try {
+      const res = await uploadFileToR2(file, r2Folder, (prog) => {
+        setUploadDetails((prev) => ({
+          ...prev,
+          percent: prog.percent,
+          transferredMB: prog.transferredMB,
+          totalMB: prog.totalMB
+        }));
+        setUploadProgress(prog.percent);
+      }, 'video');
+
+      // تأكد إن الرابط شغال فعلاً قبل ما نعتبر الفيديو جاهز
+      const check = await verifyVideoUrl(res.downloadUrl);
+      if (!check.valid) {
+        throw new Error(check.error || 'الفيديو اترفع لكن الرابط مش شغال.');
+      }
+
+      setVideoUrl(res.downloadUrl);
+      setVideoStatus('ready');
+      setIsUploading(false);
+      setUploadProgress(100);
+      setUploadDetails((prev) => ({ ...prev, percent: 100, isCloudReady: true, cloudNotice: false, errorMessage: '' }));
+      addToast('✅ الفيديو اترفع على السحابة واتأكدنا إنه شغال. تقدر تنشر المحاضرة.', 'success', 5000);
+    } catch (err) {
+      console.error('Video upload failed:', err);
+      const message = (err && err.message) ? err.message : 'حصل خطأ غير معروف أثناء الرفع.';
+      setIsUploading(false);
+      setVideoUrl('');
+      setVideoStatus('failed');
+      setUploadDetails((prev) => ({ ...prev, isCloudReady: false, cloudNotice: true, errorMessage: message }));
+      addToast(`❌ فشل رفع الفيديو: ${message}`, 'error', 10000);
+    }
+  };
+
+  const retryVideoUpload = () => {
+    if (lastVideoFileRef.current) {
+      startVideoUpload(lastVideoFileRef.current);
+    } else {
+      addToast('اختار ملف الفيديو من جديد.', 'error', 4000);
+    }
+  };
+
   const handleVideoFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Security & Magic-Numbers Validation Check
+    // فحص أمني (الامتداد + الـ magic number + الحجم)
     const validation = await validateUploadedFile(file, 'video');
     if (!validation.valid) {
       setIsUploading(false);
@@ -374,26 +446,16 @@ export default function TeacherAdminCenter({ onNavigate }) {
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(5);
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
     setVideoFileName(file.name);
     setVideoFileSize(`${sizeMB} MB`);
-    setUploadDetails({
-      percent: 5,
-      transferredMB: '0',
-      totalMB: sizeMB,
-      isCloudReady: false,
-      localSaved: false
-    });
+    setUploadDetails({ percent: 0, transferredMB: '0', totalMB: sizeMB, isCloudReady: false, localSaved: false, cloudNotice: false, errorMessage: '' });
 
-    // 1. Immediate local playable preview
+    // معاينة محلية فقط (مش بتتحفظ ولا بتتنشر)
     const objectUrl = URL.createObjectURL(file);
     setVideoPreviewUrl(objectUrl);
-    // videoUrl is kept empty until cloud upload completes to prevent temporary blob URLs from being saved
-    setVideoUrl('');
 
-    // Compute duration from video
+    // مدة الفيديو
     const tempVideo = document.createElement('video');
     tempVideo.src = objectUrl;
     tempVideo.onloadedmetadata = () => {
@@ -401,83 +463,14 @@ export default function TeacherAdminCenter({ onNavigate }) {
       const hours = Math.floor(totalSecs / 3600);
       const mins = Math.floor((totalSecs % 3600) / 60);
       const secs = totalSecs % 60;
-      const durStr = hours > 0 
+      const durStr = hours > 0
         ? `${hours}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`
         : `${mins}:${secs < 10 ? '0' : ''}${secs}`;
       setDuration(durStr);
     };
 
-    // 2. Save directly & permanently to browser's IndexedDB
-    const mediaKey = `media_video_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    setLocalMediaKey(mediaKey);
-    try {
-      await saveMediaFilePermanently(mediaKey, file, { name: file.name });
-      setUploadDetails(prev => ({ ...prev, localSaved: true }));
-      setVideoUrl(mediaKey);
-      setVideoStatus('ready');
-      addToast(`تم تأمين وحفظ الفيديو داخل قاعدة البيانات الدائمة بنجاح! 💾 (جاهز للنشر فوراً)`, 'success');
-    } catch (err) {
-      console.warn('Local permanent store notice:', err);
-    }
-
-    // 3. High-Speed Upload to Cloudflare R2 (Unlimited Bandwidth & Storage)
-    const r2Folder = stageId ? `stages/${stageId}/lectures/videos` : 'lectures/videos';
-    uploadFileToR2(file, r2Folder, (prog) => {
-      setUploadDetails(prev => ({
-        ...prev,
-        percent: prog.percent,
-        transferredMB: prog.transferredMB,
-        totalMB: prog.totalMB
-      }));
-      setUploadProgress(prog.percent);
-    }).then(async (res) => {
-      if (res && res.downloadUrl) {
-        setVideoUrl(res.downloadUrl);
-        setVideoStatus('ready');
-        setVideoPreviewUrl(res.downloadUrl);
-        setIsUploading(false);
-        setUploadProgress(100);
-        setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true, cloudNotice: false }));
-        await updateMediaCloudUrl(mediaKey, res.downloadUrl);
-        addToast(`✅ تم حفظ وتأمين فيديو المحاضرة بنجاح على السحابة التعليمية (Cloudflare R2)! ☁️🎬`, 'success', 5000);
-      }
-    }).catch((r2Err) => {
-      console.warn('Cloudflare R2 notice, trying Firebase fallback:', r2Err);
-      // Fallback to Firebase Storage
-      uploadFileToFirebaseStorage(file, 'lectures/videos', (prog) => {
-        setUploadDetails(prev => ({
-          ...prev,
-          percent: prog.percent,
-          transferredMB: prog.transferredMB,
-          totalMB: prog.totalMB
-        }));
-        setUploadProgress(prog.percent);
-      }).then(async (res) => {
-        if (res && res.downloadUrl) {
-          setVideoUrl(res.downloadUrl);
-          setVideoPreviewUrl(res.downloadUrl);
-          setIsUploading(false);
-          setUploadProgress(100);
-          setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true, cloudNotice: false }));
-          await updateMediaCloudUrl(mediaKey, res.downloadUrl);
-          addToast(`✅ تم رفع وحفظ الفيديو سحابياً بنجاح! ☁️`, 'success', 5000);
-        }
-      }).catch((cloudErr) => {
-        console.warn('Cloud storage fallback notice:', cloudErr);
-        setIsUploading(false);
-        if (mediaKey) {
-          setVideoUrl(mediaKey);
-          setVideoStatus('ready');
-          setUploadDetails(prev => ({ ...prev, isCloudReady: true, cloudNotice: false }));
-          addToast('💾 تم حفظ الفيديو محلياً داخل جهازك بنجاح وجاهز للنشر فوراً! ⚡', 'success', 6000);
-        } else {
-          setUploadDetails(prev => ({ ...prev, isCloudReady: false, cloudNotice: true }));
-          addToast('⚠️ تعذر استكمال الرفع السحابي. يرجى إعادة اختيار الملف.', 'error', 6000);
-        }
-      });
-    });
+    await startVideoUpload(file);
   };
-
   const handleImageFileChange = (e, setter, label = 'الصورة') => {
     const file = e.target.files[0];
     if (file) {
@@ -1261,14 +1254,28 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setIsSubmitting(true);
     try {
       const targetStage = stages.find(s => s.id === stageId) || stages[0];
-      const cleanVideoUrl = (videoUrl && !videoUrl.startsWith('blob:')) 
-        ? videoUrl 
-        : (localMediaKey || '');
+      // الفيديو لازم يكون رابط https دائم على السحابة (مش مفتاح محلي ولا blob:)
+      const cleanVideoUrl = (videoUrl && /^https?:\/\//i.test(videoUrl)) ? videoUrl : '';
 
-      if (videoSourceType === 'file' && videoFileName && !cleanVideoUrl && !localMediaKey) {
-        addToast('⚠️ يرجى الانتظار بضع ثوانٍ حتى يتم تجهيز ملف الفيديو أو إعادة اختياره.', 'error', 6000);
+      if (videoSourceType === 'file' && videoFileName && !cleanVideoUrl) {
+        addToast(
+          isUploading
+            ? '⏳ الفيديو لسه بيترفع، استنى لحد ما يخلص وبعدين انشر.'
+            : '⚠️ الفيديو مش مرفوع على السحابة، فمش هيشتغل عند الطلاب. اضغط "إعادة المحاولة" أو اختار الملف تاني.',
+          'error',
+          8000
+        );
         setIsSubmitting(false);
         return;
+      }
+
+      if (videoSourceType === 'file' && cleanVideoUrl) {
+        const verify = await verifyVideoUrl(cleanVideoUrl);
+        if (!verify.valid) {
+          addToast(`⚠️ رابط الفيديو مش شغال (${verify.error || 'غير معروف'}). ارفعه تاني قبل النشر.`, 'error', 8000);
+          setIsSubmitting(false);
+          return;
+        }
       }
 
     let examPayload = null;
@@ -1310,7 +1317,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
       duration: duration || '1:30:00',
       videoUrl: cleanVideoUrl,
       videoStatus: cleanVideoUrl ? 'ready' : (isUploading ? 'uploading' : 'none'),
-      localMediaKey: localMediaKey,
+      localMediaKey: '',
       videoFileName: videoFileName || 'lecture_video.mp4',
       videoFileSize: videoFileSize || '',
       thumbnail: thumbnailPreview,
@@ -1823,6 +1830,43 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
                     {videoSourceType === 'file' ? (
                       <div>
+                        {!googleUser && (
+                          <div style={{
+                            marginBottom: '10px',
+                            padding: '10px 14px',
+                            background: '#EFF6FF',
+                            border: '1px solid #BFDBFE',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '10px',
+                            fontSize: '0.82rem'
+                          }}>
+                            <span style={{ color: '#1E40AF', fontWeight: 700 }}>
+                              🔒 مطلوب تسجيل دخول Google للمدرس للمصادقة على رفع الفيديو لـ Cloudflare R2
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  const res = await loginWithGoogle();
+                                  if (res?.user) {
+                                    addToast(`مرحباً بك يا مستر (${res.user.displayName || res.user.email})! تم ربط جلسة الرفع بنجاح ✅`, 'success');
+                                  }
+                                } catch (err) {
+                                  addToast('تعذر تسجيل دخول Google: ' + (err.message || ''), 'error');
+                                }
+                              }}
+                              className="btn btn-sm btn-primary"
+                              style={{ gap: '6px', fontSize: '0.8rem', padding: '6px 12px', fontWeight: 800 }}
+                            >
+                              <Key size={14} />
+                              <span>تسجيل دخول Google للمدرس</span>
+                            </button>
+                          </div>
+                        )}
                         <input
                           ref={videoFileInputRef}
                           type="file"
@@ -1849,7 +1893,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                             {videoFileName ? `ملف الفيديو المختار: ${videoFileName} (${videoFileSize})` : 'انقر لاختيار ملف الفيديو من جهازك أو اسحبه هنا'}
                           </strong>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            يدعم كافة الصيغ: MP4, MKV, MOV, AVI, WebM بدون قيود حجم!
+                            الصيغ المدعومة: MP4, MOV, MKV, WebM, M4V (حتى 2GB)
                           </span>
 
                           {/* Live Upload & Storage Status */}
@@ -1875,7 +1919,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                                   padding: '6px 14px', background: '#ECFDF5', color: '#065F46', 
                                   borderRadius: '20px', fontSize: '0.84rem', fontWeight: 800, border: '1px solid #A7F3D0' 
                                 }}>
-                                  {videoUrl ? (<><CheckCircle2 size={16} color="#059669" /> ✅ تم رفع وتأمين الفيديو سحابياً بنجاح! متاح لجميع الطلاب فور النشر</>) : (<><AlertCircle size={16} color="#DC2626" /> ⚠️ لم يتم استكمال الرفع السحابي بعد - يرجى الانتظار أو إعادة المحاولة</>)}
+                                  {videoStatus === 'ready' && videoUrl ? (<><CheckCircle2 size={16} color="#059669" /> ✅ الفيديو على السحابة وشغال، متاح لجميع الطلاب فور النشر</>) : (<><AlertCircle size={16} color="#DC2626" /> ❌ الفيديو لم يُرفع على السحابة، لن يعمل عند الطلاب{uploadDetails.errorMessage ? `: ${uploadDetails.errorMessage}` : ''}</>)}
                                 </span>
                                 {uploadDetails.isCloudReady ? (
                                   <span style={{ 
@@ -1891,7 +1935,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                                     padding: '6px 14px', background: '#FFFBEB', color: '#92400E', 
                                     borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #FDE68A' 
                                   }}>
-                                    💡 الفيديو شغال ومحفوظ بجهازك (لتفعيله سحابياً انشر قواعد Storage في فايربيز)
+                                    ⚠️ الرفع فشل — الفيديو لن يُنشر قبل نجاح الرفع
                                   </span>
                                 ) : (
                                   <span style={{ 
@@ -1903,6 +1947,15 @@ export default function TeacherAdminCenter({ onNavigate }) {
                                   </span>
                                 )}
                               </div>
+                              {videoStatus === 'failed' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-primary"
+                                  onClick={(ev) => { ev.stopPropagation(); retryVideoUpload(); }}
+                                >
+                                  🔄 إعادة محاولة الرفع
+                                </button>
+                              )}
                             </div>
                           ) : null}
                         </div>
@@ -2862,6 +2915,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                           {lec.videoUrl && (lec.videoUrl.startsWith('https://') || lec.videoUrl.startsWith('http://')) ? (
                             <span className="badge" style={{ fontSize: '0.72rem', background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', fontWeight: 700 }}>
                               🟢 فيديو سحابي نشط
+                            </span>
+                          ) : (lec.videoFileName && (!lec.videoUrl || !/^https?:\/\//i.test(lec.videoUrl))) ? (
+                            <span className="badge" style={{ fontSize: '0.72rem', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', fontWeight: 800 }}>
+                              🔴 الفيديو غير مرفوع، ارفعه تاني
                             </span>
                           ) : (
                             <span className="badge" style={{ fontSize: '0.72rem', background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', fontWeight: 800 }}>

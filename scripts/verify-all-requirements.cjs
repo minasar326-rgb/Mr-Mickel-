@@ -240,11 +240,16 @@ assert(securityValidatorContent.includes('ALLOWED_FILE_TYPES'), 'securityValidat
 assert(securityValidatorContent.includes('checkMagic'), 'securityValidator inspects real binary magic numbers');
 assert(securityValidatorContent.includes('generateCollisionProofKey'), 'securityValidator generates collision-proof keys with timestamp & random bytes');
 assert(securityValidatorContent.includes('sanitizeFileName'), 'securityValidator sanitizes filenames to prevent directory traversal');
-assert(r2StorageContent.includes('CreateMultipartUploadCommand'), 'r2Storage supports multipart chunked uploads for large video files');
-assert(r2StorageContent.includes('UploadPartCommand'), 'r2Storage uploads file in chunks');
-assert(r2StorageContent.includes('CompleteMultipartUploadCommand'), 'r2Storage completes multipart upload on success');
-assert(r2StorageContent.includes('AbortMultipartUploadCommand'), 'r2Storage executes atomic rollback on chunk failure');
-assert(r2StorageContent.includes('retryOperation'), 'r2Storage provides automatic retry loop with exponential backoff on network blips');
+
+const uploadCorePath = path.join(ROOT_DIR, 'src', 'services', 'uploadCore.js');
+const uploadCoreContent = fs.existsSync(uploadCorePath) ? fs.readFileSync(uploadCorePath, 'utf8') : '';
+const combinedStorage = r2StorageContent + '\n' + uploadCoreContent;
+
+assert(combinedStorage.includes('/upload/start') || combinedStorage.includes('CreateMultipartUploadCommand'), 'r2Storage / uploadCore supports multipart chunked uploads for large video files');
+assert(combinedStorage.includes('/upload/part') || combinedStorage.includes('UploadPartCommand'), 'r2Storage / uploadCore uploads file in chunks');
+assert(combinedStorage.includes('/upload/complete') || combinedStorage.includes('CompleteMultipartUploadCommand'), 'r2Storage / uploadCore completes multipart upload on success');
+assert(combinedStorage.includes('/upload/abort') || combinedStorage.includes('AbortMultipartUploadCommand'), 'r2Storage / uploadCore executes atomic rollback on chunk failure');
+assert(combinedStorage.includes('putPartWithRetry') || combinedStorage.includes('retryOperation'), 'r2Storage / uploadCore provides automatic retry loop with exponential backoff on network blips');
 assert(adminCenterContent.includes('validateUploadedFile'), 'TeacherAdminCenter pre-validates files before upload');
 
 // 17. Verify Security Hardening (CSP, XSS, Rate Limiting & Audit Trail)

@@ -14,12 +14,34 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+
+    // Auto-recover from chunk load / version mismatch errors after deployment
+    const msg = error?.message || '';
+    const isChunkError = 
+      msg.includes('dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Importing a module script failed') ||
+      error?.name === 'ChunkLoadError';
+
+    if (isChunkError && !sessionStorage.getItem('ms_chunk_reloaded')) {
+      sessionStorage.setItem('ms_chunk_reloaded', '1');
+      if ('caches' in window) {
+        caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {
+          window.location.reload();
+        });
+      } else {
+        window.location.reload();
+      }
+    }
   }
 
   handleHardReset = () => {
     try {
       localStorage.clear();
       sessionStorage.clear();
+      if ('caches' in window) {
+        caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).catch(() => {});
+      }
       if (window.indexedDB) {
         indexedDB.deleteDatabase('MsMichaelMasterPlatform_Storage');
         indexedDB.deleteDatabase('MsMichaelShehata_V3_DB');
@@ -29,7 +51,13 @@ export default class ErrorBoundary extends React.Component {
   };
 
   handleReload = () => {
-    window.location.reload();
+    if ('caches' in window) {
+      caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {
+        window.location.reload();
+      });
+    } else {
+      window.location.reload();
+    }
   };
 
   render() {

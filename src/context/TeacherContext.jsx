@@ -1132,12 +1132,27 @@ export function TeacherProvider({ children }) {
   useEffect(() => {
     let isCancelled = false;
 
-    // 0. Instant Manifest Sync from Cloudflare R2 (Global CDN, ultra-fast and public for all student phones)
-    fetchLecturesManifestFromR2().then(manifestLectures => {
-      if (!isCancelled && Array.isArray(manifestLectures) && manifestLectures.length > 0) {
-        setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
+    // 0. Instant Manifest Sync from Cloudflare R2 / Server (Global CDN, ultra-fast and public for all student phones)
+    const syncManifest = () => {
+      fetchLecturesManifestFromR2().then(manifestLectures => {
+        if (!isCancelled && Array.isArray(manifestLectures) && manifestLectures.length > 0) {
+          setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
+        }
+      }).catch(() => {});
+    };
+    syncManifest();
+
+    // Poll every 15s so phones & student devices automatically catch new uploads
+    const manifestInterval = setInterval(syncManifest, 15000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isCancelled) {
+        syncManifest();
       }
-    }).catch(() => {});
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
 
     // 1. RTDB Realtime Listeners (Instant sync across devices without delay)
     const unsubRtdbLectures = listenToRtdbNode('lectures', ({ exists, data }) => {
@@ -1252,6 +1267,10 @@ export function TeacherProvider({ children }) {
 
     return () => {
       isCancelled = true;
+      clearInterval(manifestInterval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
       if (typeof unsubRtdbLectures === 'function') unsubRtdbLectures();
       if (typeof unsubRtdbStudents === 'function') unsubRtdbStudents();
       if (typeof unsubRtdbProfile === 'function') unsubRtdbProfile();
@@ -1483,6 +1502,17 @@ export function TeacherProvider({ children }) {
     await syncTeacherProfile(updated);
     addToast(`تم تشفير وحفظ كلمة مرور المستر بنجاح بتقنية PBKDF2 سحابياً! 🔐`, 'success');
     return { success: true };
+  };
+
+  const refreshLecturesManifest = async () => {
+    try {
+      const manifestLectures = await fetchLecturesManifestFromR2();
+      if (Array.isArray(manifestLectures) && manifestLectures.length > 0) {
+        setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
+        return true;
+      }
+    } catch (_) {}
+    return false;
   };
 
   const uploadNewLecture = async (lectureData) => {
@@ -4183,6 +4213,7 @@ export function TeacherProvider({ children }) {
         generatePaymentReminderWhatsApp,
         generateStudentReceiptWhatsApp,
         updateTeacherProfile,
+        refreshLecturesManifest,
         uploadNewLecture,
         updateLecture,
         deleteLecture,

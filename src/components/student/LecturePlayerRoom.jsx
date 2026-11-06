@@ -225,7 +225,12 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   };
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) setDuration(videoRef.current.duration);
+    if (videoRef.current) {
+      const dur = videoRef.current.duration;
+      if (typeof dur === 'number' && !isNaN(dur) && isFinite(dur) && dur > 0) {
+        setDuration(dur);
+      }
+    }
   };
 
   const togglePlay = () => {
@@ -240,8 +245,13 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   };
 
   const formatTime = (secs) => {
-    const m = Math.floor(secs / 60);
+    if (!secs || isNaN(secs) || !isFinite(secs) || secs < 0) return '00:00';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
     const s = Math.floor(secs % 60);
+    if (h > 0) {
+      return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 

@@ -168,6 +168,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [lecturePrice, setLecturePrice] = useState('70 ج.م');
   const [videoSourceType, setVideoSourceType] = useState('file'); // 'file' | 'url'
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastPublishedLecture, setLastPublishedLecture] = useState(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoFileName, setVideoFileName] = useState('');
   const [videoFileSize, setVideoFileSize] = useState('');
@@ -1346,7 +1347,21 @@ export default function TeacherAdminCenter({ onNavigate }) {
         console.log('[DEBUG] Calling uploadNewLecture with:', lecturePayload);
         await uploadNewLecture(lecturePayload);
         console.log('[DEBUG] uploadNewLecture finished successfully!');
+        const savedInfo = {
+          id: lecturePayload.id || `lec-${Date.now()}`,
+          title: lecturePayload.title,
+          stageName: targetStage?.name || lecturePayload.stageName || 'المرحلة الدراسية',
+          stageId: lecturePayload.stageId,
+          duration: lecturePayload.duration,
+          unitNumber: lecturePayload.unitNumber
+        };
+        setLastPublishedLecture(savedInfo);
+        setLectureStageFilter('all');
         addToast('🎉 تم نشر المحاضرة بنجاح وتثبيتها لجميع طلاب المرحلة!', 'success', 6000);
+        setTimeout(() => {
+          const listEl = document.getElementById('published-lectures-container');
+          if (listEl) listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 400);
       }
     } catch (err) {
       console.error('Failed to publish lecture:', err);
@@ -1675,6 +1690,56 @@ export default function TeacherAdminCenter({ onNavigate }) {
                   >
                     إلغاء وضع التعديل ✕
                   </button>
+                </div>
+              )}
+
+              {/* Persistent High-Visibility Success Card */}
+              {lastPublishedLecture && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.25) 100%)',
+                  border: '2px solid #10B981',
+                  borderRadius: '16px',
+                  padding: '1.25rem 1.5rem',
+                  marginBottom: '1.5rem',
+                  boxShadow: '0 8px 25px rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '1.5rem' }}>🎉</span>
+                      <strong style={{ fontSize: '1.15rem', color: '#10B981' }}>تم حفظ ونشر المحاضرة بنجاح تام!</strong>
+                      <span className="badge badge-success" style={{ fontWeight: 800 }}>محفوظة سحابياً ومثبتة للطلاب ✓</span>
+                    </div>
+                    <p style={{ margin: 0, color: '#E2E8F0', fontSize: '0.9rem' }}>
+                      عنوان المحاضرة: <strong style={{ color: '#F8FAFC' }}>{lastPublishedLecture.title}</strong> | المرحلة: <strong>{lastPublishedLecture.stageName}</strong> | المدة: <strong>{lastPublishedLecture.duration}</strong>
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate && onNavigate('lecture-room', { lectureId: lastPublishedLecture.id })}
+                      className="btn btn-primary"
+                      style={{ background: '#10B981', borderColor: '#10B981', fontWeight: 800, padding: '0.6rem 1.25rem', gap: '8px' }}
+                    >
+                      <Play size={16} fill="white" />
+                      <span>فتح ومعاينة المحاضرة الآن ▶️</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const listEl = document.getElementById('published-lectures-container');
+                        if (listEl) listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="btn btn-secondary"
+                      style={{ fontWeight: 700 }}
+                    >
+                      <span>عرض في القائمة بالأسفل ⬇️</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2843,7 +2908,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
             </div>
 
             {/* Existing Lectures List with Delete */}
-            <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <div id="published-lectures-container" className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
               <div className="flex-between" style={{ marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
                   المحاضرات المنشورة حالياً (يمكنك تصفية المحاضرات حسب المرحلة)
@@ -2879,8 +2944,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {lectures
-                  .filter(l => !l.isDeleted && (lectureStageFilter === 'all' ? true : l.stageId === lectureStageFilter))
-                  .map(lec => (
+                  .filter(l => !l.isDeleted && (lectureStageFilter === 'all' ? true : (l.stageId === lectureStageFilter || normalizeStageId(l.stageId) === normalizeStageId(lectureStageFilter))))
+                  .map(lec => {
+                    const isJustPublished = lastPublishedLecture && lastPublishedLecture.id === lec.id;
+                    return (
                   <div
                     key={lec.id}
                     style={{
@@ -2888,9 +2955,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '1rem 1.25rem',
-                      background: 'var(--bg-subtle)',
+                      background: isJustPublished ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-subtle)',
                       borderRadius: 'var(--radius-lg)',
-                      border: '1px solid var(--border-subtle)',
+                      border: isJustPublished ? '2px solid #10B981' : '1px solid var(--border-subtle)',
+                      boxShadow: isJustPublished ? '0 0 20px rgba(16, 185, 129, 0.3)' : 'none',
                       flexWrap: 'wrap',
                       gap: '1rem'
                     }}
@@ -2899,6 +2967,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       <img src={lec.thumbnail} alt={lec.title} style={{ width: '70px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
+                          {isJustPublished && <span className="badge badge-success" style={{ fontWeight: 800 }}>✨ تم النشر للتو ومثبتة للطلاب</span>}
                           <span className="badge badge-primary">{lec.unitNumber}</span>
                           <strong style={{ fontSize: '0.95rem' }}>{lec.title}</strong>
                           {(() => {
@@ -2981,7 +3050,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -20,9 +20,16 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     canAccessLecture,
     videoWatchProgress,
     unlockedLectureIds,
-    sections
+    sections,
+    refreshLecturesManifest
   } = useTeacher();
   const { currentUser, role } = useAuth();
+
+  useEffect(() => {
+    if (typeof refreshLecturesManifest === 'function') {
+      refreshLecturesManifest();
+    }
+  }, [stageId, refreshLecturesManifest]);
 
   const [filterType, setFilterType] = useState('all'); // 'all' | 'month' | 'course'
   const [collapsedSections, setCollapsedSections] = useState({});

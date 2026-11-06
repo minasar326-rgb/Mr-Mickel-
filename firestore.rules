@@ -31,6 +31,7 @@ service cloud.firestore {
           'mrmichaelshehata@gmail.com',
           'teacher@gmail.com',
           'admin@themaster.com',
+          'sareanymina@gmail.com',
           'saryanymina@gmail.com'
         ]
       );

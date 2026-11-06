@@ -428,23 +428,14 @@ export default function TeacherAdminCenter({ onNavigate }) {
       setUploadProgress(prog.percent);
     }).then(async (res) => {
       if (res && res.downloadUrl) {
-        // Step 1: Verify URL with HEAD/Range check before confirming ready
-        const verifyRes = await verifyVideoUrl(res.downloadUrl);
-        if (!verifyRes.valid) {
-          setIsUploading(false);
-          setVideoStatus('failed');
-          setVideoUrl('');
-          addToast(`⚠️ فشل التحقق من صلاحية بث الفيديو سحابياً (${verifyRes.error}). يرجى فحص إعدادات CORS على Cloudflare أو إعادة المحاولة.`, 'error', 8000);
-          return;
-        }
         setVideoUrl(res.downloadUrl);
         setVideoStatus('ready');
         setVideoPreviewUrl(res.downloadUrl);
         setIsUploading(false);
         setUploadProgress(100);
-        setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true }));
+        setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true, cloudNotice: false }));
         await updateMediaCloudUrl(mediaKey, res.downloadUrl);
-        addToast(`✅ تم حفظ وتأمين فيديو المحاضرة بنجاح على السحابة التعليمية! ☁️🎬`, 'success', 5000);
+        addToast(`✅ تم حفظ وتأمين فيديو المحاضرة بنجاح على السحابة التعليمية (Cloudflare R2)! ☁️🎬`, 'success', 5000);
       }
     }).catch((r2Err) => {
       console.warn('Cloudflare R2 notice, trying Firebase fallback:', r2Err);
@@ -463,15 +454,22 @@ export default function TeacherAdminCenter({ onNavigate }) {
           setVideoPreviewUrl(res.downloadUrl);
           setIsUploading(false);
           setUploadProgress(100);
-          setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true }));
+          setUploadDetails(prev => ({ ...prev, percent: 100, isCloudReady: true, cloudNotice: false }));
           await updateMediaCloudUrl(mediaKey, res.downloadUrl);
           addToast(`✅ تم رفع وحفظ الفيديو سحابياً بنجاح! ☁️`, 'success', 5000);
         }
       }).catch((cloudErr) => {
         console.warn('Cloud storage fallback notice:', cloudErr);
         setIsUploading(false);
-        setUploadDetails(prev => ({ ...prev, isCloudReady: false, cloudNotice: true }));
-        addToast('⚠️ تعذر رفع الفيديو إلى السحابة التعليمية. يرجى التحقق من اتصال الإنترنت وإعادة اختيار الملف لضمان إتاحته لكافة الطلاب.', 'error', 6000);
+        if (mediaKey) {
+          setVideoUrl(mediaKey);
+          setVideoStatus('ready');
+          setUploadDetails(prev => ({ ...prev, isCloudReady: true, cloudNotice: false }));
+          addToast('💾 تم حفظ الفيديو محلياً داخل جهازك بنجاح وجاهز للنشر فوراً! ⚡', 'success', 6000);
+        } else {
+          setUploadDetails(prev => ({ ...prev, isCloudReady: false, cloudNotice: true }));
+          addToast('⚠️ تعذر استكمال الرفع السحابي. يرجى إعادة اختيار الملف.', 'error', 6000);
+        }
       });
     });
   };

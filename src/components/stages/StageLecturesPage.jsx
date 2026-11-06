@@ -36,14 +36,28 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   const canonStageId = normalizeStageId(stageId);
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
-  const stage = currentStages.find(s => s.id === stageId || s.id === canonStageId || normalizeStageId(s.id) === canonStageId) || currentStages[0] || { id: stageId, name: 'المرحلة الدراسية', badge: 'دفعة 2026', description: 'منهج تدريبي متكامل لشرح المنهج وحل التدريبات.' };
-  const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => !l.isDeleted && (l.stageId === stage.id || normalizeStageId(l.stageId) === canonStageId));
+  
+  // 1. Strict Stage Identification: exact ID match first!
+  const stage = currentStages.find(s => s.id === stageId) 
+    || currentStages.find(s => s.id === canonStageId)
+    || currentStages.find(s => normalizeStageId(s.name) === canonStageId)
+    || { id: stageId, name: getStageTitle(stageId) || 'المرحلة الدراسية', badge: 'دفعة 2026', description: 'منهج تدريبي متكامل لشرح المنهج وحل التدريبات.' };
 
-  // Dynamic sections (Months & Courses) belonging to this stage
+  // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage
+  const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => {
+    if (!l || l.isDeleted) return false;
+    if (l.stageId === stage.id || l.stageId === stageId) return true;
+    if (canonStageId && stage.id === canonStageId && normalizeStageId(l.stageId) === canonStageId) return true;
+    return false;
+  });
+
+  // 3. Strict Section Isolation: dynamic sections (Months & Courses) strictly for THIS stage
   const stageSections = (Array.isArray(sections) ? sections : [])
     .filter(sec => {
-      const secStageCanon = normalizeStageId(sec.stageId);
-      return (sec.stageId === stage.id || secStageCanon === canonStageId || sec.stageId === stageId) && sec.isVisible !== false;
+      if (!sec || sec.isVisible === false) return false;
+      if (sec.stageId === stage.id || sec.stageId === stageId) return true;
+      if (canonStageId && stage.id === canonStageId && normalizeStageId(sec.stageId) === canonStageId) return true;
+      return false;
     })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -59,10 +73,19 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   const isStageSubscribed = stageSub.isSubscribed && !stageSub.isExpired;
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  // Filter sections by selected tab
+  const isTeacher = role === 'instructor' || role === 'super_admin';
+
+  // 4. Hide Empty Sections: If a month/section has 0 lectures, do not display it to students!
   const displayedSections = stageSections.filter(sec => {
-    if (filterType === 'all') return true;
-    return sec.type === filterType;
+    if (filterType !== 'all' && sec.type !== filterType) return false;
+    
+    // For students: ONLY show sections that actually contain at least one lecture
+    if (!isTeacher) {
+      const hasLectures = stageLectures.some(l => l.sectionId === sec.id);
+      if (!hasLectures) return false;
+    }
+
+    return true;
   });
 
   // Identify lectures not assigned to any existing visible section

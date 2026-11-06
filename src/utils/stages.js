@@ -5,7 +5,16 @@
 
 export const CANONICAL_STAGES = {
   PRI: 'pri',
+  PRI_1: 'pri-1',
+  PRI_2: 'pri-2',
+  PRI_3: 'pri-3',
+  PRI_4: 'pri-4',
+  PRI_5: 'pri-5',
+  PRI_6: 'pri-6',
   PREP: 'prep',
+  PREP_1: 'prep-1',
+  PREP_2: 'prep-2',
+  PREP_3: 'prep-3',
   SEC_1: 'sec-1',
   SEC_2: 'sec-2',
   SEC_3: 'sec-3',
@@ -100,23 +109,101 @@ export const STAGE_DEFINITIONS = [
     ]
   },
   {
+    id: CANONICAL_STAGES.PREP_3,
+    title: 'الصف الثالث الإعدادي',
+    aliases: [
+      'prep-3',
+      'prep3',
+      'الصف الثالث الإعدادي',
+      'الصف الثالث الاعدادي',
+      'تالتة إعدادي',
+      'تالته اعدادي',
+      '3 إعدادي',
+      '3 اعدادي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PREP_2,
+    title: 'الصف الثاني الإعدادي',
+    aliases: [
+      'prep-2',
+      'prep2',
+      'الصف الثاني الإعدادي',
+      'الصف الثاني الاعدادي',
+      'تانية إعدادي',
+      'تانيه اعدادي',
+      '2 إعدادي',
+      '2 اعدادي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PREP_1,
+    title: 'الصف الأول الإعدادي',
+    aliases: [
+      'prep-1',
+      'prep1',
+      'الصف الأول الإعدادي',
+      'الصف الاول الاعدادي',
+      'أولى إعدادي',
+      'اولى اعدادي',
+      '1 إعدادي',
+      '1 اعدادي'
+    ]
+  },
+  {
     id: CANONICAL_STAGES.PREP,
     title: 'المرحلة الإعدادية',
     aliases: [
       'prep',
-      'prep-3',
-      'prep-2',
-      'prep-1',
       'المرحلة الإعدادية',
       'المرحلة الاعدادية',
       'إعدادي',
-      'اعدادي',
-      'الصف الثالث الإعدادي',
-      'الصف الثاني الإعدادي',
-      'الصف الأول الإعدادي',
-      'تالتة إعدادي',
-      'تانية إعدادي',
-      'أولى إعدادي'
+      'اعدادي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PRI_6,
+    title: 'الصف السادس الابتدائي',
+    aliases: [
+      'pri-6',
+      'pri6',
+      'سنة سادسة',
+      'سنه سادسه',
+      'سادسة ابتدائي',
+      'سادسه ابتدائي',
+      'الصف السادس الابتدائي',
+      'الصف السادس',
+      '6 ابتدائي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PRI_5,
+    title: 'الصف الخامس الابتدائي',
+    aliases: [
+      'pri-5',
+      'pri5',
+      'سنة خامسة',
+      'سنه خامسه',
+      'خامسة ابتدائي',
+      'خامسه ابتدائي',
+      'الصف الخامس الابتدائي',
+      'الصف الخامس',
+      '5 ابتدائي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PRI_4,
+    title: 'الصف الرابع الابتدائي',
+    aliases: [
+      'pri-4',
+      'pri4',
+      'سنة رابعة',
+      'سنه رابعه',
+      'رابعة ابتدائي',
+      'رابعه ابتدائي',
+      'الصف الرابع الابتدائي',
+      'الصف الرابع',
+      '4 ابتدائي'
     ]
   },
   {
@@ -126,10 +213,7 @@ export const STAGE_DEFINITIONS = [
       'pri',
       'primary',
       'المرحلة الابتدائية',
-      'ابتدائي',
-      'الصف السادس الابتدائي',
-      'الصف الخامس الابتدائي',
-      'الصف الرابع الابتدائي'
+      'ابتدائي'
     ]
   },
   {
@@ -152,13 +236,13 @@ export const STAGE_DEFINITIONS = [
  * Priority:
  * 1. Exact canonical ID check.
  * 2. Aliases matched as full phrases (longest to shortest) to prevent substring clashes
- *    (e.g., "الصف الأول الثانوي" contains "ثانوي" but MUST match sec-1, never sec-2).
+ * 3. If no match found, PRESERVE the given targetId so custom stages don't collapse into sec-3!
  */
 export function normalizeStageId(targetId, stageName = '') {
   if (!targetId && !stageName) return CANONICAL_STAGES.SEC_3;
 
   const raw = `${targetId || ''} ${stageName || ''}`.toLowerCase().trim();
-  if (!raw) return CANONICAL_STAGES.SEC_3;
+  if (!raw) return targetId || CANONICAL_STAGES.SEC_3;
 
   // 1. Direct Canonical check
   const directMatch = STAGE_DEFINITIONS.find(s => s.id === targetId?.toLowerCase()?.trim());
@@ -196,13 +280,13 @@ export function normalizeStageId(targetId, stageName = '') {
       return item.stageId;
     }
 
-    // Word boundary or substring matching using cleaned string
     if (cleanRaw.includes(cleanAlias)) {
       return item.stageId;
     }
   }
 
-  return CANONICAL_STAGES.SEC_3;
+  // Preserve the specific ID instead of blindly forcing sec-3
+  return targetId || CANONICAL_STAGES.SEC_3;
 }
 
 /**
@@ -211,5 +295,5 @@ export function normalizeStageId(targetId, stageName = '') {
 export function getStageTitle(stageId) {
   const norm = normalizeStageId(stageId);
   const found = STAGE_DEFINITIONS.find(s => s.id === norm);
-  return found ? found.title : 'الصف الثالث الثانوي';
+  return found ? found.title : (stageId || 'المرحلة الدراسية');
 }

@@ -24,6 +24,7 @@ import {
 } from '../services/firestoreSync';
 import { trackLogin, trackSignUp, trackAuthError } from '../services/analytics';
 import { normalizeStageId, CANONICAL_STAGES } from '../utils/stages';
+import { createAdminSession } from '../services/authSecurity';
 
 const pendingStudentProfiles = new Map();
 
@@ -197,7 +198,26 @@ export function AuthProvider({ children }) {
             localStorage.setItem('ms_active_uid', firebaseUser.uid);
             localStorage.setItem('madarek_user', JSON.stringify(profile));
           } catch (_) {}
-          if (role !== 'instructor') {
+          const userEmail = (firebaseUser.email || '').toLowerCase().trim();
+          const isTeacherAccount = (
+            userEmail === 'mrmichaelshehata@gmail.com' ||
+            userEmail === 'onm591589@gmail.com' ||
+            (() => {
+              try {
+                const staff = JSON.parse(localStorage.getItem('ms_staff_admins') || '[]');
+                return Array.isArray(staff) && staff.some(s => s.email?.toLowerCase().trim() === userEmail);
+              } catch (_) { return false; }
+            })()
+          );
+
+          if (isTeacherAccount) {
+            setRole('instructor');
+            createAdminSession({
+              role: 'super_admin',
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || 'مستر مايكل شحاته'
+            });
+          } else if (role !== 'instructor') {
             setRole('student');
           }
 

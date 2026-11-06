@@ -67,11 +67,36 @@ function manifestSyncPlugin() {
               try { parsed = JSON.parse(body); } catch (_) {}
 
               let lecturesArray = Array.isArray(parsed) ? parsed : (parsed?.lectures || []);
-              const fullPayload = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : { lectures: lecturesArray, deletedLectureIds: [] };
+              
+              let existingManifest = null;
+              const manifestPath = path.join(publicDir, 'lectures-manifest.json');
+              if (fs.existsSync(manifestPath)) {
+                try { existingManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (_) {}
+              }
+
+              const safeStages = (Array.isArray(parsed?.stages) && parsed.stages.length > 0)
+                ? parsed.stages
+                : (existingManifest?.stages || []);
+
+              const safeSections = (Array.isArray(parsed?.sections) && parsed.sections.length > 0)
+                ? parsed.sections
+                : (existingManifest?.sections || []);
+
+              const safeDeletedIds = Array.from(new Set([
+                ...(Array.isArray(parsed?.deletedLectureIds) ? parsed.deletedLectureIds : []),
+                ...(Array.isArray(existingManifest?.deletedLectureIds) ? existingManifest.deletedLectureIds : [])
+              ])).filter(Boolean);
+
+              const fullPayload = {
+                lectures: lecturesArray,
+                stages: safeStages,
+                sections: safeSections,
+                deletedLectureIds: safeDeletedIds,
+                updatedAt: new Date().toISOString()
+              };
               const jsonStr = JSON.stringify(fullPayload);
               fs.writeFileSync(path.join(publicDir, 'lectures-manifest.json'), jsonStr, 'utf8');
 
-              // fullPayload already prepared
               const jsContent = `(function() {
   var payload = ${JSON.stringify(fullPayload)};
   window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;

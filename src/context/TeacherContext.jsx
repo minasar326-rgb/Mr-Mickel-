@@ -1399,6 +1399,55 @@ export function TeacherProvider({ children }) {
       }
     });
 
+    const unsubRtdbSections = listenToRtdbNode('sections', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data) {
+        const secList = Array.isArray(data) ? data : Object.values(data);
+        if (secList.length > 0) setSections(secList);
+      }
+    });
+
+    const unsubRtdbExams = listenToRtdbNode('exams', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data && typeof data === 'object') {
+        setExamsData(prev => {
+          const merged = { ...prev, ...data };
+          try { localStorage.setItem('ms_exams_data', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
+      }
+    });
+
+    const unsubRtdbExamSubs = listenToRtdbNode('examSubmissions', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data && typeof data === 'object') {
+        setExamSubmissions(prev => {
+          const merged = { ...prev, ...data };
+          try { localStorage.setItem('ms_exam_submissions', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
+      }
+    });
+
+    const unsubRtdbStaff = listenToRtdbNode('staffAdmins', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data) {
+        const cloudList = typeof data === 'object' ? Object.values(data) : [];
+        if (cloudList.length > 0) setStaffAdmins(cloudList);
+      }
+    });
+
+    const unsubRtdbOverrides = listenToRtdbNode('manualOverrides', ({ exists, data }) => {
+      if (isCancelled) return;
+      if (exists && data && typeof data === 'object') {
+        setManualOverrides(prev => {
+          const merged = { ...prev, ...data };
+          try { localStorage.setItem('ms_manual_overrides', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
+      }
+    });
+
     // 2. Listen to Firestore collections as secondary backup
     const unsubLectures = listenToLectures((cloudLectures) => {
       if (isCancelled || !Array.isArray(cloudLectures) || cloudLectures.length === 0) return;
@@ -1449,6 +1498,11 @@ export function TeacherProvider({ children }) {
       if (typeof unsubStudents === 'function') unsubStudents();
       if (typeof unsubAdminUsers === 'function') unsubAdminUsers();
       if (typeof unsubAuditLogs === 'function') unsubAuditLogs();
+      if (typeof unsubRtdbSections === 'function') unsubRtdbSections();
+      if (typeof unsubRtdbExams === 'function') unsubRtdbExams();
+      if (typeof unsubRtdbExamSubs === 'function') unsubRtdbExamSubs();
+      if (typeof unsubRtdbStaff === 'function') unsubRtdbStaff();
+      if (typeof unsubRtdbOverrides === 'function') unsubRtdbOverrides();
     };
   }, []);
 
@@ -1818,6 +1872,7 @@ export function TeacherProvider({ children }) {
     }
 
     if (updatedData.exam) {
+      saveToRtdb('exams/' + lectureId, updatedData.exam).catch(() => {});
       setExamsData(prev => {
         const updatedExams = { ...prev, [lectureId]: updatedData.exam };
         try {
@@ -2080,6 +2135,7 @@ export function TeacherProvider({ children }) {
     const updated = [...sections, newSec];
     setSections(updated);
     try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    saveToRtdb('sections', updated).catch(() => {});
     syncLecturesManifestToR2(lectures, { stages, sections: updated }).catch(() => {});
     addToast(`تمت إضافة ${newSec.type === 'course' ? 'الكورس' : 'الشهر'} (${newSec.title}) بنجاح 📁`, 'success');
     return newSec;
@@ -2089,6 +2145,7 @@ export function TeacherProvider({ children }) {
     const updated = sections.map(s => s.id === sectionId ? { ...s, ...updatedFields } : s);
     setSections(updated);
     try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    saveToRtdb('sections', updated).catch(() => {});
     syncLecturesManifestToR2(lectures, { stages, sections: updated }).catch(() => {});
     addToast('تم تحديث بيانات القسم بنجاح ✓', 'success');
   };
@@ -2100,6 +2157,7 @@ export function TeacherProvider({ children }) {
     // Reassign any lectures in this section so they are never lost
     setLectures(prev => {
       const newL = prev.map(l => l.sectionId === sectionId ? { ...l, sectionId: '' } : l);
+      saveToRtdb('sections', updated).catch(() => {});
       syncLecturesManifestToR2(newL, { stages, sections: updated }).catch(() => {});
       return newL;
     });
@@ -3520,6 +3578,7 @@ export function TeacherProvider({ children }) {
   const deleteExamFromLecture = (lectureId) => {
     if (!lectureId) return;
 
+    removeFromRtdb('exams/' + lectureId).catch(() => {});
     setExamsData(prev => {
       const updated = { ...prev };
       delete updated[lectureId];
@@ -4167,6 +4226,7 @@ export function TeacherProvider({ children }) {
     };
 
     setStaffAdmins(prev => [...prev, newAdmin]);
+    saveToRtdb('staffAdmins/' + newAdmin.id, newAdmin).catch(() => {});
     await saveAdminUserToCloud(newAdmin);
 
     logPlatformAuditAction({
@@ -4220,6 +4280,7 @@ export function TeacherProvider({ children }) {
     }
 
     setStaffAdmins(prev => prev.filter(a => a.id !== adminId));
+    removeFromRtdb('staffAdmins/' + adminId).catch(() => {});
     await deleteAdminUserFromCloud(adminId);
 
     logPlatformAuditAction({

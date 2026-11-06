@@ -515,6 +515,23 @@ export async function generatePresignedGetUrl({ bucket, key, accountId, accessKe
 export async function fetchLecturesManifestFromR2() {
   const publicDomain = r2Config.publicDomain || 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev';
 
+  const isLocalHost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.') ||
+    window.location.hostname.startsWith('10.')
+  );
+
+  if (isLocalHost) {
+    try {
+      const res = await fetch('/lectures-manifest.json?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (Array.isArray(data) || Array.isArray(data.lectures))) return data;
+      }
+    } catch (_) {}
+  }
+
   // 1. الاستراتيجية الأساسية (للأجهزة والمتصفحات): تحميل سكربت عبر Script Tag العالمي المعفى كلياً من CORS
   if (typeof document !== 'undefined') {
     try {

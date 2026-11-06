@@ -43,8 +43,25 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
   
-  // 1. Strict Stage Identification: exact ID match
-  const stage = currentStages.find(s => s.id === stageId);
+  // 1. Stage Identification: exact ID match, or normalized alias match
+  let stage = currentStages.find(s => s.id === stageId);
+  if (!stage && stageId) {
+    const normSearch = normalizeStageId(stageId);
+    stage = currentStages.find(s => normalizeStageId(s.id, s.name) === normSearch);
+  }
+  // Fallback: derive stage from existing lectures if custom stage was added
+  if (!stage && stageId) {
+    const lecForStage = (Array.isArray(lectures) ? lectures : []).find(l => l && (l.stageId === stageId || normalizeStageId(l.stageId, l.stageName) === normalizeStageId(stageId)));
+    if (lecForStage) {
+      stage = {
+        id: stageId,
+        name: lecForStage.stageName || getStageTitle(stageId),
+        description: 'محتوى شامل ومنهج تدريبي متكامل.',
+        badge: 'دفعة 2026 🔥',
+        pricePerMonth: '30 ج.م'
+      };
+    }
+  }
 
   // If stage does not exist, show dedicated "المرحلة غير موجودة" page with return to home
   if (!stage) {

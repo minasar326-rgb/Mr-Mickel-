@@ -144,7 +144,7 @@ export default function SecurityShield({ children }) {
 
   // 3. DevTools Active Multi-Detector Defense (disable-devtool engine)
   useEffect(() => {
-    if (isTeacherOrAdmin) {
+    if (isTeacherOrAdmin || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
       setIsFrozen(false);
       return;
     }

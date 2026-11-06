@@ -1382,6 +1382,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
     setBldExamQuestions([]);
     setUploadProgress(0);
     setUploadDetails({ percent: 0, transferredMB: '0', totalMB: '0', isCloudReady: false, localSaved: false });
+    setVideoUrl('');
+    setVideoStatus('none');
+    setIsUploading(false);
   } catch (err) {
     console.error('Failed to save lecture:', err);
     addToast(`❌ تعذر نشر المحاضرة: ${err.message}`, 'error');

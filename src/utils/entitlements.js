@@ -30,8 +30,8 @@ export function coversLecture(subscription, lecture, allLectures = []) {
 
   const targetId = (subscription.targetId || subscription.courseId || '').trim();
   const subType = subscription.codeType || subscription.type || '';
-  const subStage = normalizeStageId(subscription.stageId || targetId);
-  const lectureStage = normalizeStageId(lecture.stageId);
+  const subStage = normalizeStageId(subscription.stageId || targetId, subscription.stageName || subscription.targetTitle || '');
+  const lectureStage = normalizeStageId(lecture.stageId, lecture.stageName || lecture.stage || '');
 
   // 1. All-Access Check (STRICT: only if explicitly all-access, never by accidental text match)
   if (subType === 'all-access' || targetId === CANONICAL_STAGES.ALL_ACCESS || subStage === CANONICAL_STAGES.ALL_ACCESS) {
@@ -53,6 +53,7 @@ export function coversLecture(subscription, lecture, allLectures = []) {
     if (subscription.includedItemIds.includes(lecture.id)) return true;
     if (lecture.sectionId && subscription.includedItemIds.includes(lecture.sectionId)) return true;
     if (subscription.includedItemIds.includes(lectureStage)) return true;
+    if (subscription.includedItemIds.includes(lecture.stageId)) return true;
   }
 
   // 5. Stage-Level match (STRICT: only within the exact same stage)
@@ -61,13 +62,16 @@ export function coversLecture(subscription, lecture, allLectures = []) {
     targetId.startsWith('prep-') || 
     targetId.startsWith('pri-') || 
     targetId === 'foundation' ||
-    targetId === subStage;
+    targetId === subStage ||
+    Boolean(subscription.stageId);
 
-  if (isStageSub && subStage && lectureStage) {
-    if (subStage === lectureStage) {
+  if (isStageSub) {
+    if (subStage && lectureStage && subStage === lectureStage) {
       return true;
     }
-    // Cross-stage bleed strictly blocked
+    if (lecture.stageId && (lecture.stageId === subscription.stageId || lecture.stageId === targetId)) {
+      return true;
+    }
     return false;
   }
 

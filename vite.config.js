@@ -12,6 +12,49 @@ function manifestSyncPlugin() {
     name: 'manifest-sync-plugin',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        if (req.url && req.url.startsWith('/api/r2-proxy-upload') && req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', '*');
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        if (req.url && req.url.startsWith('/api/r2-proxy-upload') && req.method === 'PUT') {
+          const urlParam = new URL(req.url, 'http://localhost:3000').searchParams.get('url');
+          if (!urlParam) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Missing presigned url param' }));
+            return;
+          }
+          import('https').then(({ default: https }) => {
+            const targetUrl = new URL(urlParam);
+            const headers = { ...req.headers };
+            delete headers.host;
+            delete headers.origin;
+            delete headers.referer;
+            const proxyReq = https.request(targetUrl, {
+              method: 'PUT',
+              headers
+            }, (proxyRes) => {
+              res.statusCode = proxyRes.statusCode || 200;
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              proxyRes.pipe(res);
+            });
+            proxyReq.on('error', (err) => {
+              res.statusCode = 500;
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify({ error: err.message }));
+            });
+            req.pipe(proxyReq);
+          }).catch(err => {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          });
+          return;
+        }
+
         if (req.url === '/api/sync-manifest' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => { body += chunk; });

@@ -156,8 +156,11 @@ async function runE2ETestSuite() {
 
     // 2. Test Correct Password Login Without Account Creation (1234512345)
     await pinInput.fill('1234512345');
-    await submitBtn.click().catch(() => pinInput.press('Enter'));
-    await pinInput.press('Enter');
+    try {
+      await submitBtn.click({ timeout: 3000 });
+    } catch (_) {
+      await pinInput.press('Enter').catch(() => {});
+    }
     await page1.waitForTimeout(1000);
 
     // Poll up to 6s for Admin Dashboard / Center to be active

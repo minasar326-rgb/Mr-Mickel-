@@ -539,18 +539,30 @@ export function TeacherProvider({ children }) {
       ? manifestData
       : (Array.isArray(manifestData.lectures) ? manifestData.lectures : []);
     if (incomingLectures.length > 0) {
-      setLectures(prev => mergeLectures(prev, sanitizeLectures(incomingLectures)));
+      setLectures(prev => {
+        const merged = mergeLectures(prev, sanitizeLectures(incomingLectures));
+        try { localStorage.setItem('ms_lectures', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
       anyApplied = true;
     }
 
     // 2. Stages & Sections
     if (manifestData && !Array.isArray(manifestData)) {
       if (Array.isArray(manifestData.stages) && manifestData.stages.length > 0) {
-        setStages(prev => mergeStages(prev, manifestData.stages));
+        setStages(prev => {
+          const merged = mergeStages(prev, manifestData.stages);
+          try { localStorage.setItem('ms_stages', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
         anyApplied = true;
       }
       if (Array.isArray(manifestData.sections) && manifestData.sections.length > 0) {
-        setSections(prev => mergeSections(prev, manifestData.sections));
+        setSections(prev => {
+          const merged = mergeSections(prev, manifestData.sections);
+          try { localStorage.setItem('ms_sections', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
         anyApplied = true;
       }
     }

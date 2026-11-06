@@ -27,6 +27,7 @@ import ComprehensiveExamsSection from './components/student/ComprehensiveExamsSe
 
 // Teacher Management Component
 import TeacherAdminCenter from './components/teacher-admin/TeacherAdminCenter';
+import { verifyAdminSession } from './services/authSecurity';
 
 // Security Shield & Anti-Piracy Suite
 import SecurityShield from './components/common/SecurityShield';
@@ -96,7 +97,8 @@ function AppContent() {
         targetParams = parsed.params;
       }
 
-      if (targetPage === 'teacher-admin' && role !== 'teacher') {
+      const isAuthedAdmin = role === 'teacher' || role === 'instructor' || role === 'super_admin' || Boolean(verifyAdminSession()?.valid);
+      if (targetPage === 'teacher-admin' && !isAuthedAdmin) {
         setIsTeacherLoginModalOpen(true);
         return;
       }
@@ -112,11 +114,16 @@ function AppContent() {
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
   }, [role, isCodeModalOpen, isTeacherLoginModalOpen]);
 
   const handleNavigate = (page, params = {}) => {
-    if (page === 'teacher-admin') {
+    const isAuthedAdmin = role === 'teacher' || role === 'instructor' || role === 'super_admin' || Boolean(verifyAdminSession()?.valid);
+    if (page === 'teacher-admin' && !isAuthedAdmin) {
       setIsTeacherLoginModalOpen(true);
       return;
     }
@@ -320,8 +327,7 @@ function AppContent() {
         isOpen={isTeacherLoginModalOpen}
         onClose={handleCloseTeacherLogin}
         onSuccess={() => {
-          setCurrentPage('teacher-admin');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          handleNavigate('teacher-admin');
         }}
       />
 

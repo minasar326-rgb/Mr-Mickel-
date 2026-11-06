@@ -161,7 +161,42 @@ export async function uploadDirectToR2(file, folderPath = 'lectures/videos', onP
       }
     };
 
-    xhr.onerror = () => reject(new UploadError('NETWORK', 'تعذر الاتصال بسحابة Cloudflare R2. تأكد من اتصال الإنترنت وحاول ثانية.'));
+    xhr.onerror = () => {
+      // If direct R2 upload was blocked by CORS on local network (e.g. 192.168.x.x dev server),
+      // seamlessly proxy through local dev server
+      if (typeof window !== 'undefined' && window.location.protocol === 'http:' && !presignedUrl.startsWith('/api/')) {
+        console.warn('[R2 Direct Upload] Direct upload error (likely local network CORS). Falling back to dev proxy...');
+        const proxyUrl = `/api/r2-proxy-upload?url=${encodeURIComponent(presignedUrl)}`;
+        const fallbackXhr = new XHR();
+        fallbackXhr.open('PUT', proxyUrl);
+        if (file.type) fallbackXhr.setRequestHeader('Content-Type', file.type);
+        fallbackXhr.upload.onprogress = xhr.upload.onprogress;
+        fallbackXhr.onload = () => {
+          if (fallbackXhr.status >= 200 && fallbackXhr.status < 300) {
+            const totalMB = (file.size / (1024 * 1024)).toFixed(1);
+            if (onProgress) onProgress({ percent: 100, transferredMB: totalMB, totalMB, state: 'completed' });
+            const downloadUrl = `${publicDomain.replace(/\/+$/, '')}/${key}`;
+            resolve({
+              success: true,
+              downloadUrl,
+              publicUrl: downloadUrl,
+              storageKey: key,
+              fileName: file.name,
+              fileSize: file.size,
+              size: file.size,
+              key
+            });
+          } else {
+            reject(new UploadError('SERVER', `فشل رفع الفيديو لـ Cloudflare R2 (رمز الاستجابة: ${fallbackXhr.status})`));
+          }
+        };
+        fallbackXhr.onerror = () => reject(new UploadError('NETWORK', 'تعذر الاتصال بسحابة Cloudflare R2. تأكد من اتصال الإنترنت وحاول ثانية.'));
+        fallbackXhr.ontimeout = () => reject(new UploadError('TIMEOUT', 'انتهت مهلة الرفع السحابي.'));
+        fallbackXhr.send(file);
+        return;
+      }
+      reject(new UploadError('NETWORK', 'تعذر الاتصال بسحابة Cloudflare R2. تأكد من اتصال الإنترنت وحاول ثانية.'));
+    };
     xhr.ontimeout = () => reject(new UploadError('TIMEOUT', 'انتهت مهلة الرفع السحابي.'));
 
     if (signal) {

@@ -167,6 +167,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
             </div>
           ) : (
             <button
+              id="teacher-navbar-login-btn"
               onClick={handleTeacherAccess}
               className="btn btn-ghost btn-sm"
               style={{

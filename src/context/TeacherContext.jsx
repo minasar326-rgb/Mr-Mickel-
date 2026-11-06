@@ -1470,10 +1470,16 @@ export function TeacherProvider({ children }) {
     }
 
     // 2. Persist permanently into local IndexedDB
-    await persistCollectionLocally(STORES.LECTURES, [newLec]);
+    try {
+      await persistCollectionLocally(STORES.LECTURES, [newLec]);
+    } catch (dbErr) {
+      console.warn('Local IndexedDB store notice:', dbErr);
+    }
 
-    // 3. Persist permanently into Cloud Firestore & RTDB
-    await saveLectureToFirestore(newLec);
+    // 3. Persist permanently into Cloud Firestore & RTDB (in background so publishing is instantaneous)
+    saveLectureToFirestore(newLec).catch(err => {
+      console.warn('Background Cloud Sync Notice (Lecture):', err);
+    });
 
     // 4. Record Centralized Audit Trail
     logPlatformAuditAction({
@@ -1517,8 +1523,10 @@ export function TeacherProvider({ children }) {
     });
 
     if (updatedLec) {
-      await persistCollectionLocally(STORES.LECTURES, [updatedLec]);
-      await saveLectureToFirestore(updatedLec);
+      try {
+        await persistCollectionLocally(STORES.LECTURES, [updatedLec]);
+      } catch (e) {}
+      saveLectureToFirestore(updatedLec).catch(() => {});
 
       logPlatformAuditAction({
         action: 'lecture_updated',
@@ -2600,7 +2608,7 @@ export function TeacherProvider({ children }) {
       currentUser?.role === 'teacher' ||
       currentUser?.role === 'admin'
     );
-    if (isAdmin && lecture.localMediaKey) {
+    if (lecture.localMediaKey) {
       try {
         const idbRes = await getPermanentMediaUrl(lecture.localMediaKey);
         if (idbRes.found && idbRes.cloudUrl) {

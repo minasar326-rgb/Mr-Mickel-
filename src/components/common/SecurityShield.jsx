@@ -19,6 +19,8 @@ export default function SecurityShield({ children }) {
   const { addToast } = useToast();
   const { teacherProfile } = useTeacher();
   const { currentUser, role } = useAuth();
+  const isTeacherOrAdmin = role === 'teacher' || role === 'admin' || 
+    (typeof localStorage !== 'undefined' && localStorage.getItem('ms_admin_auth') === 'true');
 
   // Dynamic Floating Watermark Coordinates across the page
   const [globalWatermarkPos, setGlobalWatermarkPos] = useState({ top: '25%', left: '30%' });
@@ -43,7 +45,7 @@ export default function SecurityShield({ children }) {
 
   // 1.1 Screen recording API Blocker (intercept getDisplayMedia)
   useEffect(() => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
     if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
       const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
       navigator.mediaDevices.getDisplayMedia = function() {
@@ -59,11 +61,11 @@ export default function SecurityShield({ children }) {
         navigator.mediaDevices.getDisplayMedia = originalGetDisplayMedia;
       };
     }
-  }, [role, addToast]);
+  }, [isTeacherOrAdmin, role, addToast]);
 
   // Trigger Freeze function
   const triggerFreeze = useCallback((reason = 'DevTools detected') => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
     try {
       if (window.sessionStorage && window.sessionStorage.getItem('ms_dev_bypass') === 'true') {
         return;
@@ -80,7 +82,7 @@ export default function SecurityShield({ children }) {
 
   // 2. Anti-Inspection, Keydown & Screen Capture Blocker
   useEffect(() => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
 
     const handleKeyDown = (e) => {
       // 1. Screenshot / PrintScreen Interception
@@ -142,7 +144,7 @@ export default function SecurityShield({ children }) {
 
   // 3. DevTools Active Multi-Detector Defense (disable-devtool engine)
   useEffect(() => {
-    if (role === 'instructor') {
+    if (isTeacherOrAdmin) {
       setIsFrozen(false);
       return;
     }
@@ -166,7 +168,7 @@ export default function SecurityShield({ children }) {
         interval: 2500,
         detectors: 'all',
         ignore: () => {
-          return role === 'instructor' || (window.sessionStorage && window.sessionStorage.getItem('ms_dev_bypass') === 'true');
+          return isTeacherOrAdmin || (window.sessionStorage && window.sessionStorage.getItem('ms_dev_bypass') === 'true');
         }
       });
     } catch (err) {
@@ -192,11 +194,11 @@ export default function SecurityShield({ children }) {
       clearInterval(interval);
       window.removeEventListener('resize', checkDevTools);
     };
-  }, [role, triggerFreeze]);
+  }, [isTeacherOrAdmin, role, triggerFreeze]);
 
   // 4. Window Visibility & Anti-Screen Recording Defense
   useEffect(() => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -231,7 +233,7 @@ export default function SecurityShield({ children }) {
 
   // 5. MutationObserver Tamper Guard (Watches Watermark Integrity)
   useEffect(() => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
 
     const watermarkEl = document.getElementById('ms-anti-leak-watermark');
     if (!watermarkEl) return;
@@ -265,11 +267,11 @@ export default function SecurityShield({ children }) {
     });
 
     return () => observer.disconnect();
-  }, [role, triggerFreeze]);
+  }, [isTeacherOrAdmin, role, triggerFreeze]);
 
   // 6. Clipboard & Drag Protection
   useEffect(() => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
 
     const handleCopy = (e) => {
       e.preventDefault();
@@ -293,11 +295,11 @@ export default function SecurityShield({ children }) {
       document.removeEventListener('cut', handleCopy, true);
       document.removeEventListener('selectstart', handleSelectStart, true);
     };
-  }, [role, addToast]);
+  }, [isTeacherOrAdmin, role, addToast]);
 
   // 7. Right-Click Context Menu Blocker
   const handleContextMenu = (e) => {
-    if (role === 'instructor') return;
+    if (isTeacherOrAdmin) return;
     e.preventDefault();
     addToast('🔒 النقر بزر الماوس الأيمن معطل لحماية المحتوى التعليمي والفيديوهات.', 'info', 2000);
     return false;
@@ -315,17 +317,17 @@ export default function SecurityShield({ children }) {
   return (
     <div 
       onContextMenu={handleContextMenu}
-      onDragStart={(e) => { if (role !== 'instructor') e.preventDefault(); }}
+      onDragStart={(e) => { if (!isTeacherOrAdmin) e.preventDefault(); }}
       style={{ 
         position: 'relative', 
         width: '100%', 
         minHeight: '100vh', 
-        userSelect: role === 'instructor' ? 'auto' : 'none',
-        WebkitUserSelect: role === 'instructor' ? 'auto' : 'none'
+        userSelect: isTeacherOrAdmin ? 'auto' : 'none',
+        WebkitUserSelect: isTeacherOrAdmin ? 'auto' : 'none'
       }}
     >
       {/* 🛑 FULL PAGE FREEZE OVERLAY WHEN DEVTOOLS/CONSOLE IS OPEN */}
-      {isFrozen && role !== 'instructor' && (
+      {isFrozen && !isTeacherOrAdmin && (
         <div 
           style={{
             position: 'fixed',
@@ -459,7 +461,7 @@ export default function SecurityShield({ children }) {
       )}
 
       {/* 🛡️ TAB-SWITCH & WINDOW BLUR PRIVACY SHIELD */}
-      {isWindowBlurred && role !== 'instructor' && !isFrozen && (
+      {isWindowBlurred && !isTeacherOrAdmin && !isFrozen && (
         <div style={{
           position: 'fixed',
           inset: 0,

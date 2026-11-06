@@ -66,8 +66,6 @@ function manifestSyncPlugin() {
               let parsed = null;
               try { parsed = JSON.parse(body); } catch (_) {}
 
-              let lecturesArray = Array.isArray(parsed) ? parsed : (parsed?.lectures || []);
-              
               let existingManifest = null;
               const manifestPath = path.join(publicDir, 'lectures-manifest.json');
               if (fs.existsSync(manifestPath)) {
@@ -86,9 +84,23 @@ function manifestSyncPlugin() {
                 ...(Array.isArray(parsed?.deletedLectureIds) ? parsed.deletedLectureIds : []),
                 ...(Array.isArray(existingManifest?.deletedLectureIds) ? existingManifest.deletedLectureIds : [])
               ])).filter(Boolean);
+              const deletedSet = new Set(safeDeletedIds);
+
+              const incomingLectures = (Array.isArray(parsed) ? parsed : (parsed?.lectures || []))
+                .filter(l => l && l.id && !deletedSet.has(l.id));
+              const existingLectures = (Array.isArray(existingManifest?.lectures) ? existingManifest.lectures : [])
+                .filter(l => l && l.id && !deletedSet.has(l.id));
+
+              const lectureMap = new Map();
+              existingLectures.forEach(l => lectureMap.set(l.id, l));
+              incomingLectures.forEach(l => {
+                const prev = lectureMap.get(l.id) || {};
+                lectureMap.set(l.id, { ...prev, ...l });
+              });
+              const safeLectures = Array.from(lectureMap.values()).filter(l => !deletedSet.has(l.id));
 
               const fullPayload = {
-                lectures: lecturesArray,
+                lectures: safeLectures,
                 stages: safeStages,
                 sections: safeSections,
                 deletedLectureIds: safeDeletedIds,

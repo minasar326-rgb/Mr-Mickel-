@@ -468,32 +468,11 @@ export function TeacherProvider({ children }) {
     const map = new Map();
     const now = Date.now();
 
-    // 1. Seed with previous/local lectures ONLY if they are active in incomingList
-    // OR if it's a very fresh local draft created in the last 3 minutes on THIS device
+    // 1. Seed with previous/local lectures that are not explicitly deleted
     (prevList || []).forEach(item => {
       if (!item || !item.id || deletedIds.has(item.id) || item.isDeleted) {
         return;
       }
-
-      const isSyncedCloudLecture = Boolean(
-        item.isPermanent || 
-        (item.videoUrl && /^https?:\/\//i.test(item.videoUrl))
-      );
-
-      // If this lecture was already a published cloud lecture, but the incoming manifest no longer has it:
-      // It was deleted by the teacher! Drop it immediately from this device.
-      if (isSyncedCloudLecture && !incomingIds.has(item.id)) {
-        deletedIds.add(item.id);
-        return;
-      }
-
-      // If it's not in the cloud and was created more than 3 minutes ago, it's stale: drop it.
-      const createdTime = item.createdAt ? new Date(item.createdAt).getTime() : 0;
-      if (!incomingIds.has(item.id) && createdTime && (now - createdTime > 180000)) {
-        deletedIds.add(item.id);
-        return;
-      }
-
       map.set(item.id, item);
     });
 

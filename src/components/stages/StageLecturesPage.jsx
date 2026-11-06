@@ -93,7 +93,11 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage ID
   const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => {
-    return l && !l.isDeleted && (l.stageId === stage.id || normalizeStageId(l.stageId) === normalizeStageId(stage.id));
+    if (!l || l.isDeleted) return false;
+    if (l.stageId === stage.id) return true;
+    if (normalizeStageId(l.stageId, l.stageName) === normalizeStageId(stage.id, stage.name)) return true;
+    if (l.stageName && stage.name && l.stageName.trim().toLowerCase() === stage.name.trim().toLowerCase()) return true;
+    return false;
   });
 
   // 3. Strict Section Isolation: dynamic sections strictly for THIS stage ID

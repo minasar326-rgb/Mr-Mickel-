@@ -334,31 +334,75 @@ export async function verifyVideoUrl(url) {
 }
 
 /**
- * مزامنة قائمة المحاضرات على السحابة (Cloudflare R2 Manifest)
- * لتكون متاحة لجميع أجهزة الطلاب فورياً بدون أي عوائق صلاحيات.
+ * مزامنة دليل المنصة التعليمي (المحاضرات، المراحل، والأقسام) على سحابة Cloudflare R2
+ * لتكون متاحة فورياً لجميع أجهزة الطلاب والهواتف بدون أي عوائق صلاحيات أو قيود شبكة.
  */
-export async function syncLecturesManifestToR2(lecturesList) {
+export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
   if (!Array.isArray(lecturesList)) return false;
   try {
-    const cleanList = lecturesList.filter(l => l && !l.isDeleted);
-    const jsonString = JSON.stringify(cleanList);
+    const cleanLectures = lecturesList.filter(l => l && !l.isDeleted);
 
-    // 1. Sync to local dev server if running (for instant Wi-Fi phone access)
+    let stages = extra.stages;
+    let sections = extra.sections;
+    if (typeof localStorage !== 'undefined') {
+      if (!stages) {
+        try { stages = JSON.parse(localStorage.getItem('ms_stages') || 'null'); } catch (_) {}
+      }
+      if (!sections) {
+        try { sections = JSON.parse(localStorage.getItem('ms_sections') || 'null'); } catch (_) {}
+      }
+    }
+
+    const payload = {
+      lectures: cleanLectures,
+      stages: Array.isArray(stages) ? stages : [],
+      sections: Array.isArray(sections) ? sections : [],
+      updatedAt: new Date().toISOString()
+    };
+
+    const jsonString = JSON.stringify(cleanLectures);
+    const fullPayloadString = JSON.stringify(payload);
+
+    // 1. مزامنة فورية مع السيرفر المحلي إن وجد (لتحديث هواتف الشبكة الداخلية فوراً)
     try {
       if (typeof window !== 'undefined') {
         fetch('/api/sync-manifest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: jsonString
+          body: fullPayloadString
         }).catch(() => {});
       }
     } catch (_) {}
 
-    // 2. Upload directly to Cloudflare R2 with exact key 'lectures-manifest.json'
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const file = new File([blob], 'lectures-manifest.json', { type: 'application/json' });
-    await uploadDirectToR2(file, '', null, null, 'lectures-manifest.json');
-    console.log('[R2] Manifest successfully synced with', cleanList.length, 'lectures');
+    // 2. رفع ملف JSON الخام إلى Cloudflare R2
+    try {
+      const jsonBlob = new Blob([jsonString], { type: 'application/json' });
+      const jsonFile = new File([jsonBlob], 'lectures-manifest.json', { type: 'application/json' });
+      await uploadDirectToR2(jsonFile, '', null, null, 'lectures-manifest.json');
+    } catch (e) {
+      console.warn('[R2] Manifest json upload notice:', e.message);
+    }
+
+    // 3. رفع ملف JavaScript العالمي المقاوم لـ CORS (يعمل كـ Script Tag على كافة الهواتف والأجهزة الذكية)
+    const jsContent = `(function() {
+  var payload = ${fullPayloadString};
+  window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
+  window.__MS_STAGES_MANIFEST__ = payload.stages || [];
+  window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_PLATFORM_MANIFEST__ = payload;
+  if (typeof window.__onLecturesManifest === 'function') {
+    try { window.__onLecturesManifest(payload); } catch(e) {}
+  }
+  try {
+    window.dispatchEvent(new CustomEvent('ms:platform-manifest-loaded', { detail: payload }));
+  } catch(e) {}
+})();`;
+
+    const jsBlob = new Blob([jsContent], { type: 'application/javascript; charset=utf-8' });
+    const jsFile = new File([jsBlob], 'lectures-manifest.js', { type: 'application/javascript' });
+    await uploadDirectToR2(jsFile, '', null, null, 'lectures-manifest.js');
+
+    console.log('[R2] Global Platform Manifest synced successfully (' + cleanLectures.length + ' lectures, ' + payload.stages.length + ' stages)');
     return true;
   } catch (err) {
     console.warn('Failed to sync lectures manifest to R2:', err);
@@ -420,28 +464,88 @@ export async function generatePresignedGetUrl({ bucket, key, accountId, accessKe
 }
 
 /**
- * جلب قائمة المحاضرات السحابية من Cloudflare R2 لجميع أجهزة الطلاب والهواتف
+ * جلب قائمة المحاضرات والدليل السحابي من Cloudflare R2 لكافة أجهزة الطلاب وهواتفهم
+ * مصممة لتخطي أي حظر CORS تماماً عبر تقنية الحقن الديناميكي (JSONP Script Tag) ثم الـ Fallbacks
  */
 export async function fetchLecturesManifestFromR2() {
-  // 1. Try local dev manifest (fastest for phones on Wi-Fi and localhost)
+  const publicDomain = r2Config.publicDomain || 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev';
+
+  // 1. الاستراتيجية الأساسية (للأجهزة والمتصفحات): تحميل سكربت عبر Script Tag العالمي المعفى كلياً من CORS
+  if (typeof document !== 'undefined') {
+    try {
+      const scriptResult = await new Promise((resolve) => {
+        const script = document.createElement('script');
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            if (script.parentNode) script.parentNode.removeChild(script);
+            resolve(null);
+          }
+        }, 5000);
+
+        const prevCb = window.__onLecturesManifest;
+        window.__onLecturesManifest = (data) => {
+          if (typeof prevCb === 'function') {
+            try { prevCb(data); } catch (_) {}
+          }
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            if (script.parentNode) script.parentNode.removeChild(script);
+            resolve(data);
+          }
+        };
+
+        script.onload = () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            if (script.parentNode) script.parentNode.removeChild(script);
+            const p = window.__MS_PLATFORM_MANIFEST__ || window.__MS_LECTURES_MANIFEST__;
+            resolve(p || null);
+          }
+        };
+
+        script.onerror = () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            if (script.parentNode) script.parentNode.removeChild(script);
+            resolve(null);
+          }
+        };
+
+        script.async = true;
+        script.src = `${publicDomain.replace(/\/+$/, '')}/lectures-manifest.js?t=${Date.now()}`;
+        (document.head || document.documentElement).appendChild(script);
+      });
+
+      if (scriptResult) {
+        return scriptResult;
+      }
+    } catch (_) {}
+  }
+
+  // 2. الاستراتيجية الثانية: السيرفر المحلي أو البيئة الحالية (سريعة جداً للمعاينة المحلية)
   try {
     const res = await fetch('/lectures-manifest.json?t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && (Array.isArray(data) || Array.isArray(data.lectures))) return data;
     }
   } catch (_) {}
 
-  // 2. Try Vite proxy if in dev
+  // 3. الاستراتيجية الثالثة: بروكسي Vite للتطوير
   try {
     const res = await fetch('/r2-pub/lectures-manifest.json?t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && (Array.isArray(data) || Array.isArray(data.lectures))) return data;
     }
   } catch (_) {}
 
-  // 3. Try Presigned GET URL from R2
+  // 4. الاستراتيجية الرابعة: الرابط الموقع المؤقت
   try {
     const presignedUrl = await generatePresignedGetUrl({
       bucket: r2Config.bucketName,
@@ -455,19 +559,18 @@ export async function fetchLecturesManifestFromR2() {
       const res = await fetch(presignedUrl, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        if (data && (Array.isArray(data) || Array.isArray(data.lectures))) return data;
       }
     }
   } catch (_) {}
 
-  // 4. Try direct public CDN
+  // 5. الاستراتيجية الخامسة: طلب مباشر لسحابة CDN
   try {
-    const publicDomain = r2Config.publicDomain || 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev';
     const url = publicDomain.replace(/\/+$/, '') + '/lectures-manifest.json?t=' + Date.now();
     const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && (Array.isArray(data) || Array.isArray(data.lectures))) return data;
     }
   } catch (_) {}
 

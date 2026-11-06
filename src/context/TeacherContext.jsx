@@ -498,6 +498,65 @@ export function TeacherProvider({ children }) {
     return Array.from(map.values()).filter(l => !l.isDeleted && !deletedIds.has(l.id));
   };
 
+  const mergeStages = (prevList = [], incomingList = []) => {
+    if (!Array.isArray(incomingList) || incomingList.length === 0) return prevList;
+    const map = new Map();
+    (prevList || []).forEach(s => { if (s && s.id) map.set(s.id, s); });
+    incomingList.forEach(s => {
+      if (s && s.id) {
+        if (map.has(s.id)) {
+          map.set(s.id, { ...map.get(s.id), ...s });
+        } else {
+          map.set(s.id, s);
+        }
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const mergeSections = (prevList = [], incomingList = []) => {
+    if (!Array.isArray(incomingList) || incomingList.length === 0) return prevList;
+    const map = new Map();
+    (prevList || []).forEach(s => { if (s && s.id) map.set(s.id, s); });
+    incomingList.forEach(s => {
+      if (s && s.id) {
+        if (map.has(s.id)) {
+          map.set(s.id, { ...map.get(s.id), ...s });
+        } else {
+          map.set(s.id, s);
+        }
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const applyCloudManifest = (manifestData) => {
+    if (!manifestData) return false;
+    let anyApplied = false;
+
+    // 1. Lectures
+    const incomingLectures = Array.isArray(manifestData)
+      ? manifestData
+      : (Array.isArray(manifestData.lectures) ? manifestData.lectures : []);
+    if (incomingLectures.length > 0) {
+      setLectures(prev => mergeLectures(prev, sanitizeLectures(incomingLectures)));
+      anyApplied = true;
+    }
+
+    // 2. Stages & Sections
+    if (manifestData && !Array.isArray(manifestData)) {
+      if (Array.isArray(manifestData.stages) && manifestData.stages.length > 0) {
+        setStages(prev => mergeStages(prev, manifestData.stages));
+        anyApplied = true;
+      }
+      if (Array.isArray(manifestData.sections) && manifestData.sections.length > 0) {
+        setSections(prev => mergeSections(prev, manifestData.sections));
+        anyApplied = true;
+      }
+    }
+    return anyApplied;
+  };
+
   // 3. Lectures
   const [lectures, setLectures] = useState(() => {
     try {
@@ -1134,9 +1193,9 @@ export function TeacherProvider({ children }) {
 
     // 0. Instant Manifest Sync from Cloudflare R2 / Server (Global CDN, ultra-fast and public for all student phones)
     const syncManifest = () => {
-      fetchLecturesManifestFromR2().then(manifestLectures => {
-        if (!isCancelled && Array.isArray(manifestLectures) && manifestLectures.length > 0) {
-          setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
+      fetchLecturesManifestFromR2().then(manifestData => {
+        if (!isCancelled) {
+          applyCloudManifest(manifestData);
         }
       }).catch(() => {});
     };
@@ -1506,11 +1565,8 @@ export function TeacherProvider({ children }) {
 
   const refreshLecturesManifest = async () => {
     try {
-      const manifestLectures = await fetchLecturesManifestFromR2();
-      if (Array.isArray(manifestLectures) && manifestLectures.length > 0) {
-        setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
-        return true;
-      }
+      const manifestData = await fetchLecturesManifestFromR2();
+      return applyCloudManifest(manifestData);
     } catch (_) {}
     return false;
   };
@@ -1556,7 +1612,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
-      syncLecturesManifestToR2(updated).catch(err => {
+      syncLecturesManifestToR2(updated, { stages, sections }).catch(err => {
         console.warn('Background Cloudflare R2 Manifest sync notice:', err);
       });
       return updated;
@@ -1633,7 +1689,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
-      syncLecturesManifestToR2(updated).catch(() => {});
+      syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
       return updated;
     });
 
@@ -1703,7 +1759,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
-      syncLecturesManifestToR2(updated).catch(() => {});
+      syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
       await deleteLectureFromFirestore(lectureId, targetLecture?.stageId);
       if (targetLecture?.localMediaKey) {
         await deleteMediaPermanently(targetLecture.localMediaKey);
@@ -1737,7 +1793,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
-      syncLecturesManifestToR2(updated).catch(() => {});
+      syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
       const softLec = updated.find(l => l.id === lectureId);
       if (softLec) {
         await saveLectureToFirestore(softLec);
@@ -1787,7 +1843,7 @@ export function TeacherProvider({ children }) {
     try {
       localStorage.setItem('ms_lectures', JSON.stringify(updated));
     } catch (e) {}
-    syncLecturesManifestToR2(updated).catch(() => {});
+    syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
     const restoredLec = updated.find(l => l.id === lectureId);
     if (restoredLec) {
       await saveLectureToFirestore(restoredLec);
@@ -1822,6 +1878,7 @@ export function TeacherProvider({ children }) {
     const updated = [...stages, newStage];
     setStages(updated);
     await syncStagesToCloud(updated);
+    syncLecturesManifestToR2(lectures, { stages: updated, sections }).catch(() => {});
     addToast(`تمت إضافة المرحلة (${newStage.name}) بنجاح 🎓`, 'success');
     return newStage;
   };
@@ -1830,6 +1887,7 @@ export function TeacherProvider({ children }) {
     const updated = stages.map(s => s.id === stageId ? { ...s, ...updatedFields } : s);
     setStages(updated);
     await syncStagesToCloud(updated);
+    syncLecturesManifestToR2(lectures, { stages: updated, sections }).catch(() => {});
     addToast('تم تحديث بيانات المرحلة بنجاح ✓', 'success');
   };
 
@@ -1849,6 +1907,7 @@ export function TeacherProvider({ children }) {
     const updated = stages.filter(s => s.id !== stageId);
     setStages(updated);
     await syncStagesToCloud(updated);
+    syncLecturesManifestToR2(lectures, { stages: updated, sections }).catch(() => {});
     addToast(targetStageIdToMigrate 
       ? 'تم نقل محتوى المرحلة وحذفها بنجاح 🔄' 
       : 'تم حذف المرحلة الدراسية بنجاح 🗑️', 'info');
@@ -1904,6 +1963,7 @@ export function TeacherProvider({ children }) {
     const updated = [...sections, newSec];
     setSections(updated);
     try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    syncLecturesManifestToR2(lectures, { stages, sections: updated }).catch(() => {});
     addToast(`تمت إضافة ${newSec.type === 'course' ? 'الكورس' : 'الشهر'} (${newSec.title}) بنجاح 📁`, 'success');
     return newSec;
   };
@@ -1912,6 +1972,7 @@ export function TeacherProvider({ children }) {
     const updated = sections.map(s => s.id === sectionId ? { ...s, ...updatedFields } : s);
     setSections(updated);
     try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
+    syncLecturesManifestToR2(lectures, { stages, sections: updated }).catch(() => {});
     addToast('تم تحديث بيانات القسم بنجاح ✓', 'success');
   };
 
@@ -1920,7 +1981,11 @@ export function TeacherProvider({ children }) {
     setSections(updated);
     try { localStorage.setItem('ms_sections', JSON.stringify(updated)); } catch (e) {}
     // Reassign any lectures in this section so they are never lost
-    setLectures(prev => prev.map(l => l.sectionId === sectionId ? { ...l, sectionId: '' } : l));
+    setLectures(prev => {
+      const newL = prev.map(l => l.sectionId === sectionId ? { ...l, sectionId: '' } : l);
+      syncLecturesManifestToR2(newL, { stages, sections: updated }).catch(() => {});
+      return newL;
+    });
     addToast('تم حذف القسم بنجاح (مع الحفاظ على المحاضرات) 🗑️', 'info');
   };
 
@@ -1928,6 +1993,7 @@ export function TeacherProvider({ children }) {
     const updated = lectures.map(l => l.id === lectureId ? { ...l, sectionId: targetSectionId } : l);
     setLectures(updated);
     try { localStorage.setItem('ms_lectures', JSON.stringify(updated)); } catch (e) {}
+    syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
     addToast('تم نقل المحاضرة إلى القسم الجديد بنجاح 🔄', 'success');
   };
 

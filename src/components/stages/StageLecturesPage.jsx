@@ -109,8 +109,17 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   }
 
   // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage ID
+  const deletedIds = (() => {
+    try {
+      const raw = localStorage.getItem('ms_deleted_lectures');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) {
+      return new Set();
+    }
+  })();
+
   const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => {
-    if (!l || l.isDeleted) return false;
+    if (!l || l.isDeleted || deletedIds.has(l.id)) return false;
     if (l.stageId === stage.id) return true;
     if (normalizeStageId(l.stageId, l.stageName) === normalizeStageId(stage.id, stage.name)) return true;
     if (l.stageName && stage.name && l.stageName.trim().toLowerCase() === stage.name.trim().toLowerCase()) return true;

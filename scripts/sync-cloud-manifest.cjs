@@ -55,8 +55,10 @@ async function main() {
     throw new Error('public/lectures-manifest.json not found');
   }
 
-  const rawLectures = JSON.parse(fs.readFileSync(manifestJsonPath, 'utf8'));
-  console.log(`Loaded ${rawLectures.length} lectures from ${manifestJsonPath}`);
+  const parsed = JSON.parse(fs.readFileSync(manifestJsonPath, 'utf8'));
+  const rawLectures = Array.isArray(parsed) ? parsed : (parsed.lectures || []);
+  const deletedLectureIds = parsed.deletedLectureIds || [];
+  console.log(`Loaded ${rawLectures.length} lectures and ${deletedLectureIds.length} deleted IDs from ${manifestJsonPath}`);
 
   // Also include the custom stage 'stage-1793823759992' (ثالثه ابتدائى) so it exists across all devices
   const customStage = {
@@ -75,17 +77,19 @@ async function main() {
 
   const payload = {
     lectures: rawLectures,
-    stages: [customStage],
-    sections: [],
+    stages: parsed.stages || [customStage],
+    sections: parsed.sections || [],
+    deletedLectureIds: deletedLectureIds,
     timestamp: Date.now()
   };
 
-  const jsonContent = JSON.stringify(rawLectures);
+  const jsonContent = JSON.stringify(payload);
   const jsContent = `(function() {
   var payload = ${JSON.stringify(payload)};
   window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
   window.__MS_STAGES_MANIFEST__ = payload.stages || [];
   window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
   window.__MS_PLATFORM_MANIFEST__ = payload;
   if (typeof window.__onLecturesManifest === 'function') {
     try { window.__onLecturesManifest(payload); } catch(e) {}
@@ -95,10 +99,12 @@ async function main() {
   } catch(e) {}
 })();`;
 
-  // Write local copies in public/
+  // Write local copies in public/ and root
   fs.writeFileSync('public/lectures-manifest.json', jsonContent, 'utf8');
   fs.writeFileSync('public/lectures-manifest.js', jsContent, 'utf8');
-  console.log('Updated public/lectures-manifest.json and public/lectures-manifest.js locally');
+  fs.writeFileSync('lectures-manifest.json', jsonContent, 'utf8');
+  fs.writeFileSync('lectures-manifest.js', jsContent, 'utf8');
+  console.log('Updated public/ and root lectures-manifest files locally');
 
   // Upload to Cloudflare R2
   const jsonStatus = await uploadToR2('lectures-manifest.json', jsonContent, 'application/json; charset=utf-8');

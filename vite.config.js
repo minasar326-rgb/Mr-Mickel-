@@ -67,15 +67,17 @@ function manifestSyncPlugin() {
               try { parsed = JSON.parse(body); } catch (_) {}
 
               let lecturesArray = Array.isArray(parsed) ? parsed : (parsed?.lectures || []);
-              const jsonStr = JSON.stringify(lecturesArray);
+              const fullPayload = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : { lectures: lecturesArray, deletedLectureIds: [] };
+              const jsonStr = JSON.stringify(fullPayload);
               fs.writeFileSync(path.join(publicDir, 'lectures-manifest.json'), jsonStr, 'utf8');
 
-              const fullPayload = parsed && typeof parsed === 'object' ? parsed : { lectures: lecturesArray };
+              // fullPayload already prepared
               const jsContent = `(function() {
   var payload = ${JSON.stringify(fullPayload)};
   window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
   window.__MS_STAGES_MANIFEST__ = payload.stages || [];
   window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
   window.__MS_PLATFORM_MANIFEST__ = payload;
   if (typeof window.__onLecturesManifest === 'function') {
     try { window.__onLecturesManifest(payload); } catch(e) {}

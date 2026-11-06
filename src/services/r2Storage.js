@@ -375,7 +375,15 @@ export async function verifyVideoUrl(url) {
 export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
   if (!Array.isArray(lecturesList)) return false;
   try {
-    const cleanLectures = lecturesList.filter(l => l && !l.isDeleted);
+    let deletedLectureIds = extra.deletedLectureIds;
+    if (!Array.isArray(deletedLectureIds) && typeof localStorage !== 'undefined') {
+      try {
+        deletedLectureIds = JSON.parse(localStorage.getItem('ms_deleted_lectures') || '[]');
+      } catch (_) {}
+    }
+    deletedLectureIds = Array.isArray(deletedLectureIds) ? Array.from(new Set(deletedLectureIds.filter(Boolean))) : [];
+
+    const cleanLectures = lecturesList.filter(l => l && !l.isDeleted && !deletedLectureIds.includes(l.id));
 
     let stages = extra.stages;
     let sections = extra.sections;
@@ -392,16 +400,17 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
       lectures: cleanLectures,
       stages: Array.isArray(stages) ? stages : [],
       sections: Array.isArray(sections) ? sections : [],
+      deletedLectureIds: deletedLectureIds,
       updatedAt: new Date().toISOString()
     };
 
-    const jsonString = JSON.stringify(cleanLectures);
     const fullPayloadString = JSON.stringify(payload);
+    const jsonString = fullPayloadString;
 
     // 1. مزامنة فورية مع السيرفر المحلي إن وجد (لتحديث هواتف الشبكة الداخلية فوراً)
     try {
       if (typeof window !== 'undefined') {
-        fetch('/api/sync-manifest', {
+        await fetch('/api/sync-manifest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: fullPayloadString
@@ -424,6 +433,7 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
   window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
   window.__MS_STAGES_MANIFEST__ = payload.stages || [];
   window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
   window.__MS_PLATFORM_MANIFEST__ = payload;
   if (typeof window.__onLecturesManifest === 'function') {
     try { window.__onLecturesManifest(payload); } catch(e) {}

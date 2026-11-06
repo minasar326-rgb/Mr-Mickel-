@@ -279,6 +279,20 @@ export function AuthProvider({ children }) {
           } catch (_) {}
         }
       } else {
+        if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          try {
+            const e2eMock = sessionStorage.getItem('__ms_e2e_mock_user');
+            if (e2eMock) {
+              const parsed = JSON.parse(e2eMock);
+              if (parsed && parsed.uid) {
+                setCurrentUser(parsed);
+                setAuthLoading(false);
+                setAuthReady(true);
+                return;
+              }
+            }
+          } catch (_) {}
+        }
         // Logged out / Guest mode: Clean up state & storage completely!
         setCurrentUser(null);
         if (role !== 'instructor') {

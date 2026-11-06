@@ -75,23 +75,27 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
   const isTeacherOrAdmin = role === 'instructor' || role === 'super_admin' || verifyAdminSession()?.isValid;
+  const isTeacher = isTeacherOrAdmin;
   const accessCheck = isTeacherOrAdmin 
     ? { allowed: true } 
-    : (canAccessLecture && lecture ? canAccessLecture(lecture, lecture?.stageId) : { allowed: true });
-  const isAllowedToWatch = accessCheck.allowed;
+    : (canAccessLecture && lecture ? canAccessLecture(lecture, lecture?.stageId) : { allowed: false, reason: 'المحتوى مقفل للمشتركين فقط' });
+  const isAllowedToWatch = Boolean(accessCheck?.allowed);
   const stageSub = (getSubscriptionStatus && lecture) ? getSubscriptionStatus(lecture.stageId) : {};
 
-  // Video State
+  // Video State & Streaming Stabilization
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
+  const [bufferAheadSeconds, setBufferAheadSeconds] = useState(0);
+  const retryCountRef = useRef(0);
+  const stallTimerRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [videoHasError, setVideoHasError] = useState(false);
-  const [resolvedVideoUrl, setResolvedVideoUrl] = useState(
-    lecture?.videoUrl && !lecture.videoUrl.startsWith('blob:') ? lecture.videoUrl : ''
-  );
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState('');
 
   // PDF Download State
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -115,12 +119,17 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
     }
   }, [lecture?.id, lecture?.duration]);
 
-  // Resolve persistent video URL from IndexedDB or Cloud
+  // Resolve persistent video URL from IndexedDB or Cloud (Zero Leakage: strictly gated by isAllowedToWatch)
   useEffect(() => {
     let isMounted = true;
-    if (resolveVideoSource && lecture) {
+    if (!isAllowedToWatch || !lecture) {
+      setResolvedVideoUrl('');
+      return;
+    }
+
+    if (resolveVideoSource) {
       resolveVideoSource(lecture).then(url => {
-        if (isMounted) {
+        if (isMounted && isAllowedToWatch) {
           setResolvedVideoUrl(url || '');
         }
       });
@@ -130,7 +139,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
       setResolvedVideoUrl('');
     }
     return () => { isMounted = false; };
-  }, [lecture, resolveVideoSource]);
+  }, [lecture, resolveVideoSource, isAllowedToWatch]);
 
   // Tabs
   const [activeTab, setActiveTab] = useState('vocab'); // 'vocab' | 'grammar' | 'booklet' | 'homework' | 'exam'
@@ -224,23 +233,128 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
     }
   };
 
+  // Advanced Buffer Monitoring and Stall Auto-Recovery for Seamless Playback
+  const updateBufferedProgress = () => {
+    const video = videoRef.current;
+    if (!video || !video.duration || isNaN(video.duration)) return;
+    const ct = video.currentTime;
+    const b = video.buffered;
+    if (!b || b.length === 0) return;
+
+    let forwardBuffer = 0;
+    let maxBufferedEnd = 0;
+    for (let i = 0; i < b.length; i++) {
+      const start = b.start(i);
+      const end = b.end(i);
+      if (end > maxBufferedEnd) maxBufferedEnd = end;
+      if (start <= ct && ct <= end) {
+        forwardBuffer = end - ct;
+      }
+    }
+    const pct = Math.min(100, Math.round((maxBufferedEnd / video.duration) * 100));
+    setBufferedPercent(pct);
+    setBufferAheadSeconds(Math.round(forwardBuffer));
+  };
+
+  const handleWaiting = () => {
+    setIsBuffering(true);
+    updateBufferedProgress();
+  };
+
+  const handlePlaying = () => {
+    setIsBuffering(false);
+    setIsPlaying(true);
+    setVideoHasError(false);
+    retryCountRef.current = 0;
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
+    updateBufferedProgress();
+  };
+
+  const handleCanPlay = () => {
+    setIsBuffering(false);
+    updateBufferedProgress();
+  };
+
+  const handleCanPlayThrough = () => {
+    setIsBuffering(false);
+    updateBufferedProgress();
+  };
+
+  const handleProgress = () => {
+    updateBufferedProgress();
+  };
+
+  const handleStalled = () => {
+    updateBufferedProgress();
+    if (videoRef.current && !videoRef.current.paused) {
+      setIsBuffering(true);
+      if (!stallTimerRef.current) {
+        stallTimerRef.current = setTimeout(() => {
+          stallTimerRef.current = null;
+          const vid = videoRef.current;
+          if (vid && !vid.paused && vid.readyState < 3) {
+            const savedTime = vid.currentTime;
+            console.log('[VideoPlayer] Self-healing stalled stream at', savedTime);
+            vid.load();
+            vid.currentTime = Math.max(0, savedTime - 0.2);
+            vid.play().catch(() => {});
+          }
+        }, 2500);
+      }
+    }
+  };
+
+  const handleVideoError = (e) => {
+    console.warn('[LecturePlayer] Video streaming error:', e);
+    if (retryCountRef.current < 3) {
+      retryCountRef.current += 1;
+      setIsBuffering(true);
+      const savedTime = videoRef.current?.currentTime || 0;
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.load();
+          videoRef.current.currentTime = savedTime;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 1200);
+    } else {
+      setVideoHasError(true);
+      setIsBuffering(false);
+    }
+  };
+
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       const dur = videoRef.current.duration;
       if (typeof dur === 'number' && !isNaN(dur) && isFinite(dur) && dur > 0) {
         setDuration(dur);
       }
+      updateBufferedProgress();
     }
   };
 
   const togglePlay = () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
+      if (videoRef.current.paused) {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+              setIsBuffering(false);
+            })
+            .catch(err => {
+              console.warn('[VideoPlayer] Play interrupted:', err);
+              setIsPlaying(false);
+            });
+        }
       } else {
-        videoRef.current.play();
+        videoRef.current.pause();
+        setIsPlaying(false);
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -366,14 +480,21 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               معاينة كمعلم 👑
             </span>
           )}
-          <button
-            onClick={() => setIsExamModalOpen(true)}
-            className="btn btn-primary btn-sm"
-            style={{ gap: '6px', fontWeight: 700 }}
-          >
-            <HelpCircle size={16} />
-            <span>{examResult ? `درجة الامتحان: ${examResult.score}/${examResult.total}` : 'بدء امتحان المحاضرة ✍️'}</span>
-          </button>
+          {isAllowedToWatch ? (
+            <button
+              onClick={() => setIsExamModalOpen(true)}
+              className="btn btn-primary btn-sm"
+              style={{ gap: '6px', fontWeight: 700 }}
+            >
+              <HelpCircle size={16} />
+              <span>{examResult ? `درجة الامتحان: ${examResult.score}/${examResult.total}` : 'بدء امتحان المحاضرة ✍️'}</span>
+            </button>
+          ) : (
+            <span className="badge badge-danger" style={{ gap: '4px', fontSize: '0.8rem', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '20px' }}>
+              <Lock size={14} />
+              محتوى محمي للمشتركين 🔒
+            </span>
+          )}
         </div>
       </header>
 
@@ -676,13 +797,18 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 src={resolvedVideoUrl}
                 playsInline
                 webkit-playsinline="true"
-                preload="metadata"
+                preload="auto"
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
-                onCanPlay={handleLoadedMetadata}
+                onCanPlay={handleCanPlay}
+                onCanPlayThrough={handleCanPlayThrough}
+                onWaiting={handleWaiting}
+                onPlaying={handlePlaying}
+                onProgress={handleProgress}
+                onStalled={handleStalled}
                 onClick={togglePlay}
-                onError={() => setVideoHasError(true)}
+                onError={handleVideoError}
                 controlsList="nodownload nofullscreen noremoteplayback"
                 disablePictureInPicture
                 disableRemotePlayback
@@ -719,7 +845,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                     ? 'حدث خطأ في ملف الفيديو أثناء الرفع السحابي. يرجى التواصل مع الدعم الفني أو المحاضر لإعادة النشر.'
                     : 'سيتم تفعيل فيديو الشرح قريباً، يمكنك مراجعة المذكرات والكلمات أدناه'}
               </p>
-              {isTeacher && (
+              {isTeacherOrAdmin && (
                 <div style={{ marginTop: '1rem' }}>
                   <button 
                     onClick={() => onNavigate && onNavigate('teacher-admin')}
@@ -762,6 +888,39 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
           }}>
             🔒 {studentWatermarkText}
           </div>
+
+          {/* Centered Buffering Stream Stabilization Indicator */}
+          {isBuffering && !videoHasError && (
+            <div style={{
+              position: 'absolute',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(8px)',
+              padding: '16px 24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              color: 'white',
+              zIndex: 16,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              pointerEvents: 'none'
+            }}>
+              <Loader2 size={36} className="animate-spin" style={{ color: '#F59E0B' }} />
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 800, color: '#FEF3C7' }}>
+                  جاري تثبيت واستقرار سرعة البث ⚡
+                </p>
+                {bufferAheadSeconds > 0 && (
+                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                    تم تخزين ${bufferAheadSeconds} ثانية مسبقاً
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Forensic Micro-Watermark (Deters Phone Camera Filming) */}
           <div style={{
@@ -825,18 +984,50 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
             direction: 'ltr',
             zIndex: 20
           }}>
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              value={currentTime}
-              onChange={e => {
-                const t = Number(e.target.value);
-                setCurrentTime(t);
-                if (videoRef.current) videoRef.current.currentTime = t;
-              }}
-              style={{ width: '100%', accentColor: '#F59E0B', cursor: 'pointer', height: '4px' }}
-            />
+            {/* Smooth Buffer & Seek Timeline Slider */}
+            <div style={{ position: 'relative', width: '100%', height: '8px', display: 'flex', alignItems: 'center' }}>
+              <div style={{
+                position: 'absolute',
+                top: '2px',
+                left: 0,
+                right: 0,
+                height: '4px',
+                borderRadius: '2px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                pointerEvents: 'none'
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: '2px',
+                left: 0,
+                width: `${bufferedPercent}%`,
+                height: '4px',
+                borderRadius: '2px',
+                background: 'rgba(255, 255, 255, 0.45)',
+                transition: 'width 0.25s ease',
+                pointerEvents: 'none'
+              }} />
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={e => {
+                  const t = Number(e.target.value);
+                  setCurrentTime(t);
+                  if (videoRef.current) videoRef.current.currentTime = t;
+                }}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  accentColor: '#F59E0B',
+                  cursor: 'pointer',
+                  height: '4px',
+                  background: 'transparent',
+                  zIndex: 2
+                }}
+              />
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -852,6 +1043,11 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </span>
+                {bufferedPercent > 0 && (
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.75)', background: 'rgba(255,255,255,0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                    تخزين: {bufferedPercent}%
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1231,8 +1427,8 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
         )}
       </div>
 
-      {/* English Exam Modal */}
-      {isExamModalOpen && (
+      {/* English Exam Modal (Protected: Subscribed Students Only) */}
+      {isAllowedToWatch && isExamModalOpen && (
         <EnglishExamModal
           isOpen={isExamModalOpen}
           onClose={() => setIsExamModalOpen(false)}

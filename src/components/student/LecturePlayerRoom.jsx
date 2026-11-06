@@ -171,11 +171,19 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
     return () => clearInterval(interval);
   }, []);
 
+  const lastRenderedTimeRef = useRef(0);
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const curr = videoRef.current.currentTime;
     const dur = videoRef.current.duration || duration || 1;
-    setCurrentTime(curr);
+
+    // Smooth Playback Optimization:
+    // Throttle React state re-renders to 1Hz (once per second) to eliminate frame-drops & stutter
+    if (Math.abs(curr - lastRenderedTimeRef.current) >= 0.8) {
+      lastRenderedTimeRef.current = curr;
+      setCurrentTime(curr);
+      updateBufferedProgress();
+    }
 
     // Continuous Genuine Playback Detection:
     // Only register seconds if playback progressed naturally (delta between 0.1s and 1.8s)
@@ -289,41 +297,13 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
 
   const handleStalled = () => {
     updateBufferedProgress();
-    if (videoRef.current && !videoRef.current.paused) {
-      setIsBuffering(true);
-      if (!stallTimerRef.current) {
-        stallTimerRef.current = setTimeout(() => {
-          stallTimerRef.current = null;
-          const vid = videoRef.current;
-          if (vid && !vid.paused && vid.readyState < 3) {
-            const savedTime = vid.currentTime;
-            console.log('[VideoPlayer] Self-healing stalled stream at', savedTime);
-            vid.load();
-            vid.currentTime = Math.max(0, savedTime - 0.2);
-            vid.play().catch(() => {});
-          }
-        }, 2500);
-      }
-    }
+    // Do NOT call video.load() during playback - let the browser's native HTTP Range buffer continue
   };
 
   const handleVideoError = (e) => {
-    console.warn('[LecturePlayer] Video streaming error:', e);
-    if (retryCountRef.current < 3) {
-      retryCountRef.current += 1;
-      setIsBuffering(true);
-      const savedTime = videoRef.current?.currentTime || 0;
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.load();
-          videoRef.current.currentTime = savedTime;
-          videoRef.current.play().catch(() => {});
-        }
-      }, 1200);
-    } else {
-      setVideoHasError(true);
-      setIsBuffering(false);
-    }
+    console.warn('[LecturePlayer] Video streaming error caught:', e);
+    setVideoHasError(true);
+    setIsBuffering(false);
   };
 
   const handleLoadedMetadata = () => {
@@ -801,14 +781,13 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
-                onCanPlay={handleCanPlay}
-                onCanPlayThrough={handleCanPlayThrough}
-                onWaiting={handleWaiting}
-                onPlaying={handlePlaying}
-                onProgress={handleProgress}
-                onStalled={handleStalled}
+                onCanPlay={() => { setIsBuffering(false); updateBufferedProgress(); }}
+                onCanPlayThrough={() => { setIsBuffering(false); updateBufferedProgress(); }}
+                onWaiting={() => setIsBuffering(true)}
+                onPlaying={() => { setIsBuffering(false); setVideoHasError(false); updateBufferedProgress(); }}
+                onProgress={updateBufferedProgress}
                 onClick={togglePlay}
-                onError={handleVideoError}
+                onError={() => { setIsBuffering(false); setVideoHasError(true); }}
                 controlsList="nodownload nofullscreen noremoteplayback"
                 disablePictureInPicture
                 disableRemotePlayback

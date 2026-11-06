@@ -206,11 +206,13 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
           {isUnlocked ? (
             <span style={{ 
               position: 'absolute', top: '12px', left: '12px', 
-              background: '#10B981', color: 'white', padding: '4px 10px', 
+              background: isTeacher ? '#4F46E5' : '#10B981', color: 'white', padding: '4px 10px', 
               borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800,
               boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
             }}>
-              {lec.isFree ? '🟢 محاضرة مجانية' : '✓ متاح للمشاهدة 🟢'}
+              {isTeacher 
+                ? `🔒 باشتراك (${lec.price || '70 ج.م'}) • معاينة المعلم 👑` 
+                : (lec.isFree ? '🎁 تجريبية مجانية' : '✓ باشتراك سارٍ 🟢')}
             </span>
           ) : accessCheck.isProgressionLocked ? (
             <span style={{ 
@@ -296,12 +298,22 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
             paddingTop: '0.75rem'
           }}>
             <span className="badge badge-subtle">⏱️ {lec.duration}</span>
-            {isUnlocked && !lec.isFree && (
+            {isUnlocked && !lec.isFree && !isTeacher && (
               <span className="badge badge-success" style={{ fontWeight: 700 }}>
-                ⏳ ساري (متبقي {stageSub.daysRemaining || lecSub.daysRemaining || 30} يوم)
+                ⏳ اشتراك سارٍ (متبقي {stageSub.daysRemaining || lecSub.daysRemaining || 30} يوم)
               </span>
             )}
-            {lec.isFree && <span className="badge badge-success">✓ مجانية للجميع</span>}
+            {!lec.isFree && (
+              <span className="badge badge-primary" style={{ fontWeight: 700 }}>
+                💰 باشتراك ({lec.price || '70 ج.م'})
+              </span>
+            )}
+            {lec.isFree && <span className="badge badge-success">🎁 تجريبية مجانية</span>}
+            {isTeacher && (
+              <span className="badge badge-gold" style={{ fontWeight: 700 }}>
+                👑 معاينة المعلم
+              </span>
+            )}
             {isCompleted && <span className="badge badge-success">✓ تمت المشاهدة (50%+)</span>}
             {hw?.status === 'submitted' && <span className="badge badge-primary">📝 تم تسليم الواجب</span>}
             {exam && <span className="badge badge-gold">🏆 الامتحان: {exam.score}/{exam.total}</span>}

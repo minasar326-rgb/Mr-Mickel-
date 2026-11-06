@@ -26,10 +26,10 @@ async function runTest() {
 
   try {
     // ------------------------------------------------------------------
-    // TEST SUITE 1: Guest / Unsubscribed Student Access to Paid Lecture
+    // TEST SUITE 1: Guest / Unsubscribed Student Access to Paid Lecture 1
     // Target: 'lec-1794001152669' (شرح قاعده المقارنه الجزء الاول - isFree: false)
     // ------------------------------------------------------------------
-    console.log('▶️ SUITE 1: Security & Paywall Protection (Unsubscribed Guest)');
+    console.log('▶️ SUITE 1: Security & Paywall Protection on Lecture 1 (Unsubscribed Guest)');
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'ar-EG' });
       const page = await context.newPage();
@@ -61,43 +61,37 @@ async function runTest() {
 
 
     // ------------------------------------------------------------------
-    // TEST SUITE 2: Free Lecture Access for Visitors (isFree: true)
-    // Target: 'lec-1794004864599' (اسمع مني - isFree: true)
+    // TEST SUITE 2: Verification of Newly Uploaded Lecture (اسمع مني) - Must be PAID & Locked
+    // Target: 'lec-1794004864599' (اسمع مني - isFree: false)
     // ------------------------------------------------------------------
-    console.log('\n▶️ SUITE 2: Free Lecture Playback & Stream Optimization (isFree: true)');
+    console.log('\n▶️ SUITE 2: Verification of Newly Uploaded Lecture (اسمع مني - Strictly PAID & Locked)');
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'ar-EG' });
       const page = await context.newPage();
       await page.goto('http://localhost:3000/#lecture-room?lectureId=lec-1794004864599', { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(1500);
 
-      // 2.1 Video element should be present
-      const freeVideo = await page.$('video');
-      assert(freeVideo !== null, 'Free lecture video element is mounted and rendered');
+      // 2.1 Verify that "اسمع مني" is NOT free for visitors
+      const paywallCard = await page.$('.card.text-center');
+      assert(paywallCard !== null, 'Newly uploaded lecture ("اسمع مني") is strictly LOCKED behind paywall');
 
-      if (freeVideo) {
-        // 2.2 Verify preload="auto" for smooth buffering without stutter
-        const preloadAttr = await freeVideo.getAttribute('preload');
-        assert(preloadAttr === 'auto', `Video preload attribute is set to "auto" (found: "${preloadAttr}")`);
+      // 2.2 Verify NO <video> element in DOM for unsubscribed visitors
+      const videoElement = await page.$('video');
+      assert(videoElement === null, 'Unsubscribed visitors cannot stream or watch "اسمع مني"');
 
-        // 2.3 Verify video playsInline and security attributes
-        const playsInline = await freeVideo.getAttribute('playsinline');
-        assert(playsInline !== null, 'playsInline attribute is enabled for seamless mobile playback');
-      }
-
-      // 2.4 Verify custom player controls slider with buffer bar
-      const timelineSlider = await page.$('input[type="range"]');
-      assert(timelineSlider !== null, 'Timeline seek & buffer progress slider is mounted');
+      // 2.3 Verify Lock Badge in Header
+      const lockBadge = await page.$('span:has-text("محتوى محمي للمشتركين 🔒")');
+      assert(lockBadge !== null, 'Header shows "محتوى محمي للمشتركين 🔒" for "اسمع مني"');
 
       await context.close();
     }
 
 
     // ------------------------------------------------------------------
-    // TEST SUITE 3: Subscribed Student Access to Paid Lecture
+    // TEST SUITE 3: Subscribed Student Access to Paid Lecture & Smooth Buffering
     // Target: 'lec-1794002706071' (شرح قاعده المقارنه الجزء 2 - First lecture in stage-1793823838440)
     // ------------------------------------------------------------------
-    console.log('\n▶️ SUITE 3: Subscribed Student Authorization & Buffering Controls');
+    console.log('\n▶️ SUITE 3: Subscribed Student Authorization & Smooth Playback');
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'ar-EG' });
       await context.addInitScript(() => {
@@ -139,6 +133,9 @@ async function runTest() {
 
         const src = await subVideo.getAttribute('src');
         assert(src && src.includes('r2.dev'), `Video streaming source points to Cloudflare R2 CDN (${src ? src.substring(0, 50) + '...' : 'none'})`);
+
+        const playsInline = await subVideo.getAttribute('playsinline');
+        assert(playsInline !== null, 'playsInline attribute is enabled for seamless mobile playback');
       }
 
       // 3.2 Verify Study Tabs are fully unlocked
@@ -149,14 +146,18 @@ async function runTest() {
       const subExamButton = await page.$('button:has-text("بدء امتحان المحاضرة")');
       assert(subExamButton !== null, 'Exam button is active and accessible for subscribed student');
 
+      // 3.4 Verify Timeline Seek & Buffer slider is mounted
+      const timelineSlider = await page.$('input[type="range"]');
+      assert(timelineSlider !== null, 'Timeline seek & buffer progress slider is mounted');
+
       await context.close();
     }
 
 
     // ------------------------------------------------------------------
-    // TEST SUITE 4: Teacher / Admin Preview Authorization
+    // TEST SUITE 4: Teacher / Admin Preview Authorization & Badge
     // ------------------------------------------------------------------
-    console.log('\n▶️ SUITE 4: Teacher / Admin Preview Authorization');
+    console.log('\n▶️ SUITE 4: Teacher / Admin Preview Authorization & Badge');
     {
       const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'ar-EG' });
       await context.addInitScript(() => {
@@ -180,7 +181,7 @@ async function runTest() {
       const teacherBadge = await page.$('span:has-text("معاينة كمعلم 👑")');
       assert(teacherBadge !== null, 'Teacher preview badge "معاينة كمعلم 👑" is visible');
 
-      // 4.2 Verify Video element is available
+      // 4.2 Verify Video element is available for teacher
       const teacherVideo = await page.$('video');
       assert(teacherVideo !== null, 'Teacher has full access to inspect video player');
 

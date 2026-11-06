@@ -46,6 +46,7 @@ export default function LecturesSection({ onNavigate }) {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
   const [localMediaKey, setLocalMediaKey] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState({
     percent: 0,
@@ -329,12 +330,16 @@ export default function LecturesSection({ onNavigate }) {
   // Submit Publish Lecture
   // -------------------------------------------------------------
   const handleSubmitLecture = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
-    if (!title.trim()) {
-      addToast('يرجى كتابة عنوان المحاضرة', 'error');
+    if (isSubmitting) return;
+
+    if (!title || !title.trim()) {
+      addToast('⚠️ يرجى كتابة عنوان المحاضرة لنشرها للطلاب', 'error', 4000);
       return;
     }
+
+    setIsSubmitting(true);
 
     const targetStage = stages.find(s => s.id === selectedStageId) || stages[0];
     const cleanVideoUrl = videoUrl || localMediaKey || '';
@@ -424,6 +429,8 @@ export default function LecturesSection({ onNavigate }) {
     } catch (err) {
       console.error('Failed to save lecture:', err);
       addToast(`❌ تعذر حفظ المحاضرة: ${err.message}`, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -590,7 +597,6 @@ export default function LecturesSection({ onNavigate }) {
                 onChange={e => setTitle(e.target.value)}
                 className="admin-input"
                 style={{ width: '100%', fontWeight: 700 }}
-                required
               />
             </div>
 
@@ -967,15 +973,19 @@ export default function LecturesSection({ onNavigate }) {
           {/* Form Action Submit Button */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', borderTop: '1px solid var(--admin-border)', paddingTop: '1.25rem' }}>
             <button
+              id="publish-lecture-submit-btn"
               type="submit"
+              disabled={isSubmitting}
               className="admin-btn admin-btn-primary admin-btn-lg"
-              style={{ flex: 1, padding: '1rem', fontSize: '1.05rem', fontWeight: 900 }}
+              style={{ flex: 1, padding: '1rem', fontSize: '1.05rem', fontWeight: 900, opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
             >
               <Upload size={20} />
               <span>
-                {editingLectureId 
-                  ? '💾 حفظ وتثبيت تعديلات المحاضرة والامتحان' 
-                  : (hasLectureExam ? '🚀 نشر المحاضرة والامتحان الآن لجميع الطلاب' : '🚀 نشر المحاضرة والفيديو الآن لجميع الطلاب')}
+                {isSubmitting
+                  ? '⏳ جاري نشر وتثبيت المحاضرة...'
+                  : (editingLectureId 
+                    ? '💾 حفظ وتثبيت تعديلات المحاضرة والامتحان' 
+                    : (hasLectureExam ? '🚀 نشر المحاضرة والامتحان الآن لجميع الطلاب' : '🚀 نشر المحاضرة والفيديو الآن لجميع الطلاب'))}
               </span>
             </button>
           </div>

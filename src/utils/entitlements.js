@@ -55,11 +55,20 @@ export function coversLecture(subscription, lecture, allLectures = []) {
     if (subscription.includedItemIds.includes(lectureStage)) return true;
   }
 
-  // 5. Stage-Level match (covers all sections and orphan lectures in that stage)
-  if (subType === 'stage' || subStage === targetId || targetId.startsWith('sec-') || targetId === 'pri' || targetId === 'prep' || targetId === 'foundation') {
+  // 5. Stage-Level match (STRICT: only within the exact same stage)
+  const isStageSub = subType === 'stage' || 
+    targetId.startsWith('sec-') || 
+    targetId.startsWith('prep-') || 
+    targetId.startsWith('pri-') || 
+    targetId === 'foundation' ||
+    targetId === subStage;
+
+  if (isStageSub && subStage && lectureStage) {
     if (subStage === lectureStage) {
       return true;
     }
+    // Cross-stage bleed strictly blocked
+    return false;
   }
 
   return false;

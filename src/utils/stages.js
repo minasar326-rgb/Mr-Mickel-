@@ -207,6 +207,48 @@ export const STAGE_DEFINITIONS = [
     ]
   },
   {
+    id: CANONICAL_STAGES.PRI_3,
+    title: 'الصف الثالث الابتدائي',
+    aliases: [
+      'pri-3',
+      'pri3',
+      'سنة تالتة ابتدائي',
+      'سنه تالته ابتدائي',
+      'تالتة ابتدائي',
+      'تالته ابتدائي',
+      'الصف الثالث الابتدائي',
+      '3 ابتدائي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PRI_2,
+    title: 'الصف الثاني الابتدائي',
+    aliases: [
+      'pri-2',
+      'pri2',
+      'سنة تانية ابتدائي',
+      'سنه تانيه ابتدائي',
+      'تانية ابتدائي',
+      'تانيه ابتدائي',
+      'الصف الثاني الابتدائي',
+      '2 ابتدائي'
+    ]
+  },
+  {
+    id: CANONICAL_STAGES.PRI_1,
+    title: 'الصف الأول الابتدائي',
+    aliases: [
+      'pri-1',
+      'pri1',
+      'سنة أولى ابتدائي',
+      'سنه اولى ابتدائي',
+      'أولى ابتدائي',
+      'اولى ابتدائي',
+      'الصف الأول الابتدائي',
+      '1 ابتدائي'
+    ]
+  },
+  {
     id: CANONICAL_STAGES.PRI,
     title: 'المرحلة الابتدائية',
     aliases: [
@@ -239,10 +281,10 @@ export const STAGE_DEFINITIONS = [
  * 3. If no match found, PRESERVE the given targetId so custom stages don't collapse into sec-3!
  */
 export function normalizeStageId(targetId, stageName = '') {
-  if (!targetId && !stageName) return CANONICAL_STAGES.SEC_3;
+  if (!targetId && !stageName) return '';
 
   const raw = `${targetId || ''} ${stageName || ''}`.toLowerCase().trim();
-  if (!raw) return targetId || CANONICAL_STAGES.SEC_3;
+  if (!raw) return targetId || '';
 
   // 1. Direct Canonical check
   const directMatch = STAGE_DEFINITIONS.find(s => s.id === targetId?.toLowerCase()?.trim());
@@ -286,7 +328,7 @@ export function normalizeStageId(targetId, stageName = '') {
   }
 
   // Preserve the specific ID instead of blindly forcing sec-3
-  return targetId || CANONICAL_STAGES.SEC_3;
+  return targetId || '';
 }
 
 /**

@@ -418,7 +418,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     }
 
     // 3. High-Speed Upload to Cloudflare R2 (Unlimited Bandwidth & Storage)
-    uploadFileToR2(file, 'lectures/videos', (prog) => {
+    const r2Folder = stageId ? `stages/${stageId}/lectures/videos` : 'lectures/videos';
+    uploadFileToR2(file, r2Folder, (prog) => {
       setUploadDetails(prev => ({
         ...prev,
         percent: prog.percent,
@@ -1254,9 +1255,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
     }
 
     const targetStage = stages.find(s => s.id === stageId) || stages[0];
-    const cleanVideoUrl = (videoUrl && !videoUrl.startsWith('blob:')) ? videoUrl : '';
-    if (videoMode === 'file' && videoFileName && !cleanVideoUrl) {
-      addToast('⚠️ لم يكتمل رفع الفيديو إلى السحابة بنجاح بعد! يرجى الانتظار حتى اكتمال الرفع 100% أو إعادة اختيار الملف لضمان تشغيله لدى كافة الطلاب على جميع الأجهزة.', 'error', 6000);
+    const cleanVideoUrl = (videoUrl && !videoUrl.startsWith('blob:')) 
+      ? videoUrl 
+      : (localMediaKey || '');
+
+    if (videoMode === 'file' && videoFileName && !cleanVideoUrl && !localMediaKey) {
+      addToast('⚠️ يرجى الانتظار بضع ثوانٍ حتى يتم تجهيز ملف الفيديو أو إعادة اختياره.', 'error', 6000);
       return;
     }
 
@@ -1323,11 +1327,19 @@ export default function TeacherAdminCenter({ onNavigate }) {
       grammarRules: [{ title: 'قاعدة الوحدة الجديدة', rule: 'تطبيق عملي لأهم نقاط الجرامر.', example: 'Hard work leads to success.' }]
     };
 
-    if (editingLectureId) {
-      await updateLecture(editingLectureId, lecturePayload);
-      setEditingLectureId(null);
-    } else {
-      await uploadNewLecture(lecturePayload);
+    try {
+      if (editingLectureId) {
+        await updateLecture(editingLectureId, lecturePayload);
+        addToast('✅ تم حفظ وتحديث بيانات المحاضرة بنجاح!', 'success', 5000);
+        setEditingLectureId(null);
+      } else {
+        await uploadNewLecture(lecturePayload);
+        addToast('🎉 تم نشر المحاضرة بنجاح وتثبيتها لجميع طلاب المرحلة!', 'success', 6000);
+      }
+    } catch (err) {
+      console.error('Failed to publish lecture:', err);
+      addToast(`❌ تعذر نشر المحاضرة: ${err.message || 'حدث خطأ أثناء الحفظ'}`, 'error', 7000);
+      return;
     }
 
     setTitle('');

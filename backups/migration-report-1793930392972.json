@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-11-06T01:59:52.966Z",
+  "isDryRun": true,
+  "summary": {
+    "total": 12,
+    "canonicalAlready": 10,
+    "remapped": 1,
+    "ambiguous": 1
+  },
+  "remappedItems": [
+    {
+      "type": "lecture",
+      "id": "lec-pri-01",
+      "title": "المحاضرة 1: التأسيس الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
+      "from": "pri",
+      "to": "foundation",
+      "reason": "Matches Foundation course"
+    }
+  ],
+  "ambiguousItems": [
+    {
+      "type": "lecture",
+      "id": "lec-prep-01",
+      "title": "المحاضرة 1: قواعد ومفردات الوحدة الأولى (Around Town) لطلاب المرحلة الإعدادية",
+      "currentStage": "prep",
+      "reason": "Cannot determine exact grade from text clues: \"المحاضرة 1: قواعد ومفردات الوحدة الأولى (around town) لطلاب المرحلة الإعدادية\""
+    }
+  ]
+}

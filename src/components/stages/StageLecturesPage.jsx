@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
+import { useTeacher } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
 import { 
   BookOpen, Play, Lock, CheckCircle2, Clock, 
@@ -34,42 +34,73 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     }));
   };
 
-  const canonStageId = normalizeStageId(stageId);
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
   
-  // 1. Strict Stage Identification: exact ID match first!
-  const stage = currentStages.find(s => s.id === stageId) 
-    || currentStages.find(s => s.id === canonStageId)
-    || currentStages.find(s => normalizeStageId(s.name) === canonStageId)
-    || { id: stageId, name: getStageTitle(stageId) || 'المرحلة الدراسية', badge: 'دفعة 2026', description: 'منهج تدريبي متكامل لشرح المنهج وحل التدريبات.' };
+  // 1. Strict Stage Identification: exact ID match
+  const stage = currentStages.find(s => s.id === stageId);
 
-  // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage
+  // If stage does not exist, show dedicated "المرحلة غير موجودة" page with return to home
+  if (!stage) {
+    return (
+      <div style={{
+        minHeight: '70vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '2.5rem 1.5rem',
+        direction: 'rtl'
+      }}>
+        <div style={{
+          width: '72px',
+          height: '72px',
+          borderRadius: '50%',
+          background: 'rgba(239, 68, 68, 0.1)',
+          color: '#EF4444',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '1.25rem',
+          border: '2px solid rgba(239, 68, 68, 0.2)'
+        }}>
+          <HelpCircle size={36} />
+        </div>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+          عذراً، هذه المرحلة الدراسية غير موجودة
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', maxWidth: '440px', marginBottom: '1.75rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
+          المرحلة التي تحاول الوصول إليها غير مسجلة بالنظام أو ربما تم تعديل معرفها.
+        </p>
+        <button
+          onClick={() => onNavigate && onNavigate('home')}
+          className="btn btn-primary"
+          style={{ gap: '8px', padding: '12px 24px', fontWeight: 800, fontSize: '0.95rem' }}
+        >
+          <ArrowRight size={18} />
+          <span>العودة إلى الصفحة الرئيسية</span>
+        </button>
+      </div>
+    );
+  }
+
+  // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage ID
   const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => {
-    if (!l || l.isDeleted) return false;
-    if (l.stageId === stage.id || l.stageId === stageId) return true;
-    if (canonStageId && stage.id === canonStageId && normalizeStageId(l.stageId) === canonStageId) return true;
-    return false;
+    return l && !l.isDeleted && l.stageId === stage.id;
   });
 
-  // 3. Strict Section Isolation: dynamic sections (Months & Courses) strictly for THIS stage
+  // 3. Strict Section Isolation: dynamic sections strictly for THIS stage ID
   const stageSections = (Array.isArray(sections) ? sections : [])
     .filter(sec => {
-      if (!sec || sec.isVisible === false) return false;
-      if (sec.stageId === stage.id || sec.stageId === stageId) return true;
-      if (canonStageId && stage.id === canonStageId && normalizeStageId(sec.stageId) === canonStageId) return true;
-      return false;
+      return sec && sec.isVisible !== false && sec.stageId === stage.id;
     })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // Check stage-level subscription status across all aliases
-  const stageSub1 = getSubscriptionStatus(stage.id);
-  const stageSub2 = getSubscriptionStatus(canonStageId);
-  const stageSub3 = getSubscriptionStatus(stageId);
-  const stageSub4 = getSubscriptionStatus('all-access');
-  const stageSub = (stageSub1?.isSubscribed && !stageSub1?.isExpired) ? stageSub1 
-    : ((stageSub2?.isSubscribed && !stageSub2?.isExpired) ? stageSub2 
-    : ((stageSub3?.isSubscribed && !stageSub3?.isExpired) ? stageSub3 
-    : ((stageSub4?.isSubscribed && !stageSub4?.isExpired) ? stageSub4 : stageSub1)));
+  // Check stage-level subscription status: strictly THIS stage or 'all-access'
+  const directSub = getSubscriptionStatus(stage.id);
+  const allAccessSub = getSubscriptionStatus('all-access');
+  const stageSub = (directSub?.isSubscribed && !directSub?.isExpired) ? directSub 
+    : ((allAccessSub?.isSubscribed && !allAccessSub?.isExpired) ? allAccessSub : directSub);
   const isStageSubscribed = stageSub.isSubscribed && !stageSub.isExpired;
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 

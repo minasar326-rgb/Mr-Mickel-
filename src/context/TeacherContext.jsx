@@ -1283,8 +1283,8 @@ export function TeacherProvider({ children }) {
       phone: studentData.phone,
       parentPhone: studentData.parentPhone,
       parentName: studentData.parentName || `ولي أمر ${studentData.name}`,
-      stageId: studentData.stageId || 'sec-3',
-      stageName: stages.find(s => s.id === studentData.stageId)?.name || 'الصف الثالث الثانوي',
+      stageId: studentData.stageId || '',
+      stageName: stages.find(s => s.id === studentData.stageId)?.name || studentData.stageName || '',
       groupType: studentData.groupType || 'center',
       centerName: studentData.centerName || 'سنتر النخبة',
       avatar: studentData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
@@ -1429,7 +1429,7 @@ export function TeacherProvider({ children }) {
 
     const newLec = {
       ...lectureData,
-      stageId: lectureData.stageId || 'sec-3',
+      stageId: lectureData.stageId || '',
       sectionId: lectureData.sectionId || '',
       videoUrl: cleanVideoUrl,
       id: lectureData.id || `lec-${Date.now()}`,
@@ -1660,18 +1660,53 @@ export function TeacherProvider({ children }) {
   };
 
   const addStage = async (stageData) => {
-    const newStage = { ...stageData, id: `stage-${Date.now()}`, lecturesCount: 0, studentsCount: 0 };
+    const rawSlug = stageData.slug || stageData.id || stageData.name?.replace(/\s+/g, '-');
+    const cleanSlug = rawSlug ? rawSlug.toLowerCase().replace(/[^a-z0-9_-]/g, '') : '';
+    const uniqueId = cleanSlug && !stages.some(s => s.id === cleanSlug) 
+      ? cleanSlug 
+      : `stage-${Date.now()}`;
+
+    const newStage = { 
+      ...stageData, 
+      id: uniqueId, 
+      order: stageData.order || (stages.length + 1),
+      isHidden: stageData.isHidden !== undefined ? stageData.isHidden : false,
+      lecturesCount: 0, 
+      studentsCount: 0 
+    };
     const updated = [...stages, newStage];
     setStages(updated);
     await syncStagesToCloud(updated);
     addToast(`تمت إضافة المرحلة (${newStage.name}) بنجاح 🎓`, 'success');
+    return newStage;
   };
 
-  const deleteStage = async (stageId) => {
+  const updateStage = async (stageId, updatedFields) => {
+    const updated = stages.map(s => s.id === stageId ? { ...s, ...updatedFields } : s);
+    setStages(updated);
+    await syncStagesToCloud(updated);
+    addToast('تم تحديث بيانات المرحلة بنجاح ✓', 'success');
+  };
+
+  const deleteStage = async (stageId, targetStageIdToMigrate = null) => {
+    if (targetStageIdToMigrate && targetStageIdToMigrate !== stageId) {
+      const targetStage = stages.find(s => s.id === targetStageIdToMigrate);
+      const targetName = targetStage?.name || targetStageIdToMigrate;
+
+      setLectures(prev => prev.map(l => l.stageId === stageId ? { ...l, stageId: targetStageIdToMigrate, stageName: targetName } : l));
+      setSections(prev => prev.map(s => s.stageId === stageId ? { ...s, stageId: targetStageIdToMigrate } : s));
+      setBooklets(prev => prev.map(b => b.stageId === stageId ? { ...b, stageId: targetStageIdToMigrate } : b));
+      setTopAchievers(prev => prev.map(a => a.stageId === stageId ? { ...a, stageId: targetStageIdToMigrate, stageName: targetName } : a));
+      setStudents(prev => prev.map(std => std.stageId === stageId ? { ...std, stageId: targetStageIdToMigrate, stageName: targetName } : std));
+      setAccessCodes(prev => prev.map(c => c.stageId === stageId ? { ...c, stageId: targetStageIdToMigrate, stage: targetName } : c));
+    }
+
     const updated = stages.filter(s => s.id !== stageId);
     setStages(updated);
     await syncStagesToCloud(updated);
-    addToast('تم حذف المرحلة الدراسية بنجاح 🗑️', 'info');
+    addToast(targetStageIdToMigrate 
+      ? 'تم نقل محتوى المرحلة وحذفها بنجاح 🔄' 
+      : 'تم حذف المرحلة الدراسية بنجاح 🗑️', 'info');
   };
 
   const addBooklet = async (bookletData) => {
@@ -1698,8 +1733,8 @@ export function TeacherProvider({ children }) {
       ...achieverData, 
       id: `ach-${Date.now()}`, 
       rank: topAchievers.length + 1,
-      stageId: achieverData.stageId || 'sec-3',
-      stageName: achieverData.stageName || 'الصف الثالث الثانوي'
+      stageId: achieverData.stageId || '',
+      stageName: achieverData.stageName || (stages.find(s => s.id === achieverData.stageId)?.name || '')
     };
     setTopAchievers(prev => [...prev, newAch]);
     await syncAchieverToCloud(newAch);
@@ -1802,8 +1837,8 @@ export function TeacherProvider({ children }) {
     }
 
     const {
-      stageName = 'الصف الثالث الثانوي',
-      stageId = 'sec-3',
+      stageName = '',
+      stageId = '',
       targetTitle = 'اشتراك المحتوى',
       targetId = '',
       codeType = 'month',
@@ -1817,19 +1852,21 @@ export function TeacherProvider({ children }) {
     } = opts;
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const typePrefix = codeType === 'month' ? 'MTH' : codeType === 'course' ? 'CRS' : codeType === 'bundle' ? 'BDL' : 'LEC';
-    const stagePrefix = stageName.includes('ثالث') ? 'SEC3' : stageName.includes('ثان') ? 'SEC2' : stageName.includes('أول') ? 'SEC1' : 'GEN';
+    const typePrefix = codeType === 'month' ? 'MTH' : codeType === 'course' ? 'CRS' : codeType === 'bundle' ? 'BDL' : codeType === 'stage' ? 'STG' : 'LEC';
+    const stagePrefix = (stageId || 'GEN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const newCodeStr = (customCode && customCode.trim()) ? customCode.trim().toUpperCase() : `MS-${stagePrefix}-${typePrefix}-${randomSuffix}`;
     const days = Number(durationDays) || 30;
+
+    const cleanTargetId = targetId || (codeType === 'stage' ? stageId : targetId);
 
     const newCodeObj = {
       code: newCodeStr,
       type: codeType,
       codeType,
-      targetId: targetId || (codeType === 'month' ? 'sec3-month-1' : 'lec-s3-01'),
+      targetId: cleanTargetId,
       targetTitle: targetTitle || 'اشتراك المحتوى',
-      stage: stageName,
-      stageId: stageId || 'sec-3',
+      stage: stageName || (stages.find(s => s.id === stageId)?.name || ''),
+      stageId: stageId || '',
       price: isGift ? 'مجاني / هدية' : (typeof price === 'number' ? `${price} ج.م` : price),
       rawPrice: isGift ? 0 : (Number(String(price).replace(/[^0-9.]/g, '')) || 0),
       durationDays: days,
@@ -3512,8 +3549,8 @@ export function TeacherProvider({ children }) {
       studentId,
       studentName,
       studentPhone: studentPhone || '',
-      stageId: stageId || 'sec-3',
-      stageName: stageName || 'الصف الثالث الثانوي',
+      stageId: stageId || '',
+      stageName: stageName || (stages.find(s => s.id === stageId)?.name || ''),
       isUsed: false,
       usedAt: null,
       score: null,
@@ -4042,6 +4079,7 @@ export function TeacherProvider({ children }) {
         exportPlatformBackup,
         restorePlatformBackup,
         addStage,
+        updateStage,
         deleteStage,
         addBooklet,
         deleteBooklet,

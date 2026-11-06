@@ -80,10 +80,15 @@ function manifestSyncPlugin() {
                 ? parsed.sections
                 : (existingManifest?.sections || []);
 
+              const incomingRaw = Array.isArray(parsed) ? parsed : (parsed?.lectures || []);
+              const activeIncomingIds = new Set(
+                incomingRaw.filter(l => l && l.id && !l.isDeleted).map(l => l.id)
+              );
+
               const safeDeletedIds = Array.from(new Set([
                 ...(Array.isArray(parsed?.deletedLectureIds) ? parsed.deletedLectureIds : []),
                 ...(Array.isArray(existingManifest?.deletedLectureIds) ? existingManifest.deletedLectureIds : [])
-              ])).filter(Boolean);
+              ])).filter(id => id && !activeIncomingIds.has(id));
               const deletedSet = new Set(safeDeletedIds);
 
               const incomingLectures = (Array.isArray(parsed) ? parsed : (parsed?.lectures || []))
@@ -136,7 +141,7 @@ function manifestSyncPlugin() {
           return;
         }
 
-        if (req.url && req.url.startsWith('/lectures-manifest.js')) {
+        if (req.url && /^\/lectures-manifest\.js(\?.*)?$/.test(req.url)) {
           const manifestJsPath = path.resolve(__dirname, 'public/lectures-manifest.js');
           if (fs.existsSync(manifestJsPath)) {
             const data = fs.readFileSync(manifestJsPath, 'utf8');
@@ -148,7 +153,7 @@ function manifestSyncPlugin() {
           }
         }
 
-        if (req.url && req.url.startsWith('/lectures-manifest.json')) {
+        if (req.url && /^\/lectures-manifest\.json(\?.*)?$/.test(req.url)) {
           const manifestPath = path.resolve(__dirname, 'public/lectures-manifest.json');
           if (fs.existsSync(manifestPath)) {
             const data = fs.readFileSync(manifestPath, 'utf8');

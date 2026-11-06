@@ -465,6 +465,17 @@ export function TeacherProvider({ children }) {
     }
 
     const incomingIds = new Set(incomingList.map(l => l.id).filter(Boolean));
+    const cloudDeletedSet = new Set(incomingDeletedIds || []);
+
+    // Safety: If incomingList has active lectures not in cloudDeletedSet,
+    // they were NEVER deleted by the teacher! Clear any stale local deletedIds.
+    incomingList.forEach(l => {
+      if (l && l.id && !l.isDeleted && !cloudDeletedSet.has(l.id)) {
+        if (deletedIds.has(l.id)) {
+          deletedIds.delete(l.id);
+        }
+      }
+    });
     const map = new Map();
     const now = Date.now();
 
@@ -569,6 +580,21 @@ export function TeacherProvider({ children }) {
     const incomingLectures = Array.isArray(manifestData)
       ? manifestData
       : (Array.isArray(manifestData.lectures) ? manifestData.lectures : []);
+    const cloudDeletedSet = new Set(incomingDeletedIds);
+    // Safety: If cloud manifest delivers active lectures not present in cloudDeletedSet,
+    // clear them from localDeleted immediately so they are never suppressed
+    incomingLectures.forEach(l => {
+      if (l && l.id && !l.isDeleted && !cloudDeletedSet.has(l.id) && localDeleted.has(l.id)) {
+        localDeleted.delete(l.id);
+        deletedChanged = true;
+      }
+    });
+    if (deletedChanged) {
+      try {
+        localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(localDeleted)));
+      } catch (e) {}
+    }
+
     if (incomingLectures.length > 0 || deletedChanged) {
       setLectures(prev => {
         const merged = mergeLectures(prev, sanitizeLectures(incomingLectures), incomingDeletedIds);
@@ -1829,7 +1855,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
-      syncLecturesManifestToR2(updated, { stages, sections }).catch(() => {});
+      syncLecturesManifestToR2(updated, { stages, sections, deletedLectureIds: Array.from(deletedIds) }).catch(() => {});
       return updated;
     });
 
@@ -1871,6 +1897,25 @@ export function TeacherProvider({ children }) {
     if (!targetLecture) return;
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
+    // Strict Instructor/Teacher-Only Deletion Guard:
+    // NO ONE except the teacher or an authorized staff admin can EVER delete ANY lecture!
+    const isAuthorizedTeacher = (
+      role === 'instructor' ||
+      currentUser?.role === 'super_admin' || 
+      currentAdminUser?.role === 'super_admin' || 
+      currentUser?.email === 'mrmichaelshehata@gmail.com' ||
+      currentUser?.email === 'sareanymina@gmail.com' ||
+      currentUser?.uid === 'teacher-admin' ||
+      Boolean(verifyAdminSession()?.isValid) ||
+      Boolean(hasPermission('canManageLectures'))
+    );
+
+    if (!isAuthorizedTeacher) {
+      console.error('[Security Alert] Unauthorized lecture deletion attempt blocked:', lectureId);
+      addToast('عذراً! لا يمكن حذف المحاضرة أبداً إلا بواسطة المستر أو المدرس المصرح له فقط 🛡️', 'error', 6000);
+      return;
+    }
 
     // Strict Owner-Only Hard Deletion Guard
     const isSuperOwner = (
@@ -1965,6 +2010,24 @@ export function TeacherProvider({ children }) {
     if (!targetLecture) return;
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
+
+    // Strict Instructor/Teacher-Only Restore Guard
+    const isAuthorizedTeacher = (
+      role === 'instructor' ||
+      currentUser?.role === 'super_admin' || 
+      currentAdminUser?.role === 'super_admin' || 
+      currentUser?.email === 'mrmichaelshehata@gmail.com' ||
+      currentUser?.email === 'sareanymina@gmail.com' ||
+      currentUser?.uid === 'teacher-admin' ||
+      Boolean(verifyAdminSession()?.isValid) ||
+      Boolean(hasPermission('canManageLectures'))
+    );
+
+    if (!isAuthorizedTeacher) {
+      console.error('[Security Alert] Unauthorized lecture restore attempt blocked:', lectureId);
+      addToast('عذراً! لا يمكن استعادة المحاضرات إلا بواسطة المستر أو المدرس المصرح له فقط 🛡️', 'error', 6000);
+      return;
+    }
 
     // Unmark as deleted
     const deletedIds = getDeletedLectureIds();

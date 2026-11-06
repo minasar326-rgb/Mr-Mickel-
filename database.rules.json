@@ -18,6 +18,11 @@
       ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'sareanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
+    "deletedLectureIds": {
+      ".read": true,
+      ".write": true
+    },
+
     "lectures": {
       ".read": true,
       ".write": true

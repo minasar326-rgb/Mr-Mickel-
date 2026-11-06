@@ -383,7 +383,30 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
     }
     deletedLectureIds = Array.isArray(deletedLectureIds) ? Array.from(new Set(deletedLectureIds.filter(Boolean))) : [];
 
-    const cleanLectures = lecturesList.filter(l => l && !l.isDeleted && !deletedLectureIds.includes(l.id));
+    // Filter incoming lectures that are explicitly marked deleted
+    const incomingClean = lecturesList.filter(l => l && !l.isDeleted && !deletedLectureIds.includes(l.id));
+
+    // Active incoming lectures must NEVER be in deletedLectureIds!
+    const activeIds = new Set(incomingClean.map(l => l.id).filter(Boolean));
+    deletedLectureIds = deletedLectureIds.filter(id => !activeIds.has(id));
+
+    // Smart Merge: Merge with previously known manifest so partial tab states never drop lectures
+    const existingList = (typeof window !== 'undefined' && Array.isArray(window.__MS_LECTURES_MANIFEST__))
+      ? window.__MS_LECTURES_MANIFEST__
+      : [];
+    const lectureMap = new Map();
+    existingList.forEach(l => {
+      if (l && l.id && !deletedLectureIds.includes(l.id)) {
+        lectureMap.set(l.id, l);
+      }
+    });
+    incomingClean.forEach(l => {
+      if (l && l.id && !deletedLectureIds.includes(l.id)) {
+        const prev = lectureMap.get(l.id) || {};
+        lectureMap.set(l.id, { ...prev, ...l });
+      }
+    });
+    const cleanLectures = Array.from(lectureMap.values());
 
     let stages = extra.stages;
     let sections = extra.sections;

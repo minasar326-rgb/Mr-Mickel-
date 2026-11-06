@@ -2719,19 +2719,25 @@ export function TeacherProvider({ children }) {
 
   const resolveVideoSource = async (lecture) => {
     if (!lecture) return '';
-    // 1. If it's a valid remote URL (Cloudflare R2, Firebase Storage or HTTPS)
+    // 1. If it's a valid remote URL (Cloudflare R2, Firebase Storage, YouTube, Vimeo, Google Drive, or HTTPS)
     if (lecture.videoUrl && (lecture.videoUrl.startsWith('https://') || lecture.videoUrl.startsWith('http://'))) {
       return lecture.videoUrl;
     }
-    // 2. If it has a local media key in IndexedDB, obtain a fresh blob url
-    if (lecture.localMediaKey) {
+    // 2. Local IndexedDB is strictly for the teacher previewing an unpublished local draft
+    // Students MUST NOT rely on localMediaKey because local IndexedDB exists only on the teacher's upload device!
+    const isAdmin = Boolean(
+      (typeof localStorage !== 'undefined' && localStorage.getItem('ms_admin_auth')) ||
+      currentUser?.role === 'teacher' ||
+      currentUser?.role === 'admin'
+    );
+    if (isAdmin && lecture.localMediaKey) {
       try {
         const idbRes = await getPermanentMediaUrl(lecture.localMediaKey);
+        if (idbRes.found && idbRes.cloudUrl) {
+          return idbRes.cloudUrl;
+        }
         if (idbRes.found && idbRes.url) {
           return idbRes.url;
-        }
-        if (idbRes.cloudUrl) {
-          return idbRes.cloudUrl;
         }
       } catch (err) {
         console.warn('Could not resolve local media:', err);

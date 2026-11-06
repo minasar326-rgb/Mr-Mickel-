@@ -14,7 +14,7 @@ import {
   Pause, Play, Calendar, UserX, AlertTriangle, ArrowUp, ArrowDown, CheckSquare, Square
 } from 'lucide-react';
 import { uploadFileToFirebaseStorage } from '../../services/firestoreSync';
-import { uploadFileToR2, uploadTeacherAvatarToR2, uploadAppIconToR2 } from '../../services/r2Storage';
+import { uploadFileToR2, uploadTeacherAvatarToR2, uploadAppIconToR2, verifyVideoUrl } from '../../services/r2Storage';
 import { saveMediaFilePermanently, updateMediaCloudUrl } from '../../services/persistentStorage';
 import { generatePlatformIconsSuite, generateMasterIconCanvas, loadImage } from '../../services/iconGenerator';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -166,6 +166,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [videoUrl, setVideoUrl] = useState('');
   const [videoFileName, setVideoFileName] = useState('');
   const [videoFileSize, setVideoFileSize] = useState('');
+  const [videoStatus, setVideoStatus] = useState('none'); // 'none' | 'uploading' | 'ready' | 'failed'
   const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
   const [duration, setDuration] = useState('1:30:00');
   const [thumbnailPreview, setThumbnailPreview] = useState('https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80');
@@ -421,7 +422,17 @@ export default function TeacherAdminCenter({ onNavigate }) {
       setUploadProgress(prog.percent);
     }).then(async (res) => {
       if (res && res.downloadUrl) {
+        // Step 1: Verify URL with HEAD/Range check before confirming ready
+        const verifyRes = await verifyVideoUrl(res.downloadUrl);
+        if (!verifyRes.valid) {
+          setIsUploading(false);
+          setVideoStatus('failed');
+          setVideoUrl('');
+          addToast(`⚠️ فشل التحقق من صلاحية بث الفيديو سحابياً (${verifyRes.error}). يرجى فحص إعدادات CORS على Cloudflare أو إعادة المحاولة.`, 'error', 8000);
+          return;
+        }
         setVideoUrl(res.downloadUrl);
+        setVideoStatus('ready');
         setVideoPreviewUrl(res.downloadUrl);
         setIsUploading(false);
         setUploadProgress(100);
@@ -1287,6 +1298,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
       subtitle: subtitle || 'شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.',
       duration: duration || '1:30:00',
       videoUrl: cleanVideoUrl,
+      videoStatus: cleanVideoUrl ? 'ready' : (isUploading ? 'uploading' : 'none'),
       localMediaKey: localMediaKey,
       videoFileName: videoFileName || 'lecture_video.mp4',
       videoFileSize: videoFileSize || '',

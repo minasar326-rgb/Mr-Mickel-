@@ -656,6 +656,9 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               <video
                 ref={videoRef}
                 src={resolvedVideoUrl}
+                playsInline
+                webkit-playsinline="true"
+                preload="metadata"
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
@@ -683,9 +686,19 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               }}>
                 <Play size={26} />
               </div>
-              <h4 style={{ margin: '0 0 6px', color: '#F1F5F9', fontWeight: 800 }}>المحاضرة قيد التجهيز</h4>
+              <h4 style={{ margin: '0 0 6px', color: lecture?.videoStatus === 'failed' ? '#F87171' : '#F1F5F9', fontWeight: 800 }}>
+                {lecture?.videoStatus === 'uploading' 
+                  ? '⏳ المحاضرة قيد التجهيز والرفع السحابي حالياً'
+                  : lecture?.videoStatus === 'failed'
+                    ? '⚠️ تعذر تجهيز ملف فيديو هذه المحاضرة'
+                    : 'المحاضرة قيد التجهيز'}
+              </h4>
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#94A3B8' }}>
-                سيتم تفعيل فيديو الشرح قريباً، يمكنك مراجعة المذكرات والكلمات أدناه
+                {lecture?.videoStatus === 'uploading'
+                  ? 'المحاضر يقوم برفع ومعالجة ملف الفيديو على السحابة الآن. يرجى الانتظار وتحديث الصفحة بعد قليل.'
+                  : lecture?.videoStatus === 'failed'
+                    ? 'حدث خطأ في ملف الفيديو أثناء الرفع السحابي. يرجى التواصل مع الدعم الفني أو المحاضر لإعادة النشر.'
+                    : 'سيتم تفعيل فيديو الشرح قريباً، يمكنك مراجعة المذكرات والكلمات أدناه'}
               </p>
               {isTeacher && (
                 <div style={{ marginTop: '1rem' }}>

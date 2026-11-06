@@ -322,3 +322,53 @@ export async function uploadAppIconToR2(iconBlob, filename = 'icon-512x512.png')
     return null;
   }
 }
+
+/**
+ * Verify whether a remote video URL is genuinely reachable and playable
+ * Performs a lightweight HEAD / Range check before allowing a lecture to be saved.
+ * @param {string} url 
+ * @returns {Promise<{ valid: boolean, status?: number, error?: string, isCors?: boolean }>}
+ */
+export async function verifyVideoUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    return { valid: false, error: 'رابط الفيديو غير صالح أو ليس رابط ويب مباشر' };
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    let res = null;
+    try {
+      res = await fetch(url, { method: 'HEAD', signal: controller.signal });
+    } catch (_) {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-1024' },
+        signal: controller.signal
+      });
+    }
+    clearTimeout(timeoutId);
+
+    if (res && (res.status === 200 || res.status === 206 || res.status === 304)) {
+      return {
+        valid: true,
+        status: res.status,
+        contentLength: res.headers.get('content-length'),
+        contentType: res.headers.get('content-type') || 'video/mp4'
+      };
+    }
+    return {
+      valid: false,
+      status: res?.status || 0,
+      error: `استجاب السيرفر بكود خطأ (${res?.status})`
+    };
+  } catch (err) {
+    const isCors = err.name === 'TypeError' && err.message.includes('Failed to fetch');
+    return {
+      valid: false,
+      isCors,
+      error: isCors 
+        ? 'خطأ في سياسة CORS على السحابة يمنع المتصفح من قراءة الملف'
+        : (err.message || 'تعذر الاتصال برابط الفيديو')
+    };
+  }
+}

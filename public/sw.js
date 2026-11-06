@@ -1,5 +1,5 @@
 // Service Worker for Mr. Michael Shehata LMS (The Master)
-const CACHE_NAME = 'ms-lms-v2.3.0-pwa-fast';
+const CACHE_NAME = 'ms-lms-v2.4.0-video-stream';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -37,19 +37,26 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and skip Firebase/R2 streaming video requests
+  // Only handle GET requests
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Skip video streams and Firebase APIs
+  // STRICT VIDEO & RANGE BYPASS: Never intercept or cache streaming videos or range requests
+  // This guarantees smooth playback on iPhone Safari (iOS), Android Chrome, and all desktop browsers
   if (
+    event.request.headers.get('range') ||
+    url.hostname.includes('r2.dev') ||
+    url.hostname.includes('cloudflarestorage.com') ||
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('firebaseapp.com') ||
     url.pathname.startsWith('/__/auth/') ||
     url.pathname.startsWith('/__/firebase/') ||
-    url.pathname.endsWith('.mp4') ||
-    url.pathname.endsWith('.m3u8')
+    url.pathname.includes('.mp4') ||
+    url.pathname.includes('.m3u8') ||
+    url.pathname.includes('.webm') ||
+    url.pathname.includes('.mov') ||
+    url.pathname.includes('.m4v')
   ) {
     return;
   }
@@ -156,7 +163,6 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
 
 // =========================================================================
 // Background Sync (PWABuilder / Store Readiness)

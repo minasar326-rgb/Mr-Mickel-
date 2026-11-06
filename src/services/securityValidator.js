@@ -211,3 +211,51 @@ export async function validateUploadedFile(file, category = 'video') {
     sanitizedName: sanitizeFileName(rawName)
   };
 }
+
+/**
+ * Inspect whether an MP4 file has faststart (+movflags faststart / moov before mdat)
+ * Essential for instantaneous streaming on iPhone Safari without full-file buffering.
+ * @param {File|Blob} file 
+ * @returns {Promise<{ hasFastStart: boolean, recommendation?: string }>}
+ */
+export async function checkMp4FastStart(file) {
+  if (!file || typeof file.slice !== 'function') return { hasFastStart: true };
+  try {
+    // Read the first 64KB
+    const sampleSize = Math.min(65536, file.size);
+    const slice = file.slice(0, sampleSize);
+    const buffer = await slice.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    let pos = 0;
+    let foundMoov = false;
+    let foundMdat = false;
+
+    while (pos < bytes.length - 8) {
+      const atomSize = (bytes[pos] << 24) | (bytes[pos + 1] << 16) | (bytes[pos + 2] << 8) | bytes[pos + 3];
+      const atomType = String.fromCharCode(bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]);
+
+      if (atomType === 'moov') {
+        foundMoov = true;
+        break;
+      }
+      if (atomType === 'mdat') {
+        foundMdat = true;
+        break;
+      }
+
+      if (atomSize <= 0 || pos + atomSize > bytes.length) break;
+      pos += atomSize;
+    }
+
+    if (foundMdat && !foundMoov) {
+      return {
+        hasFastStart: false,
+        recommendation: 'يحتوي الملف على ميتاداتا في نهاية الملف (mdat قبل moov). يفضل تصدير الفيديو بوضع FastStart لتسريع التشغيل الفوري على هواتف iPhone.'
+      };
+    }
+    return { hasFastStart: true };
+  } catch (_) {
+    return { hasFastStart: true };
+  }
+}

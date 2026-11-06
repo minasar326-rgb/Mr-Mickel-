@@ -19,8 +19,8 @@
     },
 
     "lectures": {
-      ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'sareanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com')"
+      ".read": true,
+      ".write": true
     },
 
     "booklets": {

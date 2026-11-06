@@ -105,7 +105,15 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   useEffect(() => {
     watchedSecondsSetRef.current = new Set();
     lastPlaybackTimeRef.current = 0;
-  }, [lecture?.id]);
+    if (lecture?.duration) {
+      const parts = String(lecture.duration).split(':').map(Number);
+      let secs = 0;
+      if (parts.length === 3 && !isNaN(parts[0])) secs = (parts[0] * 3600) + (parts[1] * 60) + (parts[2] || 0);
+      else if (parts.length === 2 && !isNaN(parts[0])) secs = (parts[0] * 60) + (parts[1] || 0);
+      else secs = Number(lecture.duration) || 0;
+      if (secs > 0) setDuration(secs);
+    }
+  }, [lecture?.id, lecture?.duration]);
 
   // Resolve persistent video URL from IndexedDB or Cloud
   useEffect(() => {
@@ -662,6 +670,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onCanPlay={handleLoadedMetadata}
                 onClick={togglePlay}
                 onError={() => setVideoHasError(true)}
                 controlsList="nodownload nofullscreen noremoteplayback"

@@ -1445,8 +1445,14 @@ export function TeacherProvider({ children }) {
       createdAt: new Date().toISOString()
     };
 
-    // 1. Instantly update UI state
-    setLectures(prev => [newLec, ...prev]);
+    // 1. Instantly update UI state & immediate local storage
+    setLectures(prev => {
+      const updated = [newLec, ...prev.filter(l => l.id !== newLec.id)];
+      try {
+        localStorage.setItem('ms_lectures', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     // Automatically unlock if free OR if this stage has an active subscription
     const canonStage = normalizeStageId(newLec.stageId);

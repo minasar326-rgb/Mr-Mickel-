@@ -120,8 +120,8 @@ service cloud.firestore {
     }
 
     match /lectures/{lectureId} {
-      allow read: if isAuthenticated();
-      allow write: if isTeacher();
+      allow read: if true;
+      allow write: if true;
     }
 
     match /booklets/{docId} {

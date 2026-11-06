@@ -601,6 +601,7 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
     };
 
     // 1. Save to students collection
+    let studentsSaved = false;
     try {
       await setDoc(doc(db, 'students', uid), {
         subscriptions: {
@@ -608,9 +609,13 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
         },
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (e) {}
+      studentsSaved = true;
+    } catch (e) {
+      console.error('Firestore save to students collection failed:', e);
+    }
 
     // 2. Save to users collection
+    let usersSaved = false;
     try {
       await setDoc(doc(db, 'users', uid), {
         subscriptions: {
@@ -618,13 +623,20 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
         },
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (e) {}
+      usersSaved = true;
+    } catch (e) {
+      console.error('Firestore save to users collection failed:', e);
+    }
 
     // 3. Save to top-level subscriptions collection (${uid}_${stageId})
+    let subDocSaved = false;
     try {
       const subDocId = `${uid}_${stageId}`;
       await setDoc(doc(db, 'subscriptions', subDocId), normalizedSubscription, { merge: true });
-    } catch (e) {}
+      subDocSaved = true;
+    } catch (e) {
+      console.error('Firestore save to top-level subscriptions collection failed:', e);
+    }
 
     // 4. Save to RTDB for instant multi-device sync
     if (rtdb) {
@@ -632,12 +644,20 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
         await rtdbSet(rtdbRef(rtdb, `students/${uid}/subscriptions/${stageId}`), normalizedSubscription);
         await rtdbSet(rtdbRef(rtdb, `users/${uid}/subscriptions/${stageId}`), normalizedSubscription);
         await rtdbSet(rtdbRef(rtdb, `subscriptions/${uid}_${stageId}`), normalizedSubscription);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('RTDB subscription sync warning:', e);
+      }
     }
+
+    // Verification: At least one primary Firestore document must have succeeded
+    if (!studentsSaved && !usersSaved && !subDocSaved) {
+      throw new Error('فشل حفظ وتأكيد الاشتراك في قاعدة البيانات السحابية.');
+    }
+
     return { success: true, subscription: normalizedSubscription };
   } catch (error) {
-    console.warn('Firebase subscription save error:', error.message);
-    return { success: false, error: error.message };
+    console.error('Firebase subscription save critical error:', error);
+    return { success: false, error: error.message || 'فشل حفظ الاشتراك سحابياً' };
   }
 }
 
@@ -798,10 +818,17 @@ export async function fetchCodeFromCloud(cleanCode) {
 export async function markCodeAsUsedInCloud(cleanCode, updatedCodeData) {
   if (!cleanCode || !updatedCodeData) return false;
   try {
+    const maxUses = Number(updatedCodeData.maxUses) || 1;
+    const usedCount = Number(updatedCodeData.usedCount) || (updatedCodeData.isUsed ? 1 : 0);
+    const isFullyUsed = usedCount >= maxUses;
+    const effectiveStatus = isFullyUsed ? 'used' : 'active';
+
     await setDoc(doc(db, 'codes', cleanCode), {
       ...updatedCodeData,
-      isUsed: true,
-      status: 'used',
+      usedCount: usedCount,
+      maxUses: maxUses,
+      isUsed: isFullyUsed,
+      status: effectiveStatus,
       updatedAt: serverTimestamp()
     }, { merge: true });
 
@@ -809,14 +836,18 @@ export async function markCodeAsUsedInCloud(cleanCode, updatedCodeData) {
       try {
         await rtdbSet(rtdbRef(rtdb, 'codes/' + cleanCode), {
           ...updatedCodeData,
-          isUsed: true,
-          status: 'used'
+          usedCount: usedCount,
+          maxUses: maxUses,
+          isUsed: isFullyUsed,
+          status: effectiveStatus
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn('RTDB code update notice:', e);
+      }
     }
     return true;
   } catch (e) {
-    console.warn('Error marking code as used in cloud:', e.message);
+    console.error('Error marking code as used in cloud:', e);
     return false;
   }
 }

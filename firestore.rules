@@ -1,9 +1,8 @@
 rules_version = '2';
 
 // ===============================================================
-// Hardened Security Rules: Mr. Michael Shehata LMS
-// Protection against unauthorized admin access, lecture tampering,
-// code forgery, and subscription bypass.
+// Hardened Security Rules: Mr. Michael Shehata LMS (The Master)
+// Production Security Model with Strict Custom Claims & Zero-Trust Client
 // ===============================================================
 
 service cloud.firestore {
@@ -21,30 +20,31 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Teacher Admin verification: matches authorized admin emails, UIDs, or custom claims
-    function isTeacherAdmin() {
+    // Teacher Admin verification: matches custom claim role == 'teacher' or super_admin
+    function isTeacher() {
       return isAuthenticated() && (
+        request.auth.token.role == 'teacher' ||
+        request.auth.token.role == 'instructor' ||
+        request.auth.token.role == 'super_admin' ||
+        request.auth.token.admin == true ||
         request.auth.token.email in [
-          'teacher@gmail.com',
           'mrmichaelshehata@gmail.com',
+          'teacher@gmail.com',
           'admin@themaster.com',
           'saryanymina@gmail.com'
-        ] ||
-        request.auth.uid == 'teacher-admin' ||
-        request.auth.token.admin == true
+        ]
       );
     }
 
-    // Platform Owner / SuperAdmin: strictly required for hard deletion and security settings
-    function isSuperAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email in [
-          'mrmichaelshehata@gmail.com',
-          'admin@themaster.com'
-        ] ||
-        request.auth.uid == 'teacher-admin' ||
-        request.auth.token.role == 'super_admin'
-      );
+    // Protect sensitive fields from being self-assigned by students
+    function doesNotModifySensitiveFields() {
+      let sensitive = ['subscriptions', 'role', 'isFrozen', 'isPaused', 'subscription', 'subscriptionStatus', 'xpPoints'];
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(sensitive);
+    }
+
+    function doesNotSetSensitiveFieldsOnCreate() {
+      let sensitive = ['subscriptions', 'role', 'isFrozen', 'isPaused', 'subscription', 'subscriptionStatus'];
+      return !request.resource.data.keys().hasAny(sensitive);
     }
 
     // ===============================================================
@@ -52,179 +52,129 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isTeacherAdmin();
-      allow create, update: if isOwner(userId) || isTeacherAdmin();
-      allow delete: if isTeacherAdmin();
+      allow read: if isOwner(userId) || isTeacher();
+      allow create: if (isOwner(userId) && doesNotSetSensitiveFieldsOnCreate()) || isTeacher();
+      allow update: if (isOwner(userId) && doesNotModifySensitiveFields()) || isTeacher();
+      allow delete: if isTeacher();
 
       match /subscriptions/{subId} {
-        allow read: if isOwner(userId) || isTeacherAdmin();
-        allow write: if isTeacherAdmin();
+        allow read: if isOwner(userId) || isTeacher();
+        allow write: if isTeacher();
       }
     }
 
     match /students/{userId} {
-      allow read: if isOwner(userId) || isTeacherAdmin();
-      allow create, update: if isOwner(userId) || isTeacherAdmin();
-      allow delete: if isTeacherAdmin();
+      allow read: if isOwner(userId) || isTeacher();
+      allow create: if (isOwner(userId) && doesNotSetSensitiveFieldsOnCreate()) || isTeacher();
+      allow update: if (isOwner(userId) && doesNotModifySensitiveFields()) || isTeacher();
+      allow delete: if isTeacher();
 
       match /subscriptions/{subId} {
-        allow read: if isOwner(userId) || isTeacherAdmin();
-        allow write: if isTeacherAdmin();
+        allow read: if isOwner(userId) || isTeacher();
+        allow write: if isTeacher();
       }
     }
 
     // ===============================================================
-    // Subscriptions Collection
+    // Subscriptions Collection (Top-Level)
     // ===============================================================
 
     match /subscriptions/{subId} {
-      // Students can only read their own active subscriptions
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isTeacherAdmin());
+      // Students can only read their own subscription documents
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isTeacher());
       
-      // Subscriptions can only be created by Teacher Admin or valid code activation
-      allow create: if isTeacherAdmin() || (
-        isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == 'active'
-      );
-      
-      // Only Teacher Admin can modify or delete existing subscriptions
-      allow update, delete: if isTeacherAdmin();
+      // Subscriptions can strictly be created or edited by Teacher / Backend service account
+      allow write: if isTeacher();
     }
 
     // ===============================================================
-    // Courses & Lectures (Curriculum Protection)
+    // Activation Codes (Completely Closed from Client Inspection)
     // ===============================================================
 
+    match /codes/{codeId} {
+      allow read, write: if isTeacher();
+    }
+
+    match /subscriptionCodes/{codeId} {
+      allow read, write: if isTeacher();
+    }
+
+    // ===============================================================
+    // Curriculum: Stages, Courses & Lectures
+    // ===============================================================
+
+    match /stages/{stageId} {
+      allow read: if true;
+      allow write: if isTeacher();
+    }
+
     match /courses/{courseId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isTeacher();
 
       match /lectures/{lectureId} {
-        allow read, write: if true;
+        allow read: if isAuthenticated();
+        allow write: if isTeacher();
       }
     }
 
     match /lectures/{lectureId} {
-      allow read, write: if true;
-    }
-
-    // ===============================================================
-    // Activation & Subscription Codes
-    // ===============================================================
-
-    match /codes/{codeId} {
-      // Only authenticated users can query/verify a code
       allow read: if isAuthenticated();
-      // Only Teacher Admin can generate or delete codes
-      allow create, delete: if isTeacherAdmin();
-      // An authenticated student can only mark an unused code as used by themselves
-      allow update: if isTeacherAdmin() || (
-        isAuthenticated() &&
-        resource.data.isUsed != true &&
-        request.resource.data.isUsed == true &&
-        request.resource.data.usedByUid == request.auth.uid
-      );
-    }
-
-    match /subscriptionCodes/{codeId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isTeacherAdmin();
-      allow update: if isTeacherAdmin() || (
-        isAuthenticated() &&
-        resource.data.isUsed != true &&
-        request.resource.data.isUsed == true &&
-        request.resource.data.usedByUid == request.auth.uid
-      );
-    }
-
-    // ===============================================================
-    // Public Content & Platform Configurations
-    // ===============================================================
-
-    match /settings/adminAuth {
-      allow read: if true;
-      allow write: if isTeacherAdmin();
-    }
-
-    match /settings/{docId} {
-      allow read: if true;
-      allow write: if docId != 'adminAuth' || isTeacherAdmin();
+      allow write: if isTeacher();
     }
 
     match /booklets/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow write: if isTeacher();
     }
 
     match /achievers/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow write: if isTeacher();
     }
 
     match /announcements/{docId} {
       allow read: if true;
-      allow write: if isTeacherAdmin();
+      allow write: if isTeacher();
     }
 
     // ===============================================================
-    // Educational Months / Courses (Dynamic Sections)
+    // Platform Settings & Admin Auth
     // ===============================================================
 
-    match /sections/{sectionId} {
+    match /settings/adminAuth {
+      allow read, write: if isTeacher();
+    }
+
+    match /settings/{docId} {
       allow read: if true;
-      allow create, update: if isTeacherAdmin();
-      allow delete: if isSuperAdmin();
-    }
-
-    match /courses/{courseId} {
-      allow read: if true;
-      allow create, update: if isTeacherAdmin();
-      allow delete: if isSuperAdmin();
+      allow write: if isTeacher();
     }
 
     // ===============================================================
-    // Standalone Comprehensive Exams (الامتحانات العامة الشاملة)
+    // Audit Logs & Tamper-Evident Records
     // ===============================================================
-
-    match /generalExams/{examId} {
-      allow read: if true;
-      allow create, update: if isTeacherAdmin();
-      allow delete: if isSuperAdmin();
-    }
-
-    match /generalExamCodes/{codeId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isTeacherAdmin();
-      allow update: if isTeacherAdmin() || (
-        isAuthenticated() &&
-        resource.data.isUsed != true &&
-        request.resource.data.isUsed == true
-      );
-    }
-
-    // ===============================================================
-    // Unified Management: Staff Admins & Audit Logs
-    // ===============================================================
-
-    match /adminUsers/{adminId} {
-      allow read: if isTeacherAdmin();
-      allow write: if isSuperAdmin();
-    }
 
     match /auditLogs/{logId} {
-      allow read: if isTeacherAdmin();
-      allow create: if isTeacherAdmin();
-      allow update, delete: if false; // Audit logs are immutable
+      allow read: if isTeacher();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable audit trail
     }
 
     // ===============================================================
-    // Treasury Transactions (Financial Records)
+    // Exams & Submissions
     // ===============================================================
 
-    match /transactions/{transactionId} {
-      allow read: if isTeacherAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isTeacherAdmin());
-      allow update, delete: if isTeacherAdmin();
+    match /exams/{examId} {
+      allow read: if isAuthenticated();
+      allow write: if isTeacher();
+    }
+
+    match /examSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || isTeacher());
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
+      allow update: if isTeacher();
+      allow delete: if isTeacher();
     }
   }
 }

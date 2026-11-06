@@ -50,35 +50,13 @@ import {
 } from '../services/persistentStorage';
 import { uploadFileToR2 } from '../services/r2Storage';
 
-const TeacherContext = createContext();
+import { normalizeStageId, CANONICAL_STAGES, getStageTitle } from '../utils/stages';
+import { coversLecture, getCoveredLectures, validateCodeTarget } from '../utils/entitlements';
+import { executeRedeemCode } from '../services/redemptionService';
 
-export function normalizeStageId(targetId, stageName = '') {
-  if (!targetId && !stageName) return 'sec-3';
-  const combined = `${targetId || ''} ${stageName || ''}`.toLowerCase().trim();
-  
-  if (combined.includes('all-access') || combined.includes('vip') || combined.includes('bundle') || combined.includes('شامل') || combined.includes('كافة') || combined.includes('جميع')) {
-    return 'all-access';
-  }
-  if (combined.includes('sec-3') || combined.includes('sec3') || combined.includes('ثالث') || combined.includes('thanaweya')) {
-    return 'sec-3';
-  }
-  if (combined.includes('sec-2') || combined.includes('sec2') || combined.includes('ثان') || combined.includes('senior 2')) {
-    return 'sec-2';
-  }
-  if (combined.includes('sec-1') || combined.includes('sec1') || combined.includes('أول') || combined.includes('اول') || combined.includes('senior 1')) {
-    return 'sec-1';
-  }
-  if (combined.includes('prep') || combined.includes('إعداد') || combined.includes('اعداد') || combined.includes('middle')) {
-    return 'prep';
-  }
-  if (combined.includes('pri') || combined.includes('ابتد') || combined.includes('primary') || combined.includes('أولاد')) {
-    return 'pri';
-  }
-  if (combined.includes('foundation') || combined.includes('fnd') || combined.includes('تأسيس') || combined.includes('محادثة')) {
-    return 'foundation';
-  }
-  return targetId || 'sec-3';
-}
+export { normalizeStageId, CANONICAL_STAGES, getStageTitle };
+
+const TeacherContext = createContext();
 
 const initialBookletsList = [
   {
@@ -2117,100 +2095,179 @@ export function TeacherProvider({ children }) {
    * Rule 6: If previous lecture has an exam, student must have passed with > 50%.
    */
   const canAccessLecture = (lecture, stageId) => {
-    if (!lecture) return { allowed: false, reason: 'المحاضرة غير موجودة' };
+    if (!lecture) {
+      return {
+        allowed: false,
+        reasonCode: 'not_found',
+        reasonText: 'المحاضرة غير موجودة أو تم حذفها',
+        reason: 'المحاضرة غير موجودة أو تم حذفها'
+      };
+    }
 
     // 1. Instructor role or valid admin session bypasses all locks
     if (role === 'instructor' || Boolean(verifyAdminSession()?.isValid)) {
-      return { allowed: true, isTeacherOverride: true, reason: 'حساب المعلم (وصول كامل)' };
+      return {
+        allowed: true,
+        isTeacherOverride: true,
+        reasonCode: 'teacher_override',
+        reasonText: 'حساب المعلم (وصول كامل)',
+        reason: 'حساب المعلم (وصول كامل)'
+      };
     }
 
     const currentUid = currentUser?.uid || currentUser?.id;
 
     // 2. Teacher manual override for this student
     if (currentUid && manualOverrides[lecture.id]?.[currentUid]?.unlocked) {
+      const overrideReason = manualOverrides[lecture.id][currentUid].reason || 'تم فتح المحاضرة استثنائياً بواسطة المستر';
       return {
         allowed: true,
         isTeacherOverride: true,
-        reason: manualOverrides[lecture.id][currentUid].reason || 'تم فتح المحاضرة استثنائياً بواسطة المستر'
+        reasonCode: 'teacher_manual_override',
+        reasonText: overrideReason,
+        reason: overrideReason
       };
     }
 
-    // 3. Subscription check
+    // 3. Free lecture check
     const isFree = Boolean(lecture.isFree);
-    let hasSubscription = isFree;
-
-    if (!isFree) {
-      if (!currentUser || !currentUid || currentUid === 'guest') {
-        return {
-          allowed: false,
-          requiresAuth: true,
-          reason: 'يجب تسجيل الدخول بحساب Google أولاً لتفعيل المحاضرة'
-        };
-      }
-
-      // Check section subscription (month or course)
-      let matchedSub = null;
-      if (lecture.sectionId) {
-        const secSub = getSubscriptionStatus(lecture.sectionId);
-        if (secSub.isFrozen) return { allowed: false, isFrozen: true, reason: secSub.reason };
-        if (secSub.isPaused) return { allowed: false, isPaused: true, reason: secSub.reason };
-        if (secSub.isSubscribed && !secSub.isExpired) {
-          hasSubscription = true;
-          matchedSub = secSub;
-        }
-      }
-
-      // Direct lecture subscription
-      if (!hasSubscription) {
-        const lecSub = getSubscriptionStatus(lecture.id);
-        if (lecSub.isFrozen) return { allowed: false, isFrozen: true, reason: lecSub.reason };
-        if (lecSub.isPaused) return { allowed: false, isPaused: true, reason: lecSub.reason };
-        if (lecSub.isSubscribed && !lecSub.isExpired) {
-          hasSubscription = true;
-          matchedSub = lecSub;
-        }
-      }
-
-      // Stage-level subscription
-      if (!hasSubscription) {
-        const rawStageId = stageId || lecture.stageId;
-        const targetStageId = normalizeStageId(rawStageId);
-        const stageSub = getSubscriptionStatus(targetStageId) || getSubscriptionStatus(rawStageId);
-        if (stageSub.isFrozen) return { allowed: false, isFrozen: true, reason: stageSub.reason };
-        if (stageSub.isPaused) return { allowed: false, isPaused: true, reason: stageSub.reason };
-        if (stageSub.isSubscribed && !stageSub.isExpired) {
-          hasSubscription = true;
-          matchedSub = stageSub;
-        }
-      }
-
-      // All-access VIP
-      if (!hasSubscription) {
-        const allSub = getSubscriptionStatus('all-access');
-        if (allSub.isFrozen) return { allowed: false, isFrozen: true, reason: allSub.reason };
-        if (allSub.isPaused) return { allowed: false, isPaused: true, reason: allSub.reason };
-        if (allSub.isSubscribed && !allSub.isExpired) {
-          hasSubscription = true;
-          matchedSub = allSub;
-        }
-      }
-
-      if (!hasSubscription) {
-        return {
-          allowed: false,
-          requiresSubscription: true,
-          reason: 'المحاضرة تتطلب الاشتراك في الشهر أو شحن كود تفعيل المحاضرة'
-        };
-      }
-    }
-
-    // If it's a free lecture, it is always directly open to preview without progression gating
     if (isFree) {
-      return { allowed: true, reason: 'محاضرة مجانية متاحة للمشاهدة فوراً' };
+      return {
+        allowed: true,
+        reasonCode: 'free_lecture',
+        reasonText: 'محاضرة مجانية متاحة للمشاهدة فوراً',
+        reason: 'محاضرة مجانية متاحة للمشاهدة فوراً'
+      };
     }
 
-    // 4. Sequential progression check within the same month/course/stage
-    // Find cohort of lectures sharing the same section (or stage if no section)
+    // 4. Must be logged in
+    if (!currentUser || !currentUid || currentUid === 'guest') {
+      return {
+        allowed: false,
+        requiresAuth: true,
+        reasonCode: 'not_logged_in',
+        reasonText: 'يجب تسجيل الدخول بحساب Google أولاً لمشاهدة المحاضرة',
+        reason: 'يجب تسجيل الدخول بحساب Google أولاً لمشاهدة المحاضرة',
+        actionTarget: { type: 'auth_modal', action: 'login' }
+      };
+    }
+
+    // 5. Subscription check using coversLecture
+    const userSubs = currentUser.subscriptions || {};
+    const now = Date.now();
+    let matchingSub = null;
+    let subStatusIssue = null;
+
+    for (const [subKey, sub] of Object.entries(userSubs)) {
+      if (!sub) continue;
+      if (coversLecture(sub, lecture, lectures)) {
+        if (sub.isFrozen || sub.status === 'frozen') {
+          subStatusIssue = {
+            allowed: false,
+            isFrozen: true,
+            reasonCode: 'frozen',
+            reasonText: sub.freezeReason || 'تم تجميد اشتراكك مؤقتاً لمراجعة الحساب، يرجى التواصل مع الدعم الفني',
+            reason: sub.freezeReason || 'تم تجميد اشتراكك مؤقتاً لمراجعة الحساب',
+            actionTarget: { type: 'contact_support' }
+          };
+          break;
+        }
+        if (sub.isPaused || sub.status === 'paused') {
+          subStatusIssue = {
+            allowed: false,
+            isPaused: true,
+            reasonCode: 'paused',
+            reasonText: sub.pauseReason || 'تم إيقاف اشتراكك مؤقتاً، يرجى التواصل مع إدارة المنصة',
+            reason: sub.pauseReason || 'تم إيقاف اشتراكك مؤقتاً',
+            actionTarget: { type: 'contact_support' }
+          };
+          break;
+        }
+        const expStr = sub.expirationDate || sub.expiresAt;
+        if (expStr && new Date(expStr).getTime() < now) {
+          subStatusIssue = {
+            allowed: false,
+            isExpired: true,
+            reasonCode: 'expired',
+            reasonText: 'انتهت صلاحية اشتراكك في هذا المحتوى. يرجى تجديد الاشتراك بكود جديد.',
+            reason: 'انتهت صلاحية اشتراكك في هذا المحتوى',
+            actionTarget: { type: 'redeem_modal' }
+          };
+          continue;
+        }
+        matchingSub = sub;
+        break;
+      }
+    }
+
+    if (subStatusIssue && !matchingSub) {
+      return subStatusIssue;
+    }
+
+    // Check getSubscriptionStatus fallback
+    if (!matchingSub) {
+      const targetKeys = [lecture.sectionId, lecture.id, lecture.stageId, normalizeStageId(lecture.stageId), 'all-access'].filter(Boolean);
+      for (const key of targetKeys) {
+        const status = getSubscriptionStatus(key);
+        if (status.isSubscribed && !status.isExpired) {
+          matchingSub = status;
+          break;
+        } else if (status.isFrozen) {
+          return {
+            allowed: false,
+            isFrozen: true,
+            reasonCode: 'frozen',
+            reasonText: status.reason,
+            reason: status.reason,
+            actionTarget: { type: 'contact_support' }
+          };
+        } else if (status.isPaused) {
+          return {
+            allowed: false,
+            isPaused: true,
+            reasonCode: 'paused',
+            reasonText: status.reason,
+            reason: status.reason,
+            actionTarget: { type: 'contact_support' }
+          };
+        } else if (status.isExpired) {
+          subStatusIssue = {
+            allowed: false,
+            isExpired: true,
+            reasonCode: 'expired',
+            reasonText: status.reason || 'انتهت صلاحية الاشتراك',
+            reason: status.reason,
+            actionTarget: { type: 'redeem_modal' }
+          };
+        }
+      }
+    }
+
+    if (!matchingSub) {
+      return subStatusIssue || {
+        allowed: false,
+        requiresSubscription: true,
+        reasonCode: 'not_subscribed',
+        reasonText: 'المحاضرة تتطلب الاشتراك في الشهر أو شحن كود تفعيل المحاضرة',
+        reason: 'المحاضرة تتطلب الاشتراك في الشهر أو شحن كود تفعيل المحاضرة',
+        actionTarget: { type: 'redeem_modal' }
+      };
+    }
+
+    // 6. Check section progression toggle
+    const currentSection = (sections || []).find(s => s.id === lecture.sectionId);
+    const enforceProgression = currentSection?.enforceProgression !== false;
+
+    if (!enforceProgression) {
+      return {
+        allowed: true,
+        reasonCode: 'unlocked',
+        reasonText: 'المحاضرة متاحة ضمن اشتراكك النشط',
+        reason: 'المحاضرة متاحة ضمن اشتراكك النشط'
+      };
+    }
+
+    // 7. Sequential progression check within the cohort
     const cohort = (lectures || [])
       .filter(l => !l.isDeleted)
       .filter(l => {
@@ -2223,29 +2280,37 @@ export function TeacherProvider({ children }) {
 
     const currIdx = cohort.findIndex(l => l.id === lecture.id);
 
-    // If it's the first lecture in the section or not found in cohort, it is unlocked immediately!
+    // First lecture in cohort is unlocked immediately
     if (currIdx <= 0) {
-      return { allowed: true, reason: 'المحاضرة الأولى مفتوحة ضمن اشتراكك' };
-    }
-
-    // Inspect previous lecture in sequence
-    const prevLec = cohort[currIdx - 1];
-    const prevProg = videoWatchProgress[prevLec.id] || { percent: 0, watchedSeconds: 0 };
-    const prevWatchPercent = prevProg.percent || 0;
-
-    // Condition 1: Must watch at least 50% of the previous lecture
-    if (prevWatchPercent < 50) {
       return {
-        allowed: false,
-        isProgressionLocked: true,
-        reason: `يجب مشاهدة 50% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
-        prevLecture: prevLec,
-        prevWatchPercent,
-        missing: 'watch'
+        allowed: true,
+        reasonCode: 'unlocked_first',
+        reasonText: 'المحاضرة الأولى مفتوحة ضمن اشتراكك',
+        reason: 'المحاضرة الأولى مفتوحة ضمن اشتراكك'
       };
     }
 
-    // Condition 2: If previous lecture had an exam, student must have passed with > 50%
+    const prevLec = cohort[currIdx - 1];
+    const prevProg = videoWatchProgress[prevLec.id] || { percent: 0, watchedSeconds: 0 };
+    const prevWatchPercent = prevProg.percent || 0;
+    const requiredWatchPercent = Number(currentSection?.requiredWatchPercent || 50);
+
+    // Rule A: Watch percentage of previous lecture
+    if (prevWatchPercent < requiredWatchPercent) {
+      return {
+        allowed: false,
+        isProgressionLocked: true,
+        reasonCode: 'watch_previous',
+        reasonText: `يجب مشاهدة ${requiredWatchPercent}% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
+        reason: `يجب مشاهدة ${requiredWatchPercent}% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
+        prevLecture: prevLec,
+        requiredWatchPercent,
+        currentWatchPercent: prevWatchPercent,
+        actionTarget: { type: 'lecture', lectureId: prevLec.id, title: prevLec.title }
+      };
+    }
+
+    // Rule B: Exam requirement of previous lecture
     const prevExam = prevLec.exam || (examsData && examsData[prevLec.id]);
     const prevExamRequired = prevLec.examRequired !== false && 
       Boolean(prevExam) && 
@@ -2254,418 +2319,182 @@ export function TeacherProvider({ children }) {
       prevExam.questions.length > 0;
 
     if (prevExamRequired) {
-      // 2a. Check if student submitted exam and is pending manual teacher grading
       const submission = examSubmissions[prevLec.id]?.[currentUid];
       if (submission && submission.status === 'pending_grading') {
         return {
           allowed: false,
           isProgressionLocked: true,
-          isPendingGrading: true,
-          reason: `امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة اليدوية من المستر 📝. سيتم فتح المحاضرة التالية فور اعتماد درجتك.`,
+          reasonCode: 'exam_pending_grading',
+          reasonText: `إجابات امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة من المستر ⏳`,
+          reason: `إجابات امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة من المستر ⏳`,
           prevLecture: prevLec,
-          prevWatchPercent,
-          missing: 'exam_pending_grading'
+          actionTarget: { type: 'exam_results', lectureId: prevLec.id }
         };
       }
 
-      const prevResult = examResults[prevLec.id];
-      if (!prevResult) {
+      const examResult = examResults[prevLec.id];
+      if (!examResult) {
         return {
           allowed: false,
           isProgressionLocked: true,
-          reason: `يجب اجتياز امتحان المحاضرة السابقة (${prevLec.title}) بنسبة تتجاوز 50% لفتح هذه المحاضرة.`,
+          reasonCode: 'exam_previous_not_taken',
+          reasonText: `يجب دخول واجتياز امتحان المحاضرة السابقة (${prevLec.title}) لفتح هذه المحاضرة 📝`,
+          reason: `يجب دخول واجتياز امتحان المحاضرة السابقة (${prevLec.title}) لفتح هذه المحاضرة 📝`,
           prevLecture: prevLec,
-          prevWatchPercent,
-          missing: 'exam_not_taken'
+          actionTarget: { type: 'take_exam', lectureId: prevLec.id, title: prevLec.title }
         };
       }
 
-      if (prevResult.pendingGrading || prevResult.status === 'pending_grading') {
+      if (examResult.passed === false || (examResult.score / examResult.total) < 0.5) {
         return {
           allowed: false,
           isProgressionLocked: true,
-          isPendingGrading: true,
-          reason: `امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة اليدوية من المستر 📝`,
+          reasonCode: 'exam_previous_failed',
+          reasonText: `لم تجتز امتحان المحاضرة السابقة بنجاح (درجتك ${examResult.score}/${examResult.total}). يجب تحقيق 50% على الأقل 🎯`,
+          reason: `لم تجتز امتحان المحاضرة السابقة بنجاح (درجتك ${examResult.score}/${examResult.total}). يجب تحقيق 50% على الأقل 🎯`,
           prevLecture: prevLec,
-          prevWatchPercent,
-          missing: 'exam_pending_grading'
-        };
-      }
-
-      const scoreNum = Number(prevResult.score) || 0;
-      const totalNum = Number(prevResult.total) || 20;
-      const examPercent = totalNum > 0 ? Math.round((scoreNum / totalNum) * 100) : 0;
-
-      if (examPercent <= 50) {
-        return {
-          allowed: false,
-          isProgressionLocked: true,
-          reason: `لم تجتز امتحان المحاضرة السابقة (${prevLec.title}) بنجاح (درجتك: ${examPercent}%). يجب الحصول على أكثر من 50% لفتح المحاضرة التالية.`,
-          prevLecture: prevLec,
-          prevWatchPercent,
-          prevExamPercent: examPercent,
-          missing: 'exam_failed'
+          actionTarget: { type: 'retake_exam', lectureId: prevLec.id, title: prevLec.title }
         };
       }
     }
 
-    return { allowed: true, reason: 'مكتملة المتطلبات والمشاهدة' };
+    return {
+      allowed: true,
+      reasonCode: 'unlocked',
+      reasonText: 'المحاضرة متاحة ومفتوحة للمشاهدة',
+      reason: 'المحاضرة متاحة ومفتوحة للمشاهدة'
+    };
   };
 
   const isLectureUnlocked = (lecture, stageId) => {
     return canAccessLecture(lecture, stageId).allowed;
   };
 
+  /**
+   * High-Integrity Atomic Code Redemption using executeRedeemCode
+   */
   const redeemCode = async (codeStr) => {
-    // 1. Must be logged in with Google (support both uid and id)
     const studentUid = currentUser?.uid || currentUser?.id;
     if (!currentUser || !studentUid || studentUid === 'guest') {
       addToast('يجب تسجيل الدخول بحساب Google أولاً لربط وتفعيل الاشتراك بحسابك الدائم 🔐', 'info');
       if (openAuthModal) openAuthModal('login');
-      return { success: false, error: 'not_logged_in' };
+      return { success: false, ok: false, error: 'not_logged_in', reasonText: 'يجب تسجيل الدخول أولاً' };
     }
 
-    if (!codeStr || typeof codeStr !== 'string' || !codeStr.trim()) {
-      addToast('يرجى كتابة رمز الكود', 'error');
-      return { success: false, error: 'empty_code' };
-    }
-
-    const cleanCode = codeStr.trim().toUpperCase();
-
-    // 2. Fetch code directly from Cloud (Firestore & RTDB) first to ensure live integrity
-    let found = await fetchCodeFromCloud(cleanCode);
-    if (!found) {
-      found = accessCodes.find(c => c.code.toUpperCase() === cleanCode);
-    }
-
-    if (!found) {
-      addToast('عذراً، كود الشحن غير صحيح. تأكد من إدخال الحروف والأرقام بدقة.', 'error');
-      return { success: false, error: 'invalid_code' };
-    }
-
-    // 3. Status checks: Is active?
-    if (found.isActive === false) {
-      addToast('عذراً، تم إيقاف هذا الكود مؤقتاً من قِبل إدارة المنصة 🔒', 'error');
-      return { success: false, error: 'code_disabled' };
-    }
-
-    // 4. Expiration date check on the code itself (if code has a validity end date)
-    if (found.expiryDate) {
-      const codeExpiryTime = new Date(found.expiryDate).getTime();
-      if (!isNaN(codeExpiryTime) && codeExpiryTime < Date.now()) {
-        addToast('عذراً، انتهت صلاحية هذا الكود ولم يعد صالحاً للاستخدام ⏳', 'error');
-        return { success: false, error: 'code_expired' };
+    const result = await executeRedeemCode({
+      codeStr,
+      currentUser,
+      lectures,
+      stages,
+      sections,
+      onSubscriptionAdded: async (targetId, sub) => {
+        if (addSubscriptionToUser) {
+          await addSubscriptionToUser(targetId, sub);
+        }
       }
-    }
+    });
 
-    // 5. Code type and target identification
-    const codeType = found.codeType || found.type || 'month';
-    const targetId = found.targetId || 'sec3-month-1';
-    const isAllAccess = targetId === 'all-access' || cleanCode.includes('VIP') || String(found.stage || '').includes('جميع');
-    const canonStageId = isAllAccess ? 'all-access' : normalizeStageId(found.stageId || targetId, found.stage || '');
-
-    // 6. Prevent duplicate subscription if student is already actively subscribed to this exact target
-    const currentSub = getSubscriptionStatus(targetId);
-    if (currentSub && currentSub.isSubscribed && !currentSub.isExpired) {
-      const expiryFormatted = currentSub.expiresAtFormatted || (currentSub.expiresAt ? new Date(currentSub.expiresAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : 'سارٍ');
-      addToast(`أنت مشترك بالفعل في (${currentSub.targetTitle || found.targetTitle || 'هذا المحتوى'}) واشتراكك سارٍ حتى ${expiryFormatted} ℹ️`, 'info', 7000);
+    if (!result.ok) {
+      addToast(result.error || 'فشل تفعيل الكود', 'error', 6000);
       return {
-        success: true,
-        alreadyActive: true,
-        subscription: currentSub,
-        expiresAtFormatted: expiryFormatted,
-        expirationDate: expiryFormatted
+        success: false,
+        ok: false,
+        error: result.reasonCode || 'redemption_failed',
+        reasonText: result.error,
+        message: result.error
       };
     }
 
-    // 7. Max uses and student re-activation checks
-    const isDefaultDemoCode = ['MS-SEC3-2026', 'MS-SEC2-2026', 'MS-SEC1-2026', 'MS-VIP-2026', 'MS-SEC3-8812'].includes(cleanCode);
-    const studentEmail = (currentUser?.email || '').toLowerCase().trim();
-    const studentName = (currentUser?.name || '').trim();
+    if (result.alreadyActive) {
+      addToast(result.message || 'الكود مفعّل بحسابك بالفعل واشتراكك سارٍ ℹ️', 'info', 7000);
+      return {
+        success: true,
+        ok: true,
+        alreadyActive: true,
+        subscription: result.subscription,
+        coveredLectures: result.coveredLectures || [],
+        targetTitle: result.targetTitle || result.subscription?.targetTitle,
+        expirationDate: result.expirationDate,
+        expiresAtFormatted: result.expirationDate
+      };
+    }
 
-    const matchesUid = Boolean(studentUid && (found.usedByUid === studentUid || found.userId === studentUid || (Array.isArray(found.usedByList) && found.usedByList.includes(studentUid))));
-    const matchesEmail = Boolean(studentEmail && found.usedByEmail && found.usedByEmail.toLowerCase().trim() === studentEmail);
-    const matchesName = Boolean(studentName && found.usedBy && found.usedBy.trim() === studentName);
-
-    let activeUnlocks = {};
+    // Refresh student state & triggers confetti
     try {
-      activeUnlocks = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
-    } catch (e) {}
-    const savedUser = JSON.parse(localStorage.getItem('madarek_user') || 'null');
-    const userSubs = { ...(savedUser?.subscriptions || {}), ...(currentUser?.subscriptions || {}) };
-
-    const matchesSubCode = Object.values(userSubs).some(s => 
-      (s?.activationCode && s.activationCode.toUpperCase() === cleanCode) ||
-      (s?.codeUsed && s.codeUsed.toUpperCase() === cleanCode)
-    ) || Object.values(activeUnlocks).some(s => 
-      (s?.activationCode && s.activationCode.toUpperCase() === cleanCode) ||
-      (s?.codeUsed && s.codeUsed.toUpperCase() === cleanCode)
-    );
-
-    const isAlreadyRedeemedBySameStudent = matchesUid || matchesEmail || matchesName || matchesSubCode || isDefaultDemoCode;
-
-    const maxUses = Number(found.maxUses) || 1;
-    const currentUsedCount = Number(found.usedCount) || (found.isUsed ? 1 : 0);
-
-    if (currentUsedCount >= maxUses && !isAlreadyRedeemedBySameStudent) {
-      addToast('عذراً، وصل هذا الكود إلى الحد الأقصى لعدد مرات الاستخدام المسموح بها.', 'error');
-      return { success: false, error: 'max_uses_reached' };
-    }
-
-    // 8. Calculate subscription duration
-    const startDate = (isAlreadyRedeemedBySameStudent && found.startDate) ? found.startDate : new Date().toISOString();
-    const durationDays = Number(found.durationDays) || (found.durationMonths ? Number(found.durationMonths) * 30 : 30);
-
-    const existingExpiry = (found.expirationDate || found.expiresAt);
-    let expiresAt;
-    if (isAlreadyRedeemedBySameStudent && existingExpiry && new Date(existingExpiry).getTime() > Date.now()) {
-      expiresAt = existingExpiry;
-    } else {
-      expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    // 9. Update code usage counters
-    const newUsedCount = isAlreadyRedeemedBySameStudent ? currentUsedCount : currentUsedCount + 1;
-    const updatedUsedByList = Array.isArray(found.usedByList) ? Array.from(new Set([...found.usedByList, studentUid])) : [studentUid];
-    const isNowFullyUsed = newUsedCount >= maxUses;
-
-    const updatedCode = {
-      ...found,
-      code: cleanCode,
-      isUsed: isNowFullyUsed,
-      status: isNowFullyUsed ? 'used' : 'active',
-      usedCount: newUsedCount,
-      usedByList: updatedUsedByList,
-      usedBy: currentUser?.name || 'طالب مسجل بالمنصة',
-      usedByUid: studentUid,
-      usedByEmail: currentUser?.email || '',
-      usedAt: found.usedAt || startDate,
-      startDate: found.startDate || startDate,
-      expirationDate: expiresAt,
-      expiresAt: expiresAt
-    };
-
-    setAccessCodes(prev => prev.map(c => c.code.toUpperCase() === cleanCode ? updatedCode : c));
-    await markCodeAsUsedInCloud(cleanCode, updatedCode);
-
-    // 10. Record Treasury Transaction (Only if this is the first redemption by this student)
-    if (!isAlreadyRedeemedBySameStudent) {
-      recordTransaction({
-        userId: studentUid,
-        studentName: currentUser?.name || 'طالب مسجل بالمنصة',
-        studentPhone: currentUser?.phone || '01000000000',
-        stageId: found.stageId || canonStageId,
-        stageName: found.stage || 'الصف الثالث الثانوي',
-        targetType: codeType,
-        targetId: targetId,
-        targetTitle: found.targetTitle || 'تفعيل محتوى',
-        amount: found.isGift ? 0 : (found.rawPrice !== undefined ? found.rawPrice : (Number(String(found.price || 0).replace(/[^0-9.]/g, '')) || 0)),
-        paymentMethod: 'code',
-        paymentMethodLabel: found.isGift ? 'كود مجاني / هدية 🎁' : 'كود شحن مسبق الدفع 🎟️',
-        isGift: Boolean(found.isGift),
-        codeUsed: cleanCode,
-        status: 'completed',
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    // 11. Selective content unlocking according to Code Type
-    let newlyUnlockedIds = [];
-    let targetDisplayTitle = found.targetTitle || 'المحتوى التعليمي';
-    let primarySubscription = {
-      userId: studentUid,
-      courseId: targetId,
-      stageId: found.stageId || canonStageId,
-      targetId: targetId,
-      targetType: codeType,
-      targetTitle: targetDisplayTitle,
-      status: 'active',
-      subscribed: true,
-      startDate: startDate,
-      activatedAt: startDate,
-      expirationDate: expiresAt,
-      expiresAt: expiresAt,
-      durationDays: durationDays,
-      activationCode: cleanCode,
-      codeUsed: cleanCode
-    };
-
-    if (isAllAccess) {
-      // All-access VIP
-      const allStageIds = stages.map(s => s.id);
-      const allLecIds = lectures.map(l => l.id);
-      const allSecIds = sections.map(s => s.id);
-      newlyUnlockedIds = ['all-access', ...allStageIds, ...allLecIds, ...allSecIds];
-      targetDisplayTitle = 'الاشتراك الشامل لكافة المراحل والشهور';
-      primarySubscription.targetTitle = targetDisplayTitle;
-      activeUnlocks['all-access'] = primarySubscription;
-
-      for (const sId of allStageIds) {
-        activeUnlocks[sId] = { ...primarySubscription, courseId: sId, stageId: sId, targetId: sId };
-        if (addSubscriptionToUser) await addSubscriptionToUser(sId, activeUnlocks[sId]);
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
       }
-      if (addSubscriptionToUser) await addSubscriptionToUser('all-access', primarySubscription);
-    } else if (codeType === 'month' || codeType === 'course') {
-      // Month or Course: Unlocks this specific section and all lectures inside it
-      const secLectures = lectures.filter(l => l.sectionId === targetId);
-      const secLecIds = secLectures.map(l => l.id);
-      newlyUnlockedIds = [targetId, ...secLecIds];
-
-      activeUnlocks[targetId] = primarySubscription;
-      secLecIds.forEach(lId => {
-        activeUnlocks[lId] = {
-          ...primarySubscription,
-          targetId: lId,
-          fromSection: targetId
-        };
-      });
-
-      if (addSubscriptionToUser) {
-        await addSubscriptionToUser(targetId, primarySubscription);
-      }
-    } else if (codeType === 'lecture') {
-      // Single Lecture: Unlocks only this specific lecture
-      newlyUnlockedIds = [targetId];
-      activeUnlocks[targetId] = primarySubscription;
-      if (addSubscriptionToUser) {
-        await addSubscriptionToUser(targetId, primarySubscription);
-      }
-    } else if (codeType === 'bundle') {
-      // Custom Bundle: Unlocks all items specified in bundleItems
-      const bItems = Array.isArray(found.bundleItems) && found.bundleItems.length > 0 ? found.bundleItems : [targetId];
-      newlyUnlockedIds = [...bItems];
-      activeUnlocks[targetId] = primarySubscription;
-
-      for (const itemId of bItems) {
-        activeUnlocks[itemId] = { ...primarySubscription, targetId: itemId };
-        const subSecLecs = lectures.filter(l => l.sectionId === itemId);
-        subSecLecs.forEach(sl => {
-          newlyUnlockedIds.push(sl.id);
-          activeUnlocks[sl.id] = { ...primarySubscription, targetId: sl.id, fromSection: itemId };
-        });
-        if (addSubscriptionToUser) await addSubscriptionToUser(itemId, activeUnlocks[itemId]);
-      }
-      if (addSubscriptionToUser) await addSubscriptionToUser(targetId, primarySubscription);
-    } else {
-      // Legacy Stage subscription
-      const stageObj = stages.find(s => s.id === canonStageId || s.id === targetId || normalizeStageId(s.id) === canonStageId) || { id: canonStageId, name: found.stage || 'المرحلة الدراسية' };
-      const resolvedStageId = stageObj.id || canonStageId;
-      targetDisplayTitle = stageObj.name || found.targetTitle || 'المرحلة الدراسية';
-      const stageLectures = lectures.filter(l => l.stageId === resolvedStageId || normalizeStageId(l.stageId) === canonStageId);
-      const stageLecIds = stageLectures.map(l => l.id);
-
-      newlyUnlockedIds = [resolvedStageId, canonStageId, targetId, ...stageLecIds];
-      activeUnlocks[resolvedStageId] = primarySubscription;
-      activeUnlocks[canonStageId] = primarySubscription;
-
-      stageLecIds.forEach(lId => {
-        activeUnlocks[lId] = { ...primarySubscription, targetId: lId, fromStage: resolvedStageId };
-      });
-
-      if (addSubscriptionToUser) {
-        await addSubscriptionToUser(resolvedStageId, primarySubscription);
-        if (canonStageId !== resolvedStageId) {
-          await addSubscriptionToUser(canonStageId, primarySubscription);
-        }
-      }
-    }
-
-    try {
-      localStorage.setItem('ms_unlocked_uid', studentUid);
-      localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(activeUnlocks));
     } catch (e) {}
 
-    // Update students list in teacher admin
-    setStudents(prev => {
-      const existingIdx = prev.findIndex(s => s.id === studentUid || s.email === currentUser?.email);
-      if (existingIdx >= 0) {
-        const existing = prev[existingIdx];
-        const updated = {
-          ...existing,
-          stageId: primarySubscription.stageId || existing.stageId || 'sec-3',
-          stageName: found.stage || existing.stageName || 'الصف الثالث الثانوي',
-          startDate: startDate,
-          expiresAt: expiresAt,
-          expirationDate: expiresAt,
-          subscriptionStatus: 'active',
-          isActive: true,
-          subscriptions: {
-            ...(existing.subscriptions || {}),
-            [targetId]: primarySubscription
-          },
-          subscription: primarySubscription
-        };
-        const copy = [...prev];
-        copy[existingIdx] = updated;
-        try { localStorage.setItem('ms_students_rich', JSON.stringify(copy)); } catch (e) {}
-        return copy;
-      } else {
-        const newStudent = {
-          id: studentUid,
-          name: currentUser.name || 'طالب مسجل بالمنصة',
-          email: currentUser.email || '',
-          phone: currentUser.phone || '01000000000',
-          avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          code: `STD-${cleanCode.slice(-4)}`,
-          stageId: primarySubscription.stageId || 'sec-3',
-          stageName: found.stage || 'الصف الثالث الثانوي',
-          groupType: 'online',
-          centerName: 'أونلاين VIP',
-          startDate: startDate,
-          expiresAt: expiresAt,
-          expirationDate: expiresAt,
-          subscriptionStatus: 'active',
-          isActive: true,
-          subscriptions: {
-            [targetId]: primarySubscription
-          },
-          subscription: primarySubscription,
-          progress: '100%',
-          finance: { paidAmount: found.rawPrice || 0, dueAmount: 0, paymentStatus: 'paid' },
-          createdAt: startDate
-        };
-        const copy = [newStudent, ...prev];
-        try { localStorage.setItem('ms_students_rich', JSON.stringify(copy)); } catch (e) {}
-        return copy;
-      }
-    });
-
-    const updatedUnlockedList = Array.from(new Set([...unlockedLectureIds, ...newlyUnlockedIds]));
-    setUnlockedLectureIds(updatedUnlockedList);
-    try {
-      localStorage.setItem('ms_unlocked_uid', studentUid);
-      localStorage.setItem('ms_unlocked_lectures', JSON.stringify(updatedUnlockedList));
-    } catch (e) {}
-
-    try {
-      confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-    } catch (e) {}
-
-    const expiryFormatted = new Date(expiresAt).toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    const startFormatted = new Date(startDate).toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    if (isAlreadyRedeemedBySameStudent) {
-      addToast(`🎉 مرحباً بك مجدداً! تم التحقق من ملكيتك للكود وتنشيط اشتراكك في (${targetDisplayTitle}) بنجاح حتى ${expiryFormatted} 🚀`, 'success', 7000);
-    } else {
-      addToast(`🎉 تم الاشتراك بنجاح في (${targetDisplayTitle})! اشتراكك نشط بحسابك حتى ${expiryFormatted} 🚀`, 'success', 7000);
-    }
+    addToast(`🎉 تم الاشتراك بنجاح في (${result.targetTitle})! اشتراكك نشط بحسابك حتى ${result.expirationDate} 🚀`, 'success', 8000);
 
     return {
       success: true,
-      subscription: primarySubscription,
-      stageName: targetDisplayTitle,
-      startDate: startFormatted,
-      expirationDate: expiryFormatted,
-      expiresAtFormatted: expiryFormatted,
-      durationDays
+      ok: true,
+      subscription: result.subscription,
+      stageName: result.targetTitle,
+      targetTitle: result.targetTitle,
+      startDate: result.startDate,
+      expirationDate: result.expirationDate,
+      expiresAtFormatted: result.expirationDate,
+      durationDays: result.durationDays,
+      unlockedLectures: result.unlockedLectures || [],
+      lockedLectures: result.lockedLectures || [],
+      coveredLectures: result.coveredLectures || [],
+      firstUnlockedLecture: result.firstUnlockedLecture
+    };
+  };
+
+  /**
+   * Teacher Admin Inspector: Inspect any code without redeeming
+   */
+  const inspectCode = async (codeStr) => {
+    if (!codeStr || !codeStr.trim()) return { ok: false, error: 'كود غير محدد' };
+    const clean = codeStr.trim().toUpperCase();
+    let codeDoc = await fetchCodeFromCloud(clean);
+    if (!codeDoc) {
+      codeDoc = accessCodes.find(c => (c.code || '').toUpperCase() === clean);
+    }
+    if (!codeDoc) return { ok: false, error: 'الكود غير موجود بالنظام' };
+
+    const validation = validateCodeTarget(codeDoc, { stages, sections, lectures });
+    const covered = getCoveredLectures(codeDoc.targetId, lectures, { stages, sections });
+
+    return {
+      ok: true,
+      code: codeDoc,
+      validation,
+      coveredCount: covered.length,
+      coveredLectures: covered.map(l => ({ id: l.id, title: l.title, stageId: l.stageId, sectionId: l.sectionId }))
+    };
+  };
+
+  /**
+   * Teacher Admin Inspector: Get student entitlements overview
+   */
+  const getStudentEntitlementsOverview = (studentUidOrEmail) => {
+    if (!studentUidOrEmail) return null;
+    const std = students.find(s => s.id === studentUidOrEmail || s.email === studentUidOrEmail);
+    if (!std) return null;
+
+    const subs = std.subscriptions || {};
+    const overview = Object.entries(subs).map(([targetId, sub]) => {
+      const covered = getCoveredLectures(targetId, lectures, { stages, sections });
+      return {
+        targetId,
+        targetTitle: sub.targetTitle || targetId,
+        status: sub.status || 'active',
+        isPaused: Boolean(sub.isPaused),
+        isFrozen: Boolean(sub.isFrozen),
+        expiresAt: sub.expiresAt || sub.expirationDate,
+        coveredCount: covered.length,
+        coveredLectures: covered.map(l => l.title)
+      };
+    });
+
+    return {
+      student: { id: std.id, name: std.name, email: std.email, phone: std.phone },
+      subscriptions: overview
     };
   };
 
@@ -4232,6 +4061,8 @@ export function TeacherProvider({ children }) {
         deleteAnnouncement,
         resetToFactoryDefaults,
         redeemCode,
+        inspectCode,
+        getStudentEntitlementsOverview,
         getSubscriptionStatus,
         isLectureUnlocked,
         markLectureComplete,

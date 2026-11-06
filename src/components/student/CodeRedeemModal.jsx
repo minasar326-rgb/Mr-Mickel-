@@ -69,6 +69,8 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
           sessionStorage.setItem('ms_code_lock_until', lockTime.toString());
           setLockoutRemaining(600);
           setErrorMsg('⚠️ تم تجميد إدخال الأكواد لمدة 10 دقائق بسبب محاولات متكررة خاطئة لحماية النظام من التخمين.');
+        } else if (res.error === 'code_misconfigured') {
+          setErrorMsg('⚠️ الكود ده غير مكتمل أو يشير لمحتوى محذوف، كلّم المستر.');
         } else if (res.error === 'code_disabled') {
           setErrorMsg('⚠️ تم إيقاف كود التفعيل هذا مؤقتًا من قِبل الإدارة. يرجى مراجعة المستر.');
         } else if (res.error === 'code_expired') {
@@ -76,13 +78,13 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
         } else if (res.error === 'max_uses_reached') {
           setErrorMsg('⚠️ تم استنفاد الحد الأقصى لعدد مرات استخدام هذا الكود.');
         } else if (res.error === 'already_used') {
-          setErrorMsg('هذا الكود تم استخدامه بالفعل من قِبل حساب آخر ولا يمكن استخدامه مرة أخرى.');
+          setErrorMsg('⚠️ هذا الكود تم استخدامه بالفعل من قِبل حساب آخر ولا يمكن استخدامه مرة أخرى.');
         } else if (res.error === 'invalid_code') {
           setErrorMsg(`كود التفعيل غير صحيح. متبقي ${5 - fails} محاولات قبل القفل المؤقت.`);
         } else if (res.error === 'not_logged_in') {
           setErrorMsg('يجب تسجيل الدخول بحساب Google أولاً لتفعيل وربط الكود بحسابك.');
         } else {
-          setErrorMsg('تعذر تفعيل الكود، يرجى المحاولة لاحقاً أو التواصل مع الدعم.');
+          setErrorMsg(res.reasonText || res.message || 'تعذر تفعيل الكود، يرجى المحاولة لاحقاً أو التواصل مع الدعم.');
         }
       }
     } finally {
@@ -166,10 +168,10 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
             </div>
 
             <h3 style={{ fontSize: '1.45rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-main)' }}>
-              ✅ تم الاشتراك بنجاح
+              {successResult.alreadyActive ? 'ℹ️ الاشتراك مفعّل بحسابك بالفعل' : '✅ تم تفعيل الاشتراك بنجاح'}
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '0 0 1.5rem' }}>
-              تم تفعيل وربط الكود بحساب Google الخاص بك (<strong>{currentUser?.email}</strong>) بشكل دائم.
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: '0 0 1.25rem' }}>
+              تم ربط وتأكيد الاشتراك بحساب Google الخاص بك (<strong>{currentUser?.email}</strong>).
             </p>
 
             {/* Subscription details summary card */}
@@ -177,44 +179,96 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
               background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.05) 100%)',
               border: '2px solid #10B981',
               borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
+              padding: '1.1rem',
               textAlign: 'right',
-              marginBottom: '1.5rem',
+              marginBottom: '1.25rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px'
+              gap: '8px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '8px' }}>
-                <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>المرحلة / المحتوى:</span>
-                <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)' }}>{successResult.stageName || successResult.subscription?.targetTitle}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>المحتوى التعليمي:</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{successResult.targetTitle || successResult.stageName || successResult.subscription?.targetTitle}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>الحالة:</span>
                 <span style={{ background: '#10B981', color: 'white', fontWeight: 800, fontSize: '0.78rem', padding: '3px 10px', borderRadius: '20px' }}>
-                  مشترك (Active) 🟢
+                  نشط ومربوط بالحساب 🟢
                 </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>تاريخ البداية:</span>
-                <strong style={{ fontSize: '0.88rem' }}>{successResult.startDate}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>تاريخ الانتهاء:</span>
                 <strong style={{ fontSize: '0.88rem', color: '#059669' }}>{successResult.expirationDate || successResult.expiresAtFormatted}</strong>
               </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>المدة:</span>
-                <strong style={{ fontSize: '0.88rem' }}>{successResult.durationDays} يوم</strong>
-              </div>
             </div>
+
+            {/* Unlocked Lectures List */}
+            {Array.isArray(successResult.unlockedLectures) && successResult.unlockedLectures.length > 0 && (
+              <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10B981', marginBottom: '6px' }}>
+                  🟢 المحاضرات المفتوحة للمشاهدة فوراً:
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '130px', overflowY: 'auto' }}>
+                  {successResult.unlockedLectures.map(lec => (
+                    <div key={lec.id} style={{
+                      padding: '7px 10px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ fontWeight: 700 }}>{lec.title}</span>
+                      <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.75rem' }}>متاحة الآن ▶️</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progression Locked Lectures List */}
+            {Array.isArray(successResult.lockedLectures) && successResult.lockedLectures.length > 0 && (
+              <div style={{ textAlign: 'right', marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#F59E0B', marginBottom: '6px' }}>
+                  🔒 محاضرات تفتح تدريجياً بنظام التسلسل:
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '130px', overflowY: 'auto' }}>
+                  {successResult.lockedLectures.map(lec => (
+                    <div key={lec.id} style={{
+                      padding: '7px 10px',
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(245, 158, 11, 0.2)',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ fontWeight: 600 }}>{lec.title}</span>
+                      <span style={{ color: '#D97706', fontSize: '0.72rem' }}>
+                        {lec.reasonText || 'يلزم مشاهدة 50% من السابقة'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button
-                onClick={handleGoToLectures}
+                onClick={() => {
+                  const firstLec = successResult.firstUnlockedLecture || (successResult.unlockedLectures && successResult.unlockedLectures[0]);
+                  handleClose();
+                  if (firstLec && onNavigate) {
+                    onNavigate('lecture-room', { lectureId: firstLec.id });
+                  } else {
+                    handleGoToLectures();
+                  }
+                }}
                 className="btn btn-primary btn-lg"
                 style={{
                   flex: 1,
@@ -223,13 +277,13 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
                   gap: '8px'
                 }}
               >
-                <span>دخول محاضرات المرحلة الآن 🚀</span>
+                <span>ابدأ من أول محاضرة 🚀</span>
               </button>
               <button
-                onClick={handleClose}
+                onClick={handleGoToLectures}
                 className="btn btn-secondary btn-lg"
               >
-                <span>تم</span>
+                <span>قائمة المحاضرات</span>
               </button>
             </div>
           </div>

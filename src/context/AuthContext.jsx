@@ -23,6 +23,7 @@ import {
   listenToStudentAccount
 } from '../services/firestoreSync';
 import { trackLogin, trackSignUp, trackAuthError } from '../services/analytics';
+import { normalizeStageId, CANONICAL_STAGES } from '../utils/stages';
 
 const pendingStudentProfiles = new Map();
 
@@ -101,26 +102,7 @@ async function ensureStudentProfile(firebaseUser) {
   }
 }
 
-function normalizeStageId(targetId, stageName = '') {
-  if (!targetId && !stageName) return 'sec-3';
-  const combined = `${targetId || ''} ${stageName || ''}`.toLowerCase().trim();
-  if (combined.includes('all-access') || combined.includes('vip') || combined.includes('bundle') || combined.includes('شامل') || combined.includes('كافة') || combined.includes('جميع')) {
-    return 'all-access';
-  }
-  if (combined.includes('sec-3') || combined.includes('sec3') || combined.includes('ثالث') || combined.includes('thanaweya')) {
-    return 'sec-3';
-  }
-  if (combined.includes('sec-2') || combined.includes('sec2') || combined.includes('ثان') || combined.includes('senior 2')) {
-    return 'sec-2';
-  }
-  if (combined.includes('sec-1') || combined.includes('sec1') || combined.includes('أول') || combined.includes('اول') || combined.includes('senior 1')) {
-    return 'sec-1';
-  }
-  if (combined.includes('foundation') || combined.includes('fnd') || combined.includes('تأسيس') || combined.includes('محادثة')) {
-    return 'foundation';
-  }
-  return targetId || 'sec-3';
-}
+
 
 const AuthContext = createContext();
 
@@ -579,11 +561,13 @@ export function AuthProvider({ children }) {
       localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expiryDict));
     } catch (e) {}
 
-    await saveStudentSubscriptionToFirestore(studentUid, stageId, safeSub);
+    const res1 = await saveStudentSubscriptionToFirestore(studentUid, stageId, safeSub);
+    let res2 = { success: true };
     if (canonStage !== stageId) {
-      await saveStudentSubscriptionToFirestore(studentUid, canonStage, safeSub);
+      res2 = await saveStudentSubscriptionToFirestore(studentUid, canonStage, safeSub);
     }
-    return true;
+    const isOk = res1.success !== false && res2.success !== false;
+    return { ok: isOk, success: isOk, error: res1.error || res2.error };
   };
 
   const addXP = (points) => {

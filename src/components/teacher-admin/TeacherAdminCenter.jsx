@@ -48,7 +48,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
     cancelStudentSubscription, toggleStudentFreeze, bulkUpdateSubscriptions,
     resetToFactoryDefaults,
     syncAllToFirebase,
-    changeTeacherPassword
+    changeTeacherPassword,
+    inspectCode,
+    getStudentEntitlementsOverview
   } = useTeacher();
   const { addToast } = useToast();
 
@@ -274,6 +276,10 @@ export default function TeacherAdminCenter({ onNavigate }) {
   const [genCodeCustomCode, setGenCodeCustomCode] = useState('');
   const [genCodeBundleItems, setGenCodeBundleItems] = useState([]);
   const [codeFilterType, setCodeFilterType] = useState('all');
+  const [inspectorCodeInput, setInspectorCodeInput] = useState('');
+  const [inspectorResult, setInspectorResult] = useState(null);
+  const [studentInspectorId, setStudentInspectorId] = useState('');
+  const [studentInspectorResult, setStudentInspectorResult] = useState(null);
 
   // Broadcast State
   const [annTitle, setAnnTitle] = useState('');
@@ -5986,6 +5992,72 @@ export default function TeacherAdminCenter({ onNavigate }) {
         {/* ========================================================= */}
         {activeTab === 'codes' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Code Inspector Card */}
+            <div className="card" style={{ padding: '1.5rem', background: 'var(--bg-surface)', border: '2px solid #3B82F6', borderRadius: 'var(--radius-lg)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                <Search size={22} color="#3B82F6" />
+                <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900 }}>فحص الكود والتأكد من فتح المحتوى (Code Inspector) 🔍</h4>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', maxWidth: '640px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="أدخل رمز الكود لفحصه (مثال: ENG-SEC3-AUG26)"
+                  value={inspectorCodeInput}
+                  onChange={e => setInspectorCodeInput(e.target.value)}
+                  className="input-control"
+                  style={{ flex: 1, minWidth: '220px', fontFamily: 'monospace', fontWeight: 800, textTransform: 'uppercase' }}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!inspectorCodeInput.trim() || !inspectCode) return;
+                    const res = await inspectCode(inspectorCodeInput);
+                    setInspectorResult(res);
+                  }}
+                  className="btn btn-primary"
+                  style={{ fontWeight: 800, whiteSpace: 'nowrap' }}
+                >
+                  فحص الكود الآن 🔍
+                </button>
+              </div>
+
+              {inspectorResult && (
+                <div style={{ padding: '1rem', background: inspectorResult.ok ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', border: inspectorResult.ok ? '1.5px solid #10B981' : '1.5px solid #EF4444' }}>
+                  {inspectorResult.ok ? (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                        <strong style={{ fontSize: '1.05rem' }}>الكود: {inspectorResult.code?.code}</strong>
+                        <span className={inspectorResult.code?.isActive !== false ? 'badge badge-success' : 'badge badge-danger'}>
+                          {inspectorResult.code?.isActive !== false ? 'نشط 🟢' : 'معطل 🔴'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+                        <div>المحتوى المستهدف: <strong>{inspectorResult.code?.targetId}</strong></div>
+                        <div>نوع الكود: <strong>{inspectorResult.code?.codeType || inspectorResult.code?.type || 'month'}</strong></div>
+                        <div>مرات الاستخدام: <strong>{inspectorResult.code?.usedCount || 0} / {inspectorResult.code?.maxUses || 1}</strong></div>
+                        <div>المحاضرات المفتوحة: <strong style={{ color: '#10B981' }}>{inspectorResult.coveredCount} محاضرة</strong></div>
+                      </div>
+                      {inspectorResult.coveredLectures && inspectorResult.coveredLectures.length > 0 ? (
+                        <div>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>المحاضرات المشمولة:</span>
+                          <ul style={{ margin: '6px 0 0', paddingRight: '20px', fontSize: '0.82rem', lineHeight: '1.7' }}>
+                            {inspectorResult.coveredLectures.map(l => (
+                              <li key={l.id}><strong>{l.title}</strong> (المعرف: {l.id} | القسم: {l.sectionId || 'بدون'})</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#DC2626', fontSize: '0.85rem', fontWeight: 800 }}>
+                          ⚠️ تحذير: هذا الكود لا يفتح أي محاضرات حالياً! تأكد من صحة معرف القسم (sectionId) أو المرحلة.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#DC2626', fontWeight: 800 }}>❌ {inspectorResult.error}</div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="card" style={{ padding: '2rem', background: 'var(--bg-surface)', border: '2px solid var(--primary-400)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--primary-gradient)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

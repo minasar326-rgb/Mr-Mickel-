@@ -1,0 +1,5 @@
+-- Auto-generated Cloudflare D1 Migration Seed File
+-- Purged of demo codes
+INSERT OR IGNORE INTO codes (id, code, code_type, target_id, target_title, stage_id, max_uses, used_count, is_active, duration_days) VALUES ('code-sec3-aug', 'ENG-SEC3-AUG26', 'month', 'sec3-month-1', 'الشهر الأول: Grammar Units 1 & 2', 'sec-3', 50, 0, 1, 30);
+INSERT OR IGNORE INTO codes (id, code, code_type, target_id, target_title, stage_id, max_uses, used_count, is_active, duration_days) VALUES ('code-sec1-grammar', 'ENG-SEC1-FOUNDATION', 'stage', 'sec-1', 'الصف الأول الثانوي — الترم الأول', 'sec-1', 100, 0, 1, 45);
+INSERT OR IGNORE INTO codes (id, code, code_type, target_id, target_title, stage_id, max_uses, used_count, is_active, duration_days) VALUES ('code-all-access-annual', 'VIP-ALL-2026-PREMIUM', 'all-access', 'all-access', 'الاشتراك السنوي الشامل لكافة المراحل والشهور', 'all-access', 10, 0, 1, 365);

@@ -5,77 +5,68 @@
 
     "settings": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "teacherProfile": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "stages": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "lectures": {
-      ".read": true,
-      ".write": true
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "booklets": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "achievers": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "announcements": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "students": {
-      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'saryanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com' || auth.token.email === 'teacher@gmail.com')"
+        ".read": "auth != null && (auth.uid === $uid || auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')",
+        ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com' || (auth.uid === $uid && !newData.hasChild('subscriptions') && !newData.hasChild('role') && !newData.hasChild('isFrozen')))"
       }
     },
 
     "users": {
-      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'saryanymina@gmail.com' || auth.token.email === 'mrmichaelshehata@gmail.com' || auth.token.email === 'teacher@gmail.com')"
+        ".read": "auth != null && (auth.uid === $uid || auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')",
+        ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com' || (auth.uid === $uid && !newData.hasChild('subscriptions') && !newData.hasChild('role') && !newData.hasChild('isFrozen')))"
       }
     },
 
     "subscriptions": {
-      ".read": "auth != null",
       "$subId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')",
+        ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
       }
     },
 
     "codes": {
-      ".read": "auth != null",
-      "$code": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')",
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     },
 
     "subscriptionCodes": {
-      ".read": "auth != null",
-      "$code": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".read": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')",
+      ".write": "auth != null && (auth.token.role === 'teacher' || auth.token.admin === true || auth.token.email === 'mrmichaelshehata@gmail.com')"
     }
   }
 }

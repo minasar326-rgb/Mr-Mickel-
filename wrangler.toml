@@ -1,0 +1,14 @@
+name = "mr-michael-lms"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+# D1 Database binding for atomic code redemption and audit logs
+[[d1_databases]]
+binding = "DB"
+database_name = "mr-michael-lms-db"
+database_id = "mr-michael-lms-db"
+
+# R2 Bucket binding for video streaming
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "educational-videos"

@@ -2337,6 +2337,7 @@ export function TeacherProvider({ children }) {
       return {
         allowed: false,
         isProgressionLocked: true,
+        missing: 'watch',
         reasonCode: 'watch_previous',
         reasonText: `يجب مشاهدة ${requiredWatchPercent}% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
         reason: `يجب مشاهدة ${requiredWatchPercent}% على الأقل من المحاضرة السابقة (${prevLec.title}) أولاً. نسبة مشاهدتك الحالية: ${prevWatchPercent}%.`,
@@ -2361,6 +2362,7 @@ export function TeacherProvider({ children }) {
         return {
           allowed: false,
           isProgressionLocked: true,
+          missing: 'exam_pending_grading',
           reasonCode: 'exam_pending_grading',
           reasonText: `إجابات امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة من المستر ⏳`,
           reason: `إجابات امتحان المحاضرة السابقة (${prevLec.title}) قيد التصحيح والمراجعة من المستر ⏳`,
@@ -2374,6 +2376,7 @@ export function TeacherProvider({ children }) {
         return {
           allowed: false,
           isProgressionLocked: true,
+          missing: 'exam_not_taken',
           reasonCode: 'exam_previous_not_taken',
           reasonText: `يجب دخول واجتياز امتحان المحاضرة السابقة (${prevLec.title}) لفتح هذه المحاضرة 📝`,
           reason: `يجب دخول واجتياز امتحان المحاضرة السابقة (${prevLec.title}) لفتح هذه المحاضرة 📝`,
@@ -2386,6 +2389,7 @@ export function TeacherProvider({ children }) {
         return {
           allowed: false,
           isProgressionLocked: true,
+          missing: 'exam_failed',
           reasonCode: 'exam_previous_failed',
           reasonText: `لم تجتز امتحان المحاضرة السابقة بنجاح (درجتك ${examResult.score}/${examResult.total}). يجب تحقيق 50% على الأقل 🎯`,
           reason: `لم تجتز امتحان المحاضرة السابقة بنجاح (درجتك ${examResult.score}/${examResult.total}). يجب تحقيق 50% على الأقل 🎯`,

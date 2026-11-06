@@ -143,6 +143,10 @@ service cloud.firestore {
     // Platform Settings & Admin Auth
     // ===============================================================
 
+    match /adminUsers/{adminId} {
+      allow read, write: if isTeacher();
+    }
+
     match /settings/adminAuth {
       allow read, write: if isTeacher();
     }

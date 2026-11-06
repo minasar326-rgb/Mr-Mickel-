@@ -11,7 +11,7 @@ async function runCrossDeviceTests() {
 
   // --- TEST 1: verifyVideoUrl Live Verification ---
   console.log('\n[1] Testing Live Remote Video Verification (HEAD / Range)...');
-  const validUrl = 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/lectures/videos/1792784628689_4f6526e487809091___________________________________________________360P_.mp4';
+  const validUrl = 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/lectures/videos/1792784628689_4f6526e487809091___________________________________________________360P_.mp4';
   const validRes = await verifyVideoUrl(validUrl);
   if (validRes.valid) {
     console.log(`  ✅ Live R2 Video Verified! HTTP Status: ${validRes.status}, Content-Type: ${validRes.contentType}`);
@@ -19,7 +19,7 @@ async function runCrossDeviceTests() {
     throw new Error('Valid R2 video verification failed: ' + validRes.error);
   }
 
-  const brokenUrl = 'https://pub-cdb447f627b54ae6a3027d3552574cd5.r2.dev/non_existent_file.mp4';
+  const brokenUrl = 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/non_existent_file.mp4';
   const brokenRes = await verifyVideoUrl(brokenUrl);
   if (!brokenRes.valid) {
     console.log(`  ✅ Broken URL strictly rejected! Error: ${brokenRes.error} (Status: ${brokenRes.status})`);

@@ -322,7 +322,18 @@ export function normalizeStageId(targetId, stageName = '') {
       return item.stageId;
     }
 
-    if (cleanRaw.includes(cleanAlias)) {
+    // Do not let generic short tags (pri, prep, sec) swallow specific unmapped numbered IDs (e.g. pri-99)
+    if (/^[a-z]+-[0-9]+$/i.test(cleanRaw) && cleanRaw !== cleanAlias) {
+      continue;
+    }
+
+    // Match short tags as whole word boundaries to prevent substring clashes
+    if (cleanAlias.length <= 4 && /^[a-z0-9]+$/i.test(cleanAlias)) {
+      const boundaryRegex = new RegExp(`(^|\\s)${cleanAlias}($|\\s)`, 'i');
+      if (boundaryRegex.test(cleanRaw)) {
+        return item.stageId;
+      }
+    } else if (cleanRaw.includes(cleanAlias)) {
       return item.stageId;
     }
   }

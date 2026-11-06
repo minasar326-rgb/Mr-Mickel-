@@ -1,0 +1,250 @@
+/**
+ * Scoped Admin Design Tokens & Layout Styles
+ * Strictly scoped under .admin-root to ensure 0 visual bleed into student interfaces.
+ */
+
+.admin-root {
+  /* Core Color Palette (Light Mode Default) */
+  --adm-bg: #F8FAFC;
+  --adm-card-bg: #FFFFFF;
+  --adm-card-border: #E2E8F0;
+  --adm-text-primary: #0F172A;
+  --adm-text-secondary: #475569;
+  --adm-text-muted: #94A3B8;
+  
+  --adm-primary: #D97706;
+  --adm-primary-hover: #B45309;
+  --adm-primary-light: #FEF3C7;
+  --adm-primary-focus: rgba(217, 119, 6, 0.25);
+
+  --adm-success: #059669;
+  --adm-success-light: #ECFDF5;
+  --adm-success-border: #A7F3D0;
+
+  --adm-danger: #DC2626;
+  --adm-danger-light: #FEF2F2;
+  --adm-danger-border: #FECACA;
+
+  --adm-warning: #D97706;
+  --adm-warning-light: #FFFBEB;
+  --adm-warning-border: #FDE68A;
+
+  --adm-info: #0284C7;
+  --adm-info-light: #F0F9FF;
+  --adm-info-border: #BAE6FD;
+
+  --adm-purple: #7C3AED;
+  --adm-purple-light: #F5F3FF;
+  --adm-purple-border: #DDD6FE;
+
+  /* Dimensions & Radiuses */
+  --adm-radius-sm: 8px;
+  --adm-radius-md: 12px;
+  --adm-radius-lg: 18px;
+  --adm-radius-xl: 24px;
+  --adm-radius-full: 9999px;
+
+  --adm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --adm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --adm-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --adm-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Touch Target Constraint */
+  --adm-touch-min: 44px;
+
+  direction: rtl;
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+  color: var(--adm-text-primary);
+  background-color: var(--adm-bg);
+  min-height: 100vh;
+}
+
+/* Dark Mode Token Overrides */
+.admin-root.dark {
+  --adm-bg: #090D16;
+  --adm-card-bg: #111827;
+  --adm-card-border: #1F2937;
+  --adm-text-primary: #F8FAFC;
+  --adm-text-secondary: #94A3B8;
+  --adm-text-muted: #64748B;
+
+  --adm-primary: #F59E0B;
+  --adm-primary-hover: #D97706;
+  --adm-primary-light: rgba(245, 158, 11, 0.15);
+
+  --adm-success-light: rgba(5, 150, 105, 0.15);
+  --adm-success-border: rgba(5, 150, 105, 0.3);
+
+  --adm-danger-light: rgba(220, 38, 38, 0.15);
+  --adm-danger-border: rgba(220, 38, 38, 0.3);
+
+  --adm-warning-light: rgba(217, 119, 6, 0.15);
+  --adm-warning-border: rgba(217, 119, 6, 0.3);
+
+  --adm-info-light: rgba(2, 132, 199, 0.15);
+  --adm-info-border: rgba(2, 132, 199, 0.3);
+
+  --adm-purple-light: rgba(124, 58, 237, 0.15);
+  --adm-purple-border: rgba(124, 58, 237, 0.3);
+}
+
+/* Layout Containers */
+.admin-layout-container {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.admin-sidebar {
+  width: 270px;
+  flex-shrink: 0;
+  background: var(--adm-card-bg);
+  border-left: 1px solid var(--adm-card-border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 40;
+  transition: transform 0.3s ease;
+}
+
+.admin-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--adm-bg);
+}
+
+.admin-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--adm-card-bg);
+  border-bottom: 1px solid var(--adm-card-border);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1.5rem;
+}
+
+.admin-content-body {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Buttons, Badges, Inputs */
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  min-height: var(--adm-touch-min);
+  border-radius: var(--adm-radius-md);
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.adm-btn-primary {
+  background: linear-gradient(135deg, var(--adm-primary) 0%, var(--adm-primary-hover) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+.adm-btn-primary:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);
+}
+
+.adm-btn-secondary {
+  background: var(--adm-card-bg);
+  color: var(--adm-text-primary);
+  border-color: var(--adm-card-border);
+}
+.adm-btn-secondary:hover {
+  background: var(--adm-bg);
+  border-color: var(--adm-primary);
+}
+
+.adm-btn-danger {
+  background: var(--adm-danger);
+  color: #FFFFFF;
+}
+.adm-btn-danger:hover {
+  filter: brightness(1.1);
+}
+
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--adm-radius-full);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.adm-badge-success {
+  background: var(--adm-success-light);
+  color: var(--adm-success);
+  border: 1px solid var(--adm-success-border);
+}
+
+.adm-badge-warning {
+  background: var(--adm-warning-light);
+  color: var(--adm-warning);
+  border: 1px solid var(--adm-warning-border);
+}
+
+.adm-badge-danger {
+  background: var(--adm-danger-light);
+  color: var(--adm-danger);
+  border: 1px solid var(--adm-danger-border);
+}
+
+.adm-badge-info {
+  background: var(--adm-info-light);
+  color: var(--adm-info);
+  border: 1px solid var(--adm-info-border);
+}
+
+.adm-badge-purple {
+  background: var(--adm-purple-light);
+  color: var(--adm-purple);
+  border: 1px solid var(--adm-purple-border);
+}
+
+/* Card Styling */
+.adm-card {
+  background: var(--adm-card-bg);
+  border: 1px solid var(--adm-card-border);
+  border-radius: var(--adm-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--adm-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Responsive Styles */
+@media (max-width: 991px) {
+  .admin-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(100%);
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.2);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+  .admin-content-body {
+    padding: 1rem 0.75rem;
+    padding-bottom: 5rem; /* Space for mobile bottom bar */
+  }
+}

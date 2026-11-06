@@ -1,0 +1,39 @@
+{
+  "check1_missingOrMismatchedTarget": [],
+  "check2_invalidTypesAndCounts": [],
+  "check3_testAndKnownCodes": [
+    {
+      "source": "src\\components\\student\\CodeRedeemModal.jsx",
+      "code": "MS-SEC3-8812",
+      "type": "hardcoded_in_source"
+    },
+    {
+      "source": "src\\components\\student\\LecturePlayerRoom.jsx",
+      "code": "MS-SEC3-2026",
+      "type": "hardcoded_in_source"
+    },
+    {
+      "source": "src\\components\\teacher-admin\\TeacherAdminCenter.jsx",
+      "code": "MS-SEC3-2026",
+      "type": "hardcoded_in_source"
+    },
+    {
+      "source": "src\\components\\teacher-admin\\TeacherAdminCenter.jsx",
+      "code": "MS-VIP-2026",
+      "type": "hardcoded_in_source"
+    },
+    {
+      "source": "src\\context\\TeacherContext.jsx",
+      "code": "MS-SEC3-2026",
+      "type": "hardcoded_in_source"
+    },
+    {
+      "source": "src\\context\\TeacherContext.jsx",
+      "code": "MS-SEC3-8812",
+      "type": "hardcoded_in_source"
+    }
+  ],
+  "check4_duplicatesAndWeakCodes": [],
+  "check5_orphanOrSuspiciousSubscriptions": [],
+  "check6_overusedCodes": []
+}

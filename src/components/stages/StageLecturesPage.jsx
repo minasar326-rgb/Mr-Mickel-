@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTeacher } from '../../context/TeacherContext';
+import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
 import { 
   BookOpen, Play, Lock, CheckCircle2, Clock, 
@@ -86,7 +86,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   // 2. Strict Lecture Isolation: lectures MUST belong strictly to THIS stage ID
   const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => {
-    return l && !l.isDeleted && l.stageId === stage.id;
+    return l && !l.isDeleted && (l.stageId === stage.id || normalizeStageId(l.stageId) === normalizeStageId(stage.id));
   });
 
   // 3. Strict Section Isolation: dynamic sections strictly for THIS stage ID

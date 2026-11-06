@@ -8,7 +8,6 @@
     "icons": "node scripts/generateAppIcons.js",
     "build": "node scripts/generateAppIcons.js && node scripts/syncDev.js && vite build && node scripts/syncDistToRoot.js",
     "preview": "vite preview",
-    "deploy": "npm run build && node scripts/deployToCloudflare.js",
     "test": "node scripts/verify-all-requirements.cjs && node scripts/test-four-stages-matrix.cjs && node scripts/run-e2e-tests.cjs"
   },
   "dependencies": {

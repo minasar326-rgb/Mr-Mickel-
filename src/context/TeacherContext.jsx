@@ -48,7 +48,11 @@ import {
   STORES,
   updateMediaCloudUrl
 } from '../services/persistentStorage';
-import { uploadFileToR2 } from '../services/r2Storage';
+import { 
+  uploadFileToR2,
+  syncLecturesManifestToR2,
+  fetchLecturesManifestFromR2
+} from '../services/r2Storage';
 
 import { normalizeStageId, CANONICAL_STAGES, getStageTitle } from '../utils/stages';
 import { coversLecture, getCoveredLectures, validateCodeTarget } from '../utils/entitlements';
@@ -441,13 +445,66 @@ export function TeacherProvider({ children }) {
     });
   };
 
+  const getDeletedLectureIds = () => {
+    try {
+      const raw = localStorage.getItem('ms_deleted_lectures');
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch (e) {
+      return new Set();
+    }
+  };
+
+  const mergeLectures = (prevList = [], incomingList = []) => {
+    if (!Array.isArray(incomingList) || incomingList.length === 0) return prevList;
+    const deletedIds = getDeletedLectureIds();
+    const map = new Map();
+
+    // 1. Seed with previous/local lectures
+    (prevList || []).forEach(item => {
+      if (item && item.id && !deletedIds.has(item.id) && !item.isDeleted) {
+        map.set(item.id, item);
+      }
+    });
+
+    // 2. Merge incoming cloud/manifest lectures
+    incomingList.forEach(incoming => {
+      if (!incoming || !incoming.id || deletedIds.has(incoming.id) || incoming.isDeleted) {
+        return;
+      }
+      if (map.has(incoming.id)) {
+        const existing = map.get(incoming.id);
+        const bestVideoUrl = (existing.videoUrl && /^https?:\/\//i.test(existing.videoUrl))
+          ? existing.videoUrl
+          : (incoming.videoUrl || '');
+        const bestDuration = (existing.duration && existing.duration !== '0' && existing.duration !== '00:00')
+          ? existing.duration
+          : (incoming.duration || '1:30:00');
+
+        map.set(incoming.id, {
+          ...existing,
+          ...incoming,
+          videoUrl: bestVideoUrl,
+          duration: bestDuration,
+          stageId: incoming.stageId || existing.stageId || '',
+          sectionId: incoming.sectionId !== undefined ? incoming.sectionId : existing.sectionId
+        });
+      } else {
+        map.set(incoming.id, incoming);
+      }
+    });
+
+    return Array.from(map.values()).filter(l => !l.isDeleted && !deletedIds.has(l.id));
+  };
+
   // 3. Lectures
   const [lectures, setLectures] = useState(() => {
     try {
       const saved = localStorage.getItem('ms_lectures');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = sanitizeLectures(parsed);
           try {
             localStorage.setItem('ms_lectures', JSON.stringify(cleaned));
@@ -456,7 +513,7 @@ export function TeacherProvider({ children }) {
         }
       }
     } catch (e) {}
-    return [];
+    return sanitizeLectures(initialLectures);
   });
 
   // 4. Booklets
@@ -1075,12 +1132,21 @@ export function TeacherProvider({ children }) {
   useEffect(() => {
     let isCancelled = false;
 
+    // 0. Instant Manifest Sync from Cloudflare R2 (Global CDN, ultra-fast and public for all student phones)
+    fetchLecturesManifestFromR2().then(manifestLectures => {
+      if (!isCancelled && Array.isArray(manifestLectures) && manifestLectures.length > 0) {
+        setLectures(prev => mergeLectures(prev, sanitizeLectures(manifestLectures)));
+      }
+    }).catch(() => {});
+
     // 1. RTDB Realtime Listeners (Instant sync across devices without delay)
     const unsubRtdbLectures = listenToRtdbNode('lectures', ({ exists, data }) => {
       if (isCancelled) return;
       if (exists && data) {
         const cloudList = typeof data === 'object' ? Object.values(data) : [];
-        setLectures(sanitizeLectures(cloudList));
+        if (cloudList.length > 0) {
+          setLectures(prev => mergeLectures(prev, sanitizeLectures(cloudList)));
+        }
       }
     });
 
@@ -1159,7 +1225,7 @@ export function TeacherProvider({ children }) {
     // 2. Listen to Firestore collections as secondary backup
     const unsubLectures = listenToLectures((cloudLectures) => {
       if (isCancelled || !Array.isArray(cloudLectures) || cloudLectures.length === 0) return;
-      setLectures(sanitizeLectures(cloudLectures));
+      setLectures(prev => mergeLectures(prev, sanitizeLectures(cloudLectures)));
     });
 
     const unsubStudents = listenToStudents((cloudStudents) => {
@@ -1177,10 +1243,10 @@ export function TeacherProvider({ children }) {
       setPlatformAuditLogs(cloudLogs);
     });
 
-    // 3. Rehydrate from local IndexedDB if available and state is empty
+    // 3. Rehydrate from local IndexedDB if available
     loadCollectionFromLocal(STORES.LECTURES).then(localLectures => {
       if (!isCancelled && Array.isArray(localLectures) && localLectures.length > 0) {
-        setLectures(prev => (prev.length === 0 ? sanitizeLectures(localLectures) : prev));
+        setLectures(prev => mergeLectures(prev, sanitizeLectures(localLectures)));
       }
     }).catch(() => {});
 
@@ -1445,12 +1511,24 @@ export function TeacherProvider({ children }) {
       createdAt: new Date().toISOString()
     };
 
-    // 1. Instantly update UI state & immediate local storage
+    // Ensure ID is not marked as deleted in local storage
+    try {
+      const deletedIds = getDeletedLectureIds();
+      if (deletedIds.has(newLec.id)) {
+        deletedIds.delete(newLec.id);
+        localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
+      }
+    } catch (e) {}
+
+    // 1. Instantly update UI state & immediate local storage & sync to Cloudflare R2 manifest
     setLectures(prev => {
       const updated = [newLec, ...prev.filter(l => l.id !== newLec.id)];
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
+      syncLecturesManifestToR2(updated).catch(err => {
+        console.warn('Background Cloudflare R2 Manifest sync notice:', err);
+      });
       return updated;
     });
 
@@ -1525,6 +1603,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
+      syncLecturesManifestToR2(updated).catch(() => {});
       return updated;
     });
 
@@ -1581,12 +1660,20 @@ export function TeacherProvider({ children }) {
       effectiveHardDelete = false;
     }
 
+    // Mark as deleted in local storage
+    try {
+      const deletedIds = getDeletedLectureIds();
+      deletedIds.add(lectureId);
+      localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
+    } catch (e) {}
+
     if (effectiveHardDelete) {
       const updated = lectures.filter(l => l.id !== lectureId);
       setLectures(updated);
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
+      syncLecturesManifestToR2(updated).catch(() => {});
       await deleteLectureFromFirestore(lectureId, targetLecture?.stageId);
       if (targetLecture?.localMediaKey) {
         await deleteMediaPermanently(targetLecture.localMediaKey);
@@ -1620,6 +1707,7 @@ export function TeacherProvider({ children }) {
       try {
         localStorage.setItem('ms_lectures', JSON.stringify(updated));
       } catch (e) {}
+      syncLecturesManifestToR2(updated).catch(() => {});
       const softLec = updated.find(l => l.id === lectureId);
       if (softLec) {
         await saveLectureToFirestore(softLec);
@@ -1644,6 +1732,15 @@ export function TeacherProvider({ children }) {
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
 
+    // Unmark as deleted
+    try {
+      const deletedIds = getDeletedLectureIds();
+      if (deletedIds.has(lectureId)) {
+        deletedIds.delete(lectureId);
+        localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
+      }
+    } catch (e) {}
+
     const updated = lectures.map(l => {
       if (l.id === lectureId) {
         const { isDeleted, deletedAt, deletedByUid, deletedByName, ...rest } = l;
@@ -1657,6 +1754,10 @@ export function TeacherProvider({ children }) {
       return l;
     });
     setLectures(updated);
+    try {
+      localStorage.setItem('ms_lectures', JSON.stringify(updated));
+    } catch (e) {}
+    syncLecturesManifestToR2(updated).catch(() => {});
     const restoredLec = updated.find(l => l.id === lectureId);
     if (restoredLec) {
       await saveLectureToFirestore(restoredLec);

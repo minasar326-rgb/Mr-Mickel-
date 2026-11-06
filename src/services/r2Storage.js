@@ -298,3 +298,109 @@ export async function verifyVideoUrl(url) {
     clearTimeout(timeoutId);
   }
 }
+
+/**
+ * مزامنة قائمة المحاضرات على السحابة (Cloudflare R2 Manifest)
+ * لتكون متاحة لجميع أجهزة الطلاب فورياً بدون أي عوائق صلاحيات.
+ */
+export async function syncLecturesManifestToR2(lecturesList) {
+  if (!Array.isArray(lecturesList)) return false;
+  try {
+    const cleanList = lecturesList.filter(l => l && !l.isDeleted);
+    const jsonString = JSON.stringify(cleanList);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const file = new File([blob], 'lectures-manifest.json', { type: 'application/json' });
+    await uploadDirectToR2(file, '', null);
+    return true;
+  } catch (err) {
+    console.warn('Failed to sync lectures manifest to R2:', err);
+    return false;
+  }
+}
+
+/**
+ * توليد رابط قراءة مؤقت موقع (Presigned GET URL) باستخدام Web Crypto API
+ * لتجاوز أي مشاكل CORS في جلب قوائم المحاضرات للطلاب
+ */
+export async function generatePresignedGetUrl({ bucket, key, accountId, accessKey, secretKey, expiresIn = 7200 }) {
+  const host = `${accountId}.r2.cloudflarestorage.com`;
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const dateStamp = amzDate.slice(0, 8);
+  const region = 'auto';
+  const service = 's3';
+
+  const path = '/' + bucket + '/' + key.replace(/^\/+/, '');
+  const credential = `${accessKey}/${dateStamp}/${region}/${service}/aws4_request`;
+
+  const queryParams = [
+    'X-Amz-Algorithm=AWS4-HMAC-SHA256',
+    'X-Amz-Credential=' + encodeURIComponent(credential),
+    'X-Amz-Date=' + amzDate,
+    'X-Amz-Expires=' + expiresIn,
+    'X-Amz-SignedHeaders=host'
+  ].sort().join('&');
+
+  const canonicalHeaders = 'host:' + host + '\n';
+  const signedHeaders = 'host';
+  const canonicalRequest = 'GET\n' + path + '\n' + queryParams + '\n' + canonicalHeaders + '\n' + signedHeaders + '\nUNSIGNED-PAYLOAD';
+
+  const subtle = (typeof window !== 'undefined' && window.crypto?.subtle) || globalThis.crypto?.subtle;
+  if (!subtle) {
+    return null;
+  }
+
+  const enc = new TextEncoder();
+  const crHashBuf = await subtle.digest('SHA-256', enc.encode(canonicalRequest));
+  const crHash = Array.from(new Uint8Array(crHashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + dateStamp + '/' + region + '/' + service + '/aws4_request\n' + crHash;
+
+  async function hmac(k, d) {
+    const keyObj = await subtle.importKey('raw', typeof k === 'string' ? enc.encode(k) : k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return subtle.sign('HMAC', keyObj, enc.encode(d));
+  }
+
+  const kDate = await hmac('AWS4' + secretKey, dateStamp);
+  const kRegion = await hmac(kDate, region);
+  const kService = await hmac(kRegion, service);
+  const kSigning = await hmac(kService, 'aws4_request');
+  const sigBuf = await hmac(kSigning, stringToSign);
+  const signature = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return `https://${host}${path}?${queryParams}&X-Amz-Signature=${signature}`;
+}
+
+/**
+ * جلب قائمة المحاضرات السحابية من Cloudflare R2 لجميع أجهزة الطلاب والهواتف
+ */
+export async function fetchLecturesManifestFromR2() {
+  try {
+    const presignedUrl = await generatePresignedGetUrl({
+      bucket: r2Config.bucketName,
+      key: 'lectures-manifest.json',
+      accountId: r2Config.accountId,
+      accessKey: r2Config.accessKeyId,
+      secretKey: r2Config.secretAccessKey,
+      expiresIn: 3600
+    });
+    if (presignedUrl) {
+      const res = await fetch(presignedUrl, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const publicDomain = r2Config.publicDomain || 'https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev';
+    const url = publicDomain.replace(/\/+$/, '') + '/lectures-manifest.json?t=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch (_) {}
+  return null;
+}

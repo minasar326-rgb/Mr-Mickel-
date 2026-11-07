@@ -21,13 +21,12 @@ export function coversLecture(subscription, lecture, allLectures = []) {
   if (subscription.status === 'cancelled' || subscription.isCancelled) return false;
   if (subscription.status === 'frozen' || subscription.isFrozen) return false;
 
-  // Check Expiration: Month, Stage, and Lecture subscriptions are PERMANENT for the student's account
-  const isPermanent = subscription.isPermanent !== false;
-  if (!isPermanent) {
-    const expiry = subscription.expirationDate || subscription.expiresAt;
-    if (expiry && expiry !== 'never') {
-      const expiryTime = new Date(expiry).getTime();
-      if (!isNaN(expiryTime) && expiryTime < Date.now()) {
+  // Check Expiration: If an explicit expiry is present and has passed, and isPermanent is not explicitly true
+  const expiry = subscription.expirationDate || subscription.expiresAt;
+  if (expiry && expiry !== 'never') {
+    const expiryTime = new Date(expiry).getTime();
+    if (!isNaN(expiryTime) && expiryTime < Date.now()) {
+      if (subscription.isPermanent !== true) {
         return false; // Expired
       }
     }

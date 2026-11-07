@@ -109,11 +109,17 @@ export const STAGE_DEFINITIONS = [
     ]
   },
   {
-    id: CANONICAL_STAGES.PREP_3,
+    id: CANONICAL_STAGES.PREP,
     title: 'الصف الثالث الإعدادي',
     aliases: [
+      'prep',
       'prep-3',
       'prep3',
+      'prep_3',
+      'المرحلة الإعدادية',
+      'المرحلة الاعدادية',
+      'إعدادي',
+      'اعدادي',
       'الصف الثالث الإعدادي',
       'الصف الثالث الاعدادي',
       'تالتة إعدادي',
@@ -151,22 +157,16 @@ export const STAGE_DEFINITIONS = [
     ]
   },
   {
-    id: CANONICAL_STAGES.PREP,
-    title: 'المرحلة الإعدادية',
-    aliases: [
-      'prep',
-      'المرحلة الإعدادية',
-      'المرحلة الاعدادية',
-      'إعدادي',
-      'اعدادي'
-    ]
-  },
-  {
-    id: CANONICAL_STAGES.PRI_6,
+    id: CANONICAL_STAGES.PRI,
     title: 'الصف السادس الابتدائي',
     aliases: [
+      'pri',
       'pri-6',
       'pri6',
+      'pri_6',
+      'primary',
+      'المرحلة الابتدائية',
+      'ابتدائي',
       'سنة سادسة',
       'سنه سادسه',
       'سادسة ابتدائي',
@@ -267,16 +267,6 @@ export const STAGE_DEFINITIONS = [
       'اولى ابتدائى',
       'الصف الاول الابتدائى',
       'الصف الاول الابتدائي'
-    ]
-  },
-  {
-    id: CANONICAL_STAGES.PRI,
-    title: 'المرحلة الابتدائية',
-    aliases: [
-      'pri',
-      'primary',
-      'المرحلة الابتدائية',
-      'ابتدائي'
     ]
   },
   {

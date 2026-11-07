@@ -50,16 +50,34 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     const normSearch = normalizeStageId(stageId);
     stage = currentStages.find(s => normalizeStageId(s.id, s.name) === normSearch);
   }
-  // Fallback: derive stage from existing lectures if custom stage was added
+  // Fallback 1: check teacherProfile stages
+  if (!stage && stageId) {
+    const allKnown = teacherProfile?.stages || [];
+    stage = allKnown.find(s => s.id === stageId || normalizeStageId(s.id, s.name) === normalizeStageId(stageId));
+  }
+  // Fallback 2: derive stage from existing lectures if custom stage was added
   if (!stage && stageId) {
     const lecForStage = (Array.isArray(lectures) ? lectures : []).find(l => l && (l.stageId === stageId || normalizeStageId(l.stageId, l.stageName) === normalizeStageId(stageId)));
     if (lecForStage) {
       stage = {
         id: stageId,
-        name: lecForStage.stageName || getStageTitle(stageId),
+        name: lecForStage.stageName || (typeof getStageTitle === 'function' ? getStageTitle(stageId) : stageId),
         description: 'محتوى شامل ومنهج تدريبي متكامل.',
         badge: 'دفعة 2026 🔥',
         pricePerMonth: '30 ج.م'
+      };
+    }
+  }
+  // Fallback 3: synthesize stage from getStageTitle
+  if (!stage && stageId) {
+    const derivedTitle = typeof getStageTitle === 'function' ? getStageTitle(stageId) : '';
+    if (derivedTitle && derivedTitle !== stageId) {
+      stage = {
+        id: stageId,
+        name: derivedTitle,
+        description: 'محتوى شامل ومنهج تدريبي متكامل.',
+        badge: 'دفعة 2026 🔥',
+        pricePerMonth: '40 ج.م'
       };
     }
   }

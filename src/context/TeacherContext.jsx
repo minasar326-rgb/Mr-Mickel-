@@ -559,10 +559,13 @@ export function TeacherProvider({ children }) {
       const resolvedSectionId = (lec.sectionId && String(lec.sectionId).trim()) 
         ? String(lec.sectionId).trim() 
         : assignDefaultSectionId(lec);
+            const isExplicitlyFree = lec.isFree === true && lec.isLocked === false;
       return { 
         ...lec, 
         videoUrl: cleanUrl,
         sectionId: resolvedSectionId,
+        isFree: isExplicitlyFree,
+        isLocked: !isExplicitlyFree,
         allowDirectWatch: Boolean(lec.allowDirectWatch)
       };
     });
@@ -2858,7 +2861,9 @@ export function TeacherProvider({ children }) {
     }
 
     // 1. Valid verified admin session bypasses all locks (ONLY verified cryptographic session, never raw unverified role string!)
-    const isAdminVerified = Boolean(verifyAdminSession()?.isValid || verifyAdminSession()?.valid);
+        // 1. Valid verified admin session bypasses all locks ONLY IF role is 'instructor'!
+    // When the teacher visits as a student or tests the paywall, student rules strictly apply.
+    const isAdminVerified = Boolean((verifyAdminSession()?.isValid || verifyAdminSession()?.valid) && role === 'instructor');
     if (isAdminVerified) {
       return {
         allowed: true,

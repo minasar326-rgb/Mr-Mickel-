@@ -74,7 +74,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const currentStage = (stages || []).find(s => s.id === lecture?.stageId);
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  const isTeacherOrAdmin = Boolean(verifyAdminSession()?.valid || verifyAdminSession()?.isValid);
+  const isTeacherOrAdmin = Boolean((verifyAdminSession()?.valid || verifyAdminSession()?.isValid) && role === 'instructor');
   const isTeacher = isTeacherOrAdmin;
   const accessCheck = isTeacherOrAdmin 
     ? { allowed: true } 

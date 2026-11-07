@@ -24,7 +24,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
     sections,
     refreshLecturesManifest
   } = useTeacher();
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, switchRole, openAuthModal } = useAuth();
 
   useEffect(() => {
     if (typeof refreshLecturesManifest === 'function') {
@@ -169,7 +169,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   const isStageSubscribed = stageSub.isSubscribed && !stageSub.isExpired;
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  const isTeacher = Boolean(verifyAdminSession()?.valid || verifyAdminSession()?.isValid);
+  const isTeacher = Boolean((verifyAdminSession()?.valid || verifyAdminSession()?.isValid) && role === 'instructor');
 
   // 4. Hide Empty Sections: If a month/section has 0 lectures, do not display it to students!
   const displayedSections = stageSections.filter(sec => {
@@ -240,7 +240,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
             }}>
               {isTeacher 
                 ? `🔒 باشتراك (${lec.price || '70 ج.م'}) • معاينة المعلم 👑` 
-                : (lec.isFree ? '🎁 تجريبية مجانية' : (lec.allowDirectWatch ? '✓ باشتراك • مشاهدة مباشرة 🔓' : '✓ باشتراك سارٍ 🟢'))}
+                : (lec.isFree ? '🎁 تجريبية مجانية' : '✓ مفعّل باشتراكك 🟢')}
             </span>
           ) : accessCheck.isProgressionLocked ? (
             <span style={{ 
@@ -257,7 +257,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               background: 'rgba(15, 23, 42, 0.85)', color: '#FCD34D', padding: '4px 10px', 
               borderRadius: '20px', fontSize: '0.78rem', fontWeight: 800, border: '1px solid rgba(252, 211, 77, 0.4)' 
             }}>
-              🔒 باشتراك ({lec.price || '70 ج.م'})
+              🔒 باشتراك ({lec.price || '30 ج.م'}) • يتطلب كود الشهر
             </span>
           )}
 
@@ -362,7 +362,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                 }}
               >
                 <Play size={16} fill="currentColor" />
-                <span>مشاهدة المحاضرة والواجبات الآن ▶️</span>
+                <span>{isTeacher ? 'معاينة المحاضرة كمعلم 👑' : 'مشاهدة المحاضرة والواجبات الآن ▶️'}</span>
               </button>
             ) : accessCheck.isProgressionLocked && accessCheck.prevLecture ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -668,6 +668,66 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                 <span>شحن كود التفعيل 🔑</span>
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Teacher Preview Mode Notice Banner */}
+        {isTeacher && (
+          <div className="card animate-fade-in" style={{
+            background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
+            border: '2px solid #818CF8',
+            borderRadius: 'var(--radius-xl)',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.25)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)'
+              }}>
+                👑
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ background: '#6366F1', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 900 }}>
+                    وضع معاينة المعلم (مستر مايكل)
+                  </span>
+                  <span style={{ fontSize: '0.82rem', color: '#A5B4FC', fontWeight: 700 }}>
+                    🔒 المحاضرات مقفلة 100% للطلاب وتتطلب كود الشهر
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#E0E7FF', lineHeight: '1.5' }}>
+                  أنت تشاهد المحاضرات بصفتك مستر مايكل. جميع المحاضرات مقفلة برمز القفل لكافة الطلاب والزوار العاديين ولا يمكن لأي طالب مشاهدتها إلا بعد شحن كود تفعيل الشهر.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => switchRole('student')}
+              className="btn btn-secondary btn-sm"
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.35)',
+                fontWeight: 800,
+                gap: '6px'
+              }}
+            >
+              <span>👁️ معاينة كطالب لتجربة قفل المحاضرات والكود</span>
+            </button>
           </div>
         )}
 

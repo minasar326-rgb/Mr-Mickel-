@@ -44,8 +44,17 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   const currentStages = Array.isArray(stages) && stages.length > 0 ? stages : (teacherProfile?.stages || []);
   
-  // 1. Stage Identification: exact ID match, or normalized alias match
-  let stage = currentStages.find(s => s.id === stageId);
+  // 1. Stage Identification: if stageId is a section ID, resolve parent stage first
+  let resolvedStageId = stageId;
+  if (stageId && stageId.startsWith('sec-')) {
+    const parentSec = (Array.isArray(sections) ? sections : []).find(s => s.id === stageId);
+    if (parentSec?.stageId) {
+      resolvedStageId = parentSec.stageId;
+    }
+  }
+
+  // Exact ID match, or normalized alias match
+  let stage = currentStages.find(s => s.id === resolvedStageId || s.id === stageId);
   if (!stage && stageId) {
     const normSearch = normalizeStageId(stageId);
     stage = currentStages.find(s => normalizeStageId(s.id, s.name) === normSearch);

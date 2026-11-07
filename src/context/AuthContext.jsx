@@ -296,18 +296,28 @@ export function AuthProvider({ children }) {
             }
           } catch (_) {}
         }
-        // Logged out / Guest mode: Clean up state & storage completely!
+        // If an authenticated session is stored in localStorage, preserve it!
+        // DO NOT wipe localStorage here. Wiping belongs exclusively to explicit logout().
+        try {
+          const cachedUser = JSON.parse(localStorage.getItem('madarek_user') || 'null');
+          if (cachedUser && cachedUser.uid && cachedUser.uid !== 'guest') {
+            setCurrentUser(cachedUser);
+            if (cachedUser.role === 'instructor' || cachedUser.role === 'admin') {
+              setRole('instructor');
+            } else {
+              setRole('student');
+            }
+            setAuthLoading(false);
+            setAuthReady(true);
+            return;
+          }
+        } catch (_) {}
+
+        // True Guest Mode (No cached profile in localStorage)
         setCurrentUser(null);
         if (role !== 'instructor') {
           setRole('student');
         }
-        try {
-          localStorage.removeItem('madarek_user');
-          localStorage.removeItem('ms_unlocked_with_expiry');
-          localStorage.removeItem('ms_unlocked_lectures');
-          localStorage.removeItem('ms_active_uid');
-          localStorage.removeItem('ms_unlocked_uid');
-        } catch (e) {}
       }
       setAuthLoading(false);
       setAuthReady(true);

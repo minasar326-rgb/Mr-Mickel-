@@ -542,28 +542,58 @@ export async function getStudentAccountFromFirestore(uid) {
       } catch (e) {}
     }
 
-    // 3. Query top-level subscriptions collection for this user to ensure zero data loss
+    // 3. Query subcollections and top-level subscriptions for this user
     try {
-      const subsCol = collection(db, 'subscriptions');
-      const q = query(subsCol, where('userId', '==', uid));
-      const subsSnap = await getDocs(q);
-      if (!subsSnap.empty) {
-        const topSubs = {};
-        subsSnap.forEach(d => {
+      const subMap = {};
+      // Subcollection 1: users/{uid}/subscriptions
+      try {
+        const userSubsSnap = await getDocs(collection(db, 'users', uid, 'subscriptions'));
+        userSubsSnap.forEach(d => {
           const s = d.data();
-          const targetKey = s.courseId || s.stageId || d.id;
-          topSubs[targetKey] = s;
+          if (s) {
+            const k = s.targetId || s.courseId || d.id;
+            subMap[k] = { ...s, userId: uid };
+          }
         });
+      } catch (_) {}
+
+      // Subcollection 2: students/{uid}/subscriptions
+      try {
+        const stdSubsSnap = await getDocs(collection(db, 'students', uid, 'subscriptions'));
+        stdSubsSnap.forEach(d => {
+          const s = d.data();
+          if (s) {
+            const k = s.targetId || s.courseId || d.id;
+            subMap[k] = { ...s, userId: uid };
+          }
+        });
+      } catch (_) {}
+
+      // Subcollection 3: top-level subscriptions query
+      try {
+        const subsCol = collection(db, 'subscriptions');
+        const q = query(subsCol, where('userId', '==', uid));
+        const subsSnap = await getDocs(q);
+        if (!subsSnap.empty) {
+          subsSnap.forEach(d => {
+            const s = d.data();
+            const targetKey = s.targetId || s.courseId || s.stageId || d.id;
+            subMap[targetKey] = { ...s, userId: uid };
+          });
+        }
+      } catch (_) {}
+
+      if (Object.keys(subMap).length > 0) {
         if (studentData) {
           studentData.subscriptions = {
             ...(studentData.subscriptions || {}),
-            ...topSubs
+            ...subMap
           };
         } else {
           studentData = {
             uid,
             id: uid,
-            subscriptions: topSubs
+            subscriptions: subMap
           };
         }
       }
@@ -589,12 +619,15 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
     const isPaused = status === 'paused' || Boolean(subscriptionData.isPaused);
     const isCancelled = status === 'cancelled' || Boolean(subscriptionData.isCancelled);
 
+    const trueStageId = subscriptionData.stageId || (stageId.startsWith('sec-') || stageId.startsWith('lec-') ? '' : stageId);
     const normalizedSubscription = {
       ...subscriptionData,
       userId: uid,
       courseId: stageId,
-      stageId: stageId,
+      stageId: trueStageId || stageId,
       targetId: stageId,
+      sectionId: subscriptionData.sectionId || (subscriptionData.codeType === 'month' ? stageId : ''),
+      lectureId: subscriptionData.lectureId || (subscriptionData.codeType === 'lecture' ? stageId : ''),
       status: status,
       isPaused: isPaused,
       isCancelled: isCancelled,
@@ -644,6 +677,14 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
     } catch (e) {
       console.error('Firestore save to top-level subscriptions collection failed:', e);
     }
+
+    // 4. Save to subcollections /users/{uid}/subscriptions and /students/{uid}/subscriptions (always permitted by rules)
+    try {
+      await setDoc(doc(db, 'users', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true });
+    } catch (_) {}
+    try {
+      await setDoc(doc(db, 'students', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true });
+    } catch (_) {}
 
     // 4. Save to RTDB for instant multi-device sync
     if (rtdb) {

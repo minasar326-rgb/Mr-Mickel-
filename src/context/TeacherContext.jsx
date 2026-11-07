@@ -1074,15 +1074,38 @@ export function TeacherProvider({ children }) {
           activeUnlocks[sId] = safeSub;
           activeUnlocks[canonStage] = safeSub;
 
-          // Unlock all lectures belonging to this subscribed stage
-          (lectures || []).filter(l => l.stageId === sId || normalizeStageId(l.stageId) === canonStage).forEach(l => {
-            activeIds.push(l.id);
-            activeUnlocks[l.id] = {
+          // Identify subscription scope: Month vs Lecture vs Stage
+          const isMonthSub = sub.codeType === 'month' || sub.type === 'month' || sId.startsWith('sec-') || (sections || []).some(sec => sec.id === sId || sec.id === sub.targetId);
+          const isLecSub = sub.codeType === 'lecture' || sub.type === 'lecture' || sId.startsWith('lec-') || (lectures || []).some(l => l.id === sId || l.id === sub.targetId);
+
+          if (isMonthSub) {
+            const targetSecId = sub.sectionId || sub.targetId || sId;
+            (lectures || []).filter(l => l.sectionId === targetSecId || l.sectionId === sId).forEach(l => {
+              activeIds.push(l.id);
+              activeUnlocks[l.id] = {
+                ...safeSub,
+                targetId: l.id,
+                fromMonth: targetSecId
+              };
+            });
+          } else if (isLecSub) {
+            const targetLecId = sub.lectureId || sub.targetId || sId;
+            activeIds.push(targetLecId);
+            activeUnlocks[targetLecId] = {
               ...safeSub,
-              targetId: l.id,
-              fromStage: canonStage
+              targetId: targetLecId
             };
-          });
+          } else {
+            // Stage-level subscription unlocks all lectures in that stage
+            (lectures || []).filter(l => l.stageId === sId || normalizeStageId(l.stageId) === canonStage).forEach(l => {
+              activeIds.push(l.id);
+              activeUnlocks[l.id] = {
+                ...safeSub,
+                targetId: l.id,
+                fromStage: canonStage
+              };
+            });
+          }
         }
       });
     }
@@ -2989,8 +3012,9 @@ export function TeacherProvider({ children }) {
     const currentSection = (sections || []).find(s => s.id === lecture.sectionId);
     const enforceProgression = Boolean(currentSection?.enforceProgression);
 
-    // If lecture explicitly allows direct watch, or progression is not strictly enforced, or if student subscribed directly to this lecture/month/stage, unlock immediately
-    if (lecture.allowDirectWatch || !enforceProgression || matchingSub.codeType === 'lecture' || matchingSub.targetId === lecture.id) {
+    // If lecture explicitly allows direct watch, or progression is not strictly enforced, or student has month/lecture subscription, unlock immediately
+    const isDirectMonthOrLec = matchingSub.codeType === 'lecture' || matchingSub.targetId === lecture.id || (matchingSub.codeType === 'month' && !enforceProgression);
+    if (lecture.allowDirectWatch || !enforceProgression || isDirectMonthOrLec) {
       return {
         allowed: true,
         reasonCode: lecture.allowDirectWatch ? 'unlocked_direct' : 'unlocked',
@@ -3184,6 +3208,26 @@ export function TeacherProvider({ children }) {
         confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
       }
     } catch (e) {}
+
+    // Immediately unlock all covered lectures in memory and persistent cache
+    if (Array.isArray(result.coveredLectures) && result.coveredLectures.length > 0) {
+      const coveredIds = result.coveredLectures.map(l => l.id);
+      setUnlockedLectureIds(prev => Array.from(new Set([...prev, ...coveredIds, result.subscription?.targetId])));
+      try {
+        const activeUnlocks = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        coveredIds.forEach(id => {
+          activeUnlocks[id] = {
+            ...(result.subscription || {}),
+            targetId: id
+          };
+        });
+        if (result.subscription?.targetId) {
+          activeUnlocks[result.subscription.targetId] = result.subscription;
+        }
+        localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(activeUnlocks));
+        localStorage.setItem('ms_unlocked_lectures', JSON.stringify(Array.from(new Set([...unlockedLectureIds, ...coveredIds]))));
+      } catch (e) {}
+    }
 
     addToast(`🎉 تم الاشتراك بنجاح في (${result.targetTitle})! اشتراكك نشط بحسابك حتى ${result.expirationDate} 🚀`, 'success', 8000);
 

@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { X, Key, CheckCircle2, Sparkles, Shield, ArrowLeft, Calendar, Clock, AlertCircle } from 'lucide-react';
 
 export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
-  const { redeemCode, teacherProfile } = useTeacher();
+  const { redeemCode, teacherProfile, sections, lectures } = useTeacher();
   const { currentUser, openAuthModal } = useAuth();
   const [codeInput, setCodeInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,10 +98,21 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
   };
 
   const handleGoToLectures = () => {
-    const stageId = successResult?.subscription?.stageId || successResult?.subscription?.targetId || 'sec-3';
+    let targetStageId = successResult?.subscription?.stageId;
+    if (!targetStageId || targetStageId.startsWith('sec-') || targetStageId.startsWith('lec-')) {
+      const secMatch = (sections || []).find(s => s.id === successResult?.subscription?.targetId || s.id === successResult?.subscription?.sectionId);
+      if (secMatch?.stageId) {
+        targetStageId = secMatch.stageId;
+      } else {
+        const lecMatch = (lectures || []).find(l => l.id === successResult?.subscription?.targetId || l.sectionId === successResult?.subscription?.targetId);
+        if (lecMatch?.stageId) {
+          targetStageId = lecMatch.stageId;
+        }
+      }
+    }
     handleClose();
     if (onNavigate) {
-      onNavigate('stage-lectures', { stageId });
+      onNavigate('stage-lectures', { stageId: targetStageId || 'sec-3' });
     }
   };
 
@@ -266,7 +277,7 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
-                  const firstLec = successResult.firstUnlockedLecture || (successResult.unlockedLectures && successResult.unlockedLectures[0]);
+                  const firstLec = successResult.firstUnlockedLecture || (successResult.unlockedLectures && successResult.unlockedLectures[0]) || (successResult.coveredLectures && successResult.coveredLectures[0]);
                   handleClose();
                   if (firstLec && onNavigate) {
                     onNavigate('lecture-room', { lectureId: firstLec.id });

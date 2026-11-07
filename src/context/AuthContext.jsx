@@ -24,7 +24,7 @@ import {
 } from '../services/firestoreSync';
 import { trackLogin, trackSignUp, trackAuthError } from '../services/analytics';
 import { normalizeStageId, CANONICAL_STAGES } from '../utils/stages';
-import { createAdminSession } from '../services/authSecurity';
+import { createAdminSession, verifyAdminSession } from '../services/authSecurity';
 
 const pendingStudentProfiles = new Map();
 

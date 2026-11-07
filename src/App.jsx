@@ -97,7 +97,7 @@ function AppContent() {
         targetParams = parsed.params;
       }
 
-      const isAuthedAdmin = role === 'teacher' || role === 'instructor' || role === 'super_admin' || Boolean(verifyAdminSession()?.valid);
+      const isAuthedAdmin = Boolean(verifyAdminSession()?.valid || verifyAdminSession()?.isValid);
       if (targetPage === 'teacher-admin' && !isAuthedAdmin) {
         setIsTeacherLoginModalOpen(true);
         return;
@@ -122,7 +122,7 @@ function AppContent() {
   }, [role, isCodeModalOpen, isTeacherLoginModalOpen]);
 
   const handleNavigate = (page, params = {}) => {
-    const isAuthedAdmin = role === 'teacher' || role === 'instructor' || role === 'super_admin' || Boolean(verifyAdminSession()?.valid);
+    const isAuthedAdmin = Boolean(verifyAdminSession()?.valid || verifyAdminSession()?.isValid);
     if (page === 'teacher-admin' && !isAuthedAdmin) {
       setIsTeacherLoginModalOpen(true);
       return;

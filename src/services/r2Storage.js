@@ -410,6 +410,7 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
 
     let stages = extra.stages;
     let sections = extra.sections;
+    let codes = extra.codes;
     if (typeof localStorage !== 'undefined') {
       if (!stages) {
         try { stages = JSON.parse(localStorage.getItem('ms_stages') || 'null'); } catch (_) {}
@@ -417,12 +418,16 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
       if (!sections) {
         try { sections = JSON.parse(localStorage.getItem('ms_sections') || 'null'); } catch (_) {}
       }
+      if (!codes) {
+        try { codes = JSON.parse(localStorage.getItem('ms_codes') || 'null'); } catch (_) {}
+      }
     }
 
     const payload = {
       lectures: cleanLectures,
       stages: Array.isArray(stages) ? stages : [],
       sections: Array.isArray(sections) ? sections : [],
+      codes: Array.isArray(codes) ? codes : [],
       deletedLectureIds: deletedLectureIds,
       updatedAt: new Date().toISOString()
     };
@@ -456,6 +461,7 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
   window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
   window.__MS_STAGES_MANIFEST__ = payload.stages || [];
   window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_CODES_MANIFEST__ = payload.codes || [];
   window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
   window.__MS_PLATFORM_MANIFEST__ = payload;
   if (typeof window.__onLecturesManifest === 'function') {

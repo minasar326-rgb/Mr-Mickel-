@@ -1,3 +1,4 @@
+import { normalize10DigitCode } from '../utils/codeNormalizer.js';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { teacherProfile as initialTeacherProfile } from '../data/teacherData';
 import { lecturesData as initialLectures } from '../data/lecturesData';
@@ -671,6 +672,30 @@ export function TeacherProvider({ children }) {
           }
           try { localStorage.setItem('ms_sections', JSON.stringify(merged)); } catch (e) {}
           return merged;
+        });
+        anyApplied = true;
+      }
+      if (Array.isArray(manifestData.codes) && manifestData.codes.length > 0) {
+        setAccessCodes(prev => {
+          const map = new Map((prev || []).map(c => [c.code, c]));
+          manifestData.codes.forEach(c => {
+            if (c && c.code) {
+              const existing = map.get(c.code);
+              if (existing) {
+                map.set(c.code, {
+                  ...existing,
+                  ...c,
+                  status: (existing.status === 'used' || c.status === 'used') ? 'used' : (c.status || existing.status),
+                  isUsed: existing.isUsed || c.isUsed || (existing.status === 'used' || c.status === 'used')
+                });
+              } else {
+                map.set(c.code, c);
+              }
+            }
+          });
+          const mergedCodes = Array.from(map.values());
+          try { localStorage.setItem('ms_codes', JSON.stringify(mergedCodes)); } catch (e) {}
+          return mergedCodes;
         });
         anyApplied = true;
       }
@@ -1953,7 +1978,7 @@ export function TeacherProvider({ children }) {
     // Strict Instructor/Teacher-Only Deletion Guard:
     // NO ONE except the teacher or an authorized staff admin can EVER delete ANY lecture!
     const isAuthorizedTeacher = (
-      role === 'instructor' ||
+      (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||
@@ -1971,7 +1996,7 @@ export function TeacherProvider({ children }) {
 
     // Strict Owner-Only Hard Deletion Guard
     const isSuperOwner = (
-      role === 'instructor' ||
+      (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||
@@ -2065,7 +2090,7 @@ export function TeacherProvider({ children }) {
 
     // Strict Instructor/Teacher-Only Restore Guard
     const isAuthorizedTeacher = (
-      role === 'instructor' ||
+      (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||
@@ -2380,14 +2405,24 @@ export function TeacherProvider({ children }) {
       createdAt: new Date().toISOString()
     };
 
-    setAccessCodes(prev => [newCodeObj, ...prev]);
+    setAccessCodes(prev => {
+      const next = [newCodeObj, ...prev];
+      try { localStorage.setItem('ms_codes', JSON.stringify(next)); } catch (e) {}
+      syncLecturesManifestToR2(lectures, { stages, sections, codes: next }).catch(() => {});
+      return next;
+    });
     await syncCodeToCloud(newCodeObj);
     addToast(`🎉 تم إصدار كود التفعيل: ${finalCodeStr} (${newCodeObj.targetTitle}) بنجاح 📋`, 'success');
     return newCodeObj;
   };
 
   const deleteCode = async (codeStr) => {
-    setAccessCodes(prev => prev.filter(c => c.code !== codeStr));
+    setAccessCodes(prev => {
+      const next = prev.filter(c => c.code !== codeStr);
+      try { localStorage.setItem('ms_codes', JSON.stringify(next)); } catch (e) {}
+      syncLecturesManifestToR2(lectures, { stages, sections, codes: next }).catch(() => {});
+      return next;
+    });
     await deleteCodeFromCloud(codeStr);
     addToast(`تم حذف كود الشحن (${codeStr}) 🗑️`, 'info');
   };
@@ -2658,8 +2693,9 @@ export function TeacherProvider({ children }) {
       };
     }
 
-    // 1. Instructor role or valid admin session bypasses all locks
-    if (role === 'instructor' || Boolean(verifyAdminSession()?.isValid)) {
+    // 1. Valid verified admin session bypasses all locks (ONLY verified cryptographic session, never raw unverified role string!)
+    const isAdminVerified = Boolean(verifyAdminSession()?.isValid || verifyAdminSession()?.valid);
+    if (isAdminVerified) {
       return {
         allowed: true,
         isTeacherOverride: true,
@@ -2945,33 +2981,40 @@ export function TeacherProvider({ children }) {
       lectures,
       stages,
       sections,
+      accessCodes,
       onSubscriptionAdded: async (targetId, sub) => {
         if (addSubscriptionToUser) {
           await addSubscriptionToUser(targetId, sub);
         }
         // Immediately mark the code as used in accessCodes state so the teacher sees it in real-time
-        const cleanUsedCode = (codeStr || '').trim();
-        setAccessCodes(prev => prev.map(c => ((c.code || '').trim() === cleanUsedCode ? {
-          ...c,
-          isUsed: true,
-          status: 'used',
-          usedCount: (c.usedCount || 0) + 1,
-          usedByUid: studentUid,
-          usedBy: currentUser?.name || 'طالب مسجل',
-          usedByEmail: currentUser?.email || '',
-          usedAt: new Date().toISOString()
-        } : c)));
+        const cleanUsedCode = normalize10DigitCode(codeStr);
+        setAccessCodes(prev => {
+          const next = prev.map(c => (normalize10DigitCode(c.code) === cleanUsedCode ? {
+            ...c,
+            isUsed: true,
+            status: 'used',
+            usedCount: (c.usedCount || 0) + 1,
+            usedByUid: studentUid,
+            usedBy: currentUser?.name || 'طالب مسجل',
+            usedByEmail: currentUser?.email || '',
+            usedAt: new Date().toISOString()
+          } : c));
+          try { localStorage.setItem('ms_codes', JSON.stringify(next)); } catch (e) {}
+          syncLecturesManifestToR2(lectures, { stages, sections, codes: next }).catch(() => {});
+          return next;
+        });
       }
     });
 
     if (!result.ok) {
-      addToast(result.error || 'فشل تفعيل الكود', 'error', 6000);
+      const errMsg = result.message || result.error || 'فشل تفعيل الكود';
+      addToast(errMsg, 'error', 6000);
       return {
         success: false,
         ok: false,
-        error: result.reasonCode || 'redemption_failed',
-        reasonText: result.error,
-        message: result.error
+        error: result.error || result.reasonCode || 'redemption_failed',
+        reasonText: errMsg,
+        message: errMsg
       };
     }
 
@@ -3959,7 +4002,7 @@ export function TeacherProvider({ children }) {
 
     // Strict Owner-Only Hard Deletion Guard
     const isSuperOwner = (
-      role === 'instructor' ||
+      (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
       currentUser?.role === 'super_admin' || 
       currentAdminUser?.role === 'super_admin' || 
       currentUser?.email === 'mrmichaelshehata@gmail.com' ||

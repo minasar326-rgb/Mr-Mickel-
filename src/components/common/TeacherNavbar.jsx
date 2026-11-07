@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import { useTheme } from '../../context/ThemeContext';
+import { revokeAdminSession, verifyAdminSession } from '../../services/authSecurity';
 import { 
   BookOpen, Award, Key, Phone, MessageCircle, Sun, Moon, 
   User, LogOut, LayoutDashboard, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, 
@@ -64,6 +65,7 @@ export default function TeacherNavbar({ onNavigate, currentPage, onOpenCodeModal
   };
 
   const handleTeacherLogout = () => {
+    revokeAdminSession();
     switchRole('student');
     onNavigate('home');
   };

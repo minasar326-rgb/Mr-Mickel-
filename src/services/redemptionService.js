@@ -1,8 +1,9 @@
+import { normalize10DigitCode } from '../utils/codeNormalizer.js';
 import { db, auth } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { coversLecture, validateCodeTarget, getCoveredLectures } from '../utils/entitlements.js';
 import { normalizeStageId } from '../utils/stages.js';
-import { saveStudentSubscriptionToFirestore, syncCodeToCloud } from './firestoreSync.js';
+import { saveStudentSubscriptionToFirestore, syncCodeToCloud, fetchCodeFromCloud, markCodeAsUsedInCloud } from './firestoreSync.js';
 
 /**
  * Enterprise Code Redemption Engine
@@ -16,6 +17,7 @@ export async function executeRedeemCode({
   stages = [],
   sections = [],
   lectures = [],
+  accessCodes = [],
   onSubscriptionAdded
 }) {
   const rawCode = (cleanCode || codeStr || '').trim();
@@ -23,8 +25,11 @@ export async function executeRedeemCode({
     return { ok: false, error: 'invalid_code', message: 'يرجى إدخال كود التفعيل بدقة.' };
   }
 
-  // Remove whitespace and clean format
-  const sanitizedCode = rawCode.replace(/\s+/g, '');
+  // Normalize code: converts Eastern/Persian Arabic numerals to 0-9 and strips whitespace/formatting
+  const sanitizedCode = normalize10DigitCode(rawCode);
+  if (!sanitizedCode || sanitizedCode.length !== 10) {
+    return { ok: false, error: 'invalid_code', message: 'كود التفعيل غير صحيح، تأكد من كتابة الـ 10 أرقام بدقة.' };
+  }
 
   const studentUid = currentUser?.uid || currentUser?.id;
   if (!studentUid || studentUid === 'guest') {
@@ -210,15 +215,24 @@ export async function executeRedeemCode({
     }
   }
 
-  // 3. Fallback: Local Repository / State Check (for offline / testing / fallback consistency)
+  // 3. Resilient Multi-Cloud Fallback: RTDB, R2 Global CDN Manifest, Firestore & State
   if (!firestoreSuccess) {
-    let localCodes = [];
-    try {
-      const saved = localStorage.getItem('ms_codes');
-      if (saved) localCodes = JSON.parse(saved);
-    } catch (e) {}
+    let foundCode = await fetchCodeFromCloud(sanitizedCode);
 
-    const foundCode = localCodes.find(c => (c.code || '').trim() === sanitizedCode);
+    if (!foundCode && Array.isArray(accessCodes) && accessCodes.length > 0) {
+      foundCode = accessCodes.find(c => normalize10DigitCode(c.code) === sanitizedCode);
+    }
+
+    if (!foundCode) {
+      try {
+        const saved = localStorage.getItem('ms_codes');
+        if (saved) {
+          const localCodes = JSON.parse(saved);
+          foundCode = localCodes.find(c => normalize10DigitCode(c.code) === sanitizedCode);
+        }
+      } catch (e) {}
+    }
+
     if (!foundCode) {
       return { ok: false, error: 'invalid_code', message: 'كود التفعيل غير صحيح، تأكد من كتابة الـ 10 أرقام بدقة.' };
     }
@@ -269,9 +283,10 @@ export async function executeRedeemCode({
     foundCode.usedAt = new Date().toISOString();
 
     try {
-      localStorage.setItem('ms_codes', JSON.stringify(localCodes));
-      // Background sync to cloud
-      syncCodeToCloud(foundCode).catch(() => {});
+      markCodeAsUsedInCloud(sanitizedCode, foundCode).catch(() => {});
+      const local = JSON.parse(localStorage.getItem('ms_codes') || '[]');
+      const updatedLocal = local.map(c => normalize10DigitCode(c.code) === sanitizedCode ? foundCode : c);
+      localStorage.setItem('ms_codes', JSON.stringify(updatedLocal));
     } catch (e) {}
 
     return handleSuccessfulRedemption({

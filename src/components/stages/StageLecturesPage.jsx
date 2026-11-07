@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
+import { verifyAdminSession } from '../../services/authSecurity';
 import { 
   BookOpen, Play, Lock, CheckCircle2, Clock, 
   HelpCircle, Upload, ArrowRight, Key, Sparkles, Award, MessageCircle, Calendar, ShieldCheck,
@@ -141,7 +142,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   const isStageSubscribed = stageSub.isSubscribed && !stageSub.isExpired;
   const cleanWhatsapp = (teacherProfile?.whatsappNumber || '01012345678').replace(/[^0-9]/g, '');
 
-  const isTeacher = role === 'instructor' || role === 'super_admin';
+  const isTeacher = Boolean(verifyAdminSession()?.valid || verifyAdminSession()?.isValid);
 
   // 4. Hide Empty Sections: If a month/section has 0 lectures, do not display it to students!
   const displayedSections = stageSections.filter(sec => {

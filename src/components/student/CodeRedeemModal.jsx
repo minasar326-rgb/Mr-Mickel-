@@ -1,3 +1,4 @@
+import { normalize10DigitCode } from '../../utils/codeNormalizer.js';
 import React, { useState } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
 import { useAuth } from '../../context/AuthContext';
@@ -42,9 +43,13 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
     if (lockoutRemaining > 0) return;
     setErrorMsg('');
 
-    // Sanitize code input: uppercase, remove dangerous symbols
-    const cleanCode = codeInput.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-    if (!cleanCode || isSubmitting) return;
+    // Sanitize code input: normalizes Arabic/Persian digits (٠-٩) to 0-9 and removes symbols
+    const cleanCode = normalize10DigitCode(codeInput);
+    if (!cleanCode || cleanCode.length !== 10) {
+      setErrorMsg('يرجى التأكد من كتابة كود التفعيل المكون من 10 أرقام بدقة.');
+      return;
+    }
+    if (isSubmitting) return;
 
     const studentUid = currentUser?.uid || currentUser?.id;
     if (!currentUser || !studentUid || studentUid === 'guest') {
@@ -391,7 +396,8 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
                     value={codeInput}
                     disabled={lockoutRemaining > 0 || isSubmitting}
                     onChange={e => {
-                      setCodeInput(e.target.value);
+                      const normalized = normalize10DigitCode(e.target.value);
+                      setCodeInput(normalized);
                       if (errorMsg) setErrorMsg('');
                     }}
                     className="input-control"

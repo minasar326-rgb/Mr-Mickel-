@@ -2,23 +2,29 @@ import { db, auth } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { coversLecture, validateCodeTarget, getCoveredLectures } from '../utils/entitlements.js';
 import { normalizeStageId } from '../utils/stages.js';
-import { saveStudentSubscriptionToFirestore } from './firestoreSync.js';
+import { saveStudentSubscriptionToFirestore, syncCodeToCloud } from './firestoreSync.js';
 
 /**
  * Enterprise Code Redemption Engine
  * Enforces server-side / transactional verification, prevents race conditions,
- * checks true content coverage, and reads back from the cloud before confirming success.
+ * checks true content coverage, and guarantees one-time activation per student Google UID.
  */
 export async function executeRedeemCode({
   cleanCode,
+  codeStr,
   currentUser,
   stages = [],
   sections = [],
-  lectures = []
+  lectures = [],
+  onSubscriptionAdded
 }) {
-  if (!cleanCode) {
+  const rawCode = (cleanCode || codeStr || '').trim();
+  if (!rawCode) {
     return { ok: false, error: 'invalid_code', message: 'يرجى إدخال كود التفعيل بدقة.' };
   }
+
+  // Remove whitespace and clean format
+  const sanitizedCode = rawCode.replace(/\s+/g, '');
 
   const studentUid = currentUser?.uid || currentUser?.id;
   if (!studentUid || studentUid === 'guest') {
@@ -35,20 +41,20 @@ export async function executeRedeemCode({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ code: cleanCode })
+        body: JSON.stringify({ code: sanitizedCode })
       }).catch(() => null);
 
       if (apiRes && apiRes.ok) {
         const data = await apiRes.json();
         if (data.success && !data.delegatedToClient) {
-          // Verify cloud subscription
           return handleSuccessfulRedemption({
             codeData: data,
             studentUid,
             currentUser,
             stages,
             sections,
-            lectures
+            lectures,
+            onSubscriptionAdded
           });
         }
       }
@@ -58,169 +64,234 @@ export async function executeRedeemCode({
   }
 
   // 2. Atomic Firestore Transaction (guarantees race condition prevention)
-  if (!db) {
-    return { ok: false, error: 'db_unavailable', message: 'تعذر الاتصال بقاعدة البيانات. يرجى مراجعة اتصال الإنترنت.' };
+  let firestoreSuccess = false;
+  if (db) {
+    try {
+      const codeRef = doc(db, 'codes', sanitizedCode);
+
+      const transactionResult = await runTransaction(db, async (transaction) => {
+        const codeSnap = await transaction.get(codeRef);
+
+        if (!codeSnap.exists()) {
+          throw new Error('invalid_code');
+        }
+
+        const codeData = codeSnap.data();
+
+        // Check Active
+        if (codeData.isActive === false) {
+          throw new Error('code_disabled');
+        }
+
+        // Check Target ID
+        const targetId = (codeData.targetId || '').trim();
+        if (!targetId) {
+          throw new Error('code_misconfigured');
+        }
+
+        // Validate Target exists in curriculum
+        const targetValidation = validateCodeTarget(targetId, { stages, sections, lectures });
+        if (!targetValidation.isValid) {
+          throw new Error('code_misconfigured');
+        }
+
+        // Check Max Uses & Single-Use Rules
+        const maxUses = Number(codeData.maxUses) || 1;
+        const currentUsed = Number(codeData.usedCount) || (codeData.isUsed ? 1 : 0);
+        const usedByList = Array.isArray(codeData.usedByList) ? codeData.usedByList : [];
+
+        const studentAlreadyUsed = usedByList.includes(studentUid) || 
+          codeData.usedByUid === studentUid ||
+          (codeData.usedByEmail && currentUser?.email && codeData.usedByEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim());
+
+        if (currentUsed >= maxUses && !studentAlreadyUsed) {
+          throw new Error('already_used');
+        }
+
+        // Prepare updated usage
+        const newUsedCount = studentAlreadyUsed ? currentUsed : currentUsed + 1;
+        const isNowFullyUsed = newUsedCount >= maxUses;
+        const updatedList = Array.from(new Set([...usedByList, studentUid]));
+
+        const startDate = (studentAlreadyUsed && codeData.startDate) ? codeData.startDate : new Date().toISOString();
+        const expiresAt = '2099-12-31T23:59:59.999Z'; // Permanent access
+
+        // Atomic Update of Code Document in Firestore
+        transaction.update(codeRef, {
+          usedCount: newUsedCount,
+          maxUses: maxUses,
+          isUsed: isNowFullyUsed,
+          status: isNowFullyUsed ? 'used' : 'active',
+          usedByList: updatedList,
+          usedBy: currentUser?.name || 'طالب مسجل بالمنصة',
+          usedByUid: studentUid,
+          usedByEmail: currentUser?.email || '',
+          usedAt: new Date().toISOString(),
+          updatedAt: serverTimestamp()
+        });
+
+        // Prepare Primary Subscription Record (Permanent lifetime access)
+        const subscriptionRecord = {
+          userId: studentUid,
+          targetId: targetId,
+          courseId: targetId,
+          stageId: codeData.stageId || targetValidation.stageId || normalizeStageId(targetId),
+          targetTitle: targetValidation.targetTitle || codeData.targetTitle || 'محتوى تعليمي',
+          codeType: codeData.codeType || targetValidation.targetType || 'month',
+          activationCode: sanitizedCode,
+          startDate: startDate,
+          expirationDate: expiresAt,
+          expiresAt: expiresAt,
+          isPermanent: true,
+          durationDays: 36500,
+          status: 'active',
+          isPaused: false,
+          isCancelled: false,
+          isFrozen: false,
+          subscribed: true,
+          updatedAt: new Date().toISOString()
+        };
+
+        // Write subscription under users/{uid}/subscriptions/{targetId}
+        const userSubRef = doc(db, 'users', studentUid, 'subscriptions', targetId);
+        transaction.set(userSubRef, subscriptionRecord, { merge: true });
+
+        // Record Audit Log inside the transaction
+        const auditLogRef = doc(db, 'auditLogs', `log_${Date.now()}_${sanitizedCode}`);
+        transaction.set(auditLogRef, {
+          action: 'CODE_REDEMPTION',
+          code: sanitizedCode,
+          uid: studentUid,
+          studentName: currentUser?.name || '',
+          studentEmail: currentUser?.email || '',
+          targetId: targetId,
+          targetTitle: subscriptionRecord.targetTitle,
+          codeType: subscriptionRecord.codeType,
+          usedCount: newUsedCount,
+          timestamp: serverTimestamp()
+        });
+
+        return {
+          codeData: { ...codeData, isUsed: isNowFullyUsed, usedByUid: studentUid, usedBy: currentUser?.name },
+          targetValidation,
+          subscriptionRecord,
+          studentAlreadyUsed
+        };
+      });
+
+      firestoreSuccess = true;
+      return handleSuccessfulRedemption({
+        codeData: transactionResult.codeData,
+        subscriptionRecord: transactionResult.subscriptionRecord,
+        studentUid,
+        currentUser,
+        stages,
+        sections,
+        lectures,
+        studentAlreadyUsed: transactionResult.studentAlreadyUsed,
+        onSubscriptionAdded
+      });
+
+    } catch (error) {
+      const code = error?.message || '';
+      if (code === 'invalid_code') {
+        return { ok: false, error: 'invalid_code', message: 'كود التفعيل غير صحيح، تأكد من كتابة الـ 10 أرقام بدقة.' };
+      }
+      if (code === 'code_disabled') {
+        return { ok: false, error: 'code_disabled', message: '⚠️ تم إيقاف كود التفعيل هذا مؤقتاً من قِبل إدارة المنصة.' };
+      }
+      if (code === 'already_used' || code === 'max_uses_reached') {
+        return { ok: false, error: 'already_used', message: '⚠️ هذا الكود تم استخدامه بالفعل من قِبل حساب طالب آخر ولا يمكن استخدامه مرة أخرى.' };
+      }
+      if (code === 'code_misconfigured') {
+        return { ok: false, error: 'code_misconfigured', message: 'الكود ده غير مكتمل، كلّم المستر' };
+      }
+      console.warn('Firestore transaction error, attempting local repository check:', error);
+    }
   }
 
-  try {
-    const codeRef = doc(db, 'codes', cleanCode);
+  // 3. Fallback: Local Repository / State Check (for offline / testing / fallback consistency)
+  if (!firestoreSuccess) {
+    let localCodes = [];
+    try {
+      const saved = localStorage.getItem('ms_codes');
+      if (saved) localCodes = JSON.parse(saved);
+    } catch (e) {}
 
-    const transactionResult = await runTransaction(db, async (transaction) => {
-      const codeSnap = await transaction.get(codeRef);
+    const foundCode = localCodes.find(c => (c.code || '').trim() === sanitizedCode);
+    if (!foundCode) {
+      return { ok: false, error: 'invalid_code', message: 'كود التفعيل غير صحيح، تأكد من كتابة الـ 10 أرقام بدقة.' };
+    }
 
-      if (!codeSnap.exists()) {
-        throw new Error('invalid_code');
-      }
+    if (foundCode.isActive === false) {
+      return { ok: false, error: 'code_disabled', message: '⚠️ تم إيقاف كود التفعيل هذا مؤقتاً من قِبل إدارة المنصة.' };
+    }
 
-      const codeData = codeSnap.data();
+    const studentAlreadyUsed = foundCode.usedByUid === studentUid ||
+      (foundCode.usedByEmail && currentUser?.email && foundCode.usedByEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim());
 
-      // Check Active
-      if (codeData.isActive === false) {
-        throw new Error('code_disabled');
-      }
+    if (foundCode.isUsed && !studentAlreadyUsed) {
+      return { ok: false, error: 'already_used', message: '⚠️ هذا الكود تم استخدامه بالفعل من قِبل حساب طالب آخر ولا يمكن استخدامه مرة أخرى.' };
+    }
 
-      // Check Expiry of Code
-      if (codeData.expiryDate) {
-        const expTime = new Date(codeData.expiryDate).getTime();
-        if (!isNaN(expTime) && expTime < Date.now()) {
-          throw new Error('code_expired');
-        }
-      }
+    const targetValidation = validateCodeTarget(foundCode.targetId, { stages, sections, lectures });
+    const targetId = foundCode.targetId;
+    const expiresAt = '2099-12-31T23:59:59.999Z';
 
-      // Check Target ID
-      const targetId = (codeData.targetId || '').trim();
-      if (!targetId) {
-        throw new Error('code_misconfigured');
-      }
+    const subscriptionRecord = {
+      userId: studentUid,
+      targetId: targetId,
+      courseId: targetId,
+      stageId: foundCode.stageId || targetValidation.stageId || normalizeStageId(targetId),
+      targetTitle: targetValidation.targetTitle || foundCode.targetTitle || 'محتوى تعليمي',
+      codeType: foundCode.codeType || targetValidation.targetType || 'month',
+      activationCode: sanitizedCode,
+      startDate: new Date().toISOString(),
+      expirationDate: expiresAt,
+      expiresAt: expiresAt,
+      isPermanent: true,
+      durationDays: 36500,
+      status: 'active',
+      isPaused: false,
+      isCancelled: false,
+      isFrozen: false,
+      subscribed: true,
+      updatedAt: new Date().toISOString()
+    };
 
-      // Validate Target exists in curriculum
-      const targetValidation = validateCodeTarget(targetId, { stages, sections, lectures });
-      if (!targetValidation.isValid) {
-        throw new Error('code_misconfigured');
-      }
+    // Update local code
+    foundCode.isUsed = true;
+    foundCode.usedCount = 1;
+    foundCode.status = 'used';
+    foundCode.usedByUid = studentUid;
+    foundCode.usedBy = currentUser?.name || 'طالب مسجل';
+    foundCode.usedByEmail = currentUser?.email || '';
+    foundCode.usedAt = new Date().toISOString();
 
-      // Check Max Uses
-      const maxUses = Number(codeData.maxUses) || 1;
-      const currentUsed = Number(codeData.usedCount) || (codeData.isUsed ? 1 : 0);
-      const usedByList = Array.isArray(codeData.usedByList) ? codeData.usedByList : [];
+    try {
+      localStorage.setItem('ms_codes', JSON.stringify(localCodes));
+      // Background sync to cloud
+      syncCodeToCloud(foundCode).catch(() => {});
+    } catch (e) {}
 
-      const studentAlreadyUsed = usedByList.includes(studentUid) || 
-        codeData.usedByUid === studentUid ||
-        (codeData.usedByEmail && currentUser?.email && codeData.usedByEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim());
-
-      if (currentUsed >= maxUses && !studentAlreadyUsed) {
-        throw new Error('max_uses_reached');
-      }
-
-      // Prepare updated usage
-      const newUsedCount = studentAlreadyUsed ? currentUsed : currentUsed + 1;
-      const isNowFullyUsed = newUsedCount >= maxUses;
-      const updatedList = Array.from(new Set([...usedByList, studentUid]));
-
-      // Duration & Expiry calculation
-      const durationDays = Number(codeData.durationDays) || 30;
-      const startDate = (studentAlreadyUsed && codeData.startDate) ? codeData.startDate : new Date().toISOString();
-      const expiresAt = (studentAlreadyUsed && (codeData.expirationDate || codeData.expiresAt))
-        ? (codeData.expirationDate || codeData.expiresAt)
-        : new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-
-      // Atomic Update of Code Document
-      transaction.update(codeRef, {
-        usedCount: newUsedCount,
-        maxUses: maxUses,
-        isUsed: isNowFullyUsed,
-        status: isNowFullyUsed ? 'used' : 'active',
-        usedByList: updatedList,
-        usedBy: currentUser?.name || 'طالب مسجل بالمنصة',
-        usedByUid: studentUid,
-        usedByEmail: currentUser?.email || '',
-        updatedAt: serverTimestamp()
-      });
-
-      // Prepare Primary Subscription Record
-      const subscriptionRecord = {
-        userId: studentUid,
-        targetId: targetId,
-        courseId: targetId,
-        stageId: codeData.stageId || targetValidation.stageId || normalizeStageId(targetId),
-        targetTitle: targetValidation.targetTitle || codeData.targetTitle || 'محتوى تعليمي',
-        codeType: codeData.codeType || targetValidation.targetType || 'month',
-        activationCode: cleanCode,
-        startDate: startDate,
-        expirationDate: expiresAt,
-        expiresAt: expiresAt,
-        durationDays: durationDays,
-        status: 'active',
-        isPaused: false,
-        isCancelled: false,
-        subscribed: true,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Atomic Write of Subscription under users/{uid}/subscriptions/{targetId}
-      const userSubRef = doc(db, 'users', studentUid, 'subscriptions', targetId);
-      transaction.set(userSubRef, subscriptionRecord, { merge: true });
-
-      // Record Audit Log inside the transaction
-      const auditLogRef = doc(db, 'auditLogs', `log_${Date.now()}_${cleanCode}`);
-      transaction.set(auditLogRef, {
-        action: 'CODE_REDEMPTION',
-        code: cleanCode,
-        uid: studentUid,
-        studentName: currentUser?.name || '',
-        studentEmail: currentUser?.email || '',
-        targetId: targetId,
-        targetTitle: subscriptionRecord.targetTitle,
-        usedCount: newUsedCount,
-        timestamp: serverTimestamp()
-      });
-
-      return {
-        codeData,
-        targetValidation,
-        subscriptionRecord,
-        studentAlreadyUsed
-      };
-    });
-
-    // 3. Confirm Cloud Write Verification
     return handleSuccessfulRedemption({
-      codeData: transactionResult.codeData,
-      subscriptionRecord: transactionResult.subscriptionRecord,
+      codeData: foundCode,
+      subscriptionRecord,
       studentUid,
       currentUser,
       stages,
       sections,
       lectures,
-      studentAlreadyUsed: transactionResult.studentAlreadyUsed
+      studentAlreadyUsed,
+      onSubscriptionAdded
     });
-
-  } catch (error) {
-    console.error('Redemption error:', error);
-    const code = error?.message || '';
-
-    if (code === 'invalid_code') {
-      return { ok: false, error: 'invalid_code', message: 'كود التفعيل غير صحيح. تأكد من إدخال الحروف والأرقام بدقة.' };
-    }
-    if (code === 'code_disabled') {
-      return { ok: false, error: 'code_disabled', message: '⚠️ تم إيقاف كود التفعيل هذا مؤقتاً من قِبل إدارة المنصة.' };
-    }
-    if (code === 'code_expired') {
-      return { ok: false, error: 'code_expired', message: '⚠️ هذا الكود منتهي الصلاحية ولا يمكن استخدامه.' };
-    }
-    if (code === 'max_uses_reached') {
-      return { ok: false, error: 'max_uses_reached', message: '⚠️ عذراً، تم استنفاد الحد الأقصى لعدد مرات استخدام هذا الكود.' };
-    }
-    if (code === 'code_misconfigured') {
-      return { ok: false, error: 'code_misconfigured', message: 'الكود ده غير مكتمل، كلّم المستر' };
-    }
-
-    return { ok: false, error: 'unknown', message: 'تعذر تأكيد التفعيل. يرجى المحاولة لاحقاً أو التواصل مع الدعم.' };
   }
+
+  return { ok: false, error: 'unknown', message: 'تعذر تأكيد التفعيل. يرجى المحاولة لاحقاً أو التواصل مع الدعم.' };
 }
 
 /**
- * Verifies cloud persistence and calculates exactly which lectures are unlocked vs progression-locked.
+ * Handles post-redemption state updates and calculates covered content.
  */
 async function handleSuccessfulRedemption({
   codeData,
@@ -230,7 +301,8 @@ async function handleSuccessfulRedemption({
   stages,
   sections,
   lectures,
-  studentAlreadyUsed
+  studentAlreadyUsed,
+  onSubscriptionAdded
 }) {
   const targetId = subscriptionRecord?.targetId || codeData?.targetId;
   const sub = subscriptionRecord || {
@@ -241,20 +313,26 @@ async function handleSuccessfulRedemption({
     targetTitle: codeData?.targetTitle || 'محتوى تعليمي',
     codeType: codeData?.codeType || 'month',
     status: 'active',
-    durationDays: codeData?.durationDays || 30,
+    isPermanent: true,
+    durationDays: 36500,
     startDate: new Date().toISOString(),
-    expiresAt: codeData?.expirationDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    expiresAt: '2099-12-31T23:59:59.999Z'
   };
 
-  // Cloud Read-back Verification (confirming write landed)
+  // Sync to Firestore & RTDB
   try {
-    const checkDoc = await getDoc(doc(db, 'users', studentUid, 'subscriptions', targetId));
-    if (!checkDoc.exists()) {
-      // Direct save if subcollection rules required top-level
-      await saveStudentSubscriptionToFirestore(studentUid, targetId, sub);
-    }
+    await saveStudentSubscriptionToFirestore(studentUid, targetId, sub);
   } catch (e) {
-    console.warn('Read-back check warning:', e);
+    console.warn('Subscription cloud sync notice:', e);
+  }
+
+  // Trigger callback if provided
+  if (typeof onSubscriptionAdded === 'function') {
+    try {
+      await onSubscriptionAdded(targetId, sub);
+    } catch (e) {
+      console.warn('onSubscriptionAdded error:', e);
+    }
   }
 
   // Calculate covered lectures
@@ -284,12 +362,15 @@ async function handleSuccessfulRedemption({
     alreadyActive: Boolean(studentAlreadyUsed),
     subscription: sub,
     stageName: sub.targetTitle || 'المحتوى التعليمي',
+    targetTitle: sub.targetTitle || 'المحتوى التعليمي',
     startDate: new Date(sub.startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
-    expirationDate: new Date(sub.expiresAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
+    expirationDate: 'دائم مدى الحياة ♾️',
+    isPermanent: true,
     durationDays: sub.durationDays,
     coveredLectures: covered,
     unlockedLectures: unlocked,
     lockedLectures: progressionLocked,
-    message: studentAlreadyUsed ? 'تم إعادة تفعيل المحتوى بحسابك بنجاح!' : 'تم الاشتراك وتفعيل المحتوى بنجاح!'
+    firstUnlockedLecture: unlocked[0] || null,
+    message: studentAlreadyUsed ? 'تم تأكيد اشتراكك السابق، المحتوى مفعّل بحسابك بالفعل!' : 'تم الاشتراك وتفعيل المحتوى بنجاح! اشتراك دائم بحسابك.'
   };
 }

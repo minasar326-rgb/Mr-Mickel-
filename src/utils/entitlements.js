@@ -1,50 +1,62 @@
 import { normalizeStageId, CANONICAL_STAGES } from './stages.js';
 
 /**
- * Unified Coverage & Entitlement Engine for Mr. Michael LMS
+ * Unified Coverage & Entitlement Engine for Al-Mister Platform
  * Dictates whether a given subscription or entitlement grants access to a specific lecture.
  *
- * Rules:
- * 1. All-Access: codeType === 'all-access' or targetId === 'all-access' covers EVERY lecture.
- * 2. Direct Lecture: subscription.targetId === lecture.id covers this specific lecture.
- * 3. Section/Month: lecture.sectionId === subscription.targetId covers all lectures in that month/course.
- * 4. Stage-Level: normalizeStageId(lecture.stageId) === normalizeStageId(subscription.targetId || subscription.stageId)
- *    covers all lectures within the academic stage (including orphaned lectures without sectionId).
- * 5. Bundle Items: If subscription.includedItemIds contains lecture.id or lecture.sectionId.
+ * 3 Core Subscription Types:
+ * 1. Stage-Level (كود المرحلة بالكامل):
+ *    Unlocks all current and future months and lectures within the academic stage permanently.
+ * 2. Month-Level (كود شهر محدد):
+ *    Unlocks all lectures belonging to that specific month/section (lecture.sectionId === subscription.targetId) permanently.
+ *    Any new lectures added to this month in the future are covered automatically. Other months remain locked.
+ * 3. Lecture-Level (كود محاضرة واحدة):
+ *    Unlocks ONLY that specific lecture (lecture.id === subscription.targetId).
  */
 export function coversLecture(subscription, lecture, allLectures = []) {
   if (!subscription || !lecture) return false;
 
-  // Subscription must be active and not expired
+  // Subscription must be active and not blocked
   if (subscription.status === 'paused' || subscription.isPaused) return false;
   if (subscription.status === 'cancelled' || subscription.isCancelled) return false;
   if (subscription.status === 'frozen' || subscription.isFrozen) return false;
 
-  const expiry = subscription.expirationDate || subscription.expiresAt;
-  if (expiry) {
-    const expiryTime = new Date(expiry).getTime();
-    if (!isNaN(expiryTime) && expiryTime < Date.now()) {
-      return false; // Expired
+  // Check Expiration: Month, Stage, and Lecture subscriptions are PERMANENT for the student's account
+  const isPermanent = subscription.isPermanent !== false;
+  if (!isPermanent) {
+    const expiry = subscription.expirationDate || subscription.expiresAt;
+    if (expiry && expiry !== 'never') {
+      const expiryTime = new Date(expiry).getTime();
+      if (!isNaN(expiryTime) && expiryTime < Date.now()) {
+        return false; // Expired
+      }
     }
   }
 
   const targetId = (subscription.targetId || subscription.courseId || '').trim();
-  const subType = subscription.codeType || subscription.type || '';
+  const subType = (subscription.codeType || subscription.type || '').trim().toLowerCase();
   const subStage = normalizeStageId(subscription.stageId || targetId, subscription.stageName || subscription.targetTitle || '');
   const lectureStage = normalizeStageId(lecture.stageId, lecture.stageName || lecture.stage || '');
 
-  // 1. All-Access Check (STRICT: only if explicitly all-access, never by accidental text match)
+  // 1. All-Access Check (STRICT: only if explicitly all-access VIP)
   if (subType === 'all-access' || targetId === CANONICAL_STAGES.ALL_ACCESS || subStage === CANONICAL_STAGES.ALL_ACCESS) {
     return true;
   }
 
-  // 2. Direct Lecture ID match
-  if (targetId && targetId === lecture.id) {
+  // 2. Single Lecture Subscription (STRICT ISOLATION: Unlocks ONLY this single lecture)
+  if (subType === 'lecture') {
+    return Boolean(targetId && targetId === lecture.id);
+  }
+  if (targetId && targetId === lecture.id && subType !== 'month' && subType !== 'course' && subType !== 'stage') {
     return true;
   }
 
-  // 3. Section / Month ID match
-  if (targetId && lecture.sectionId && targetId === lecture.sectionId) {
+  // 3. Month / Section Subscription (Unlocks all lectures in this specific month, including future lectures added to this month)
+  if (subType === 'month' || subType === 'course') {
+    // Only unlocks if the lecture belongs to this exact section/month
+    return Boolean(targetId && lecture.sectionId && targetId === lecture.sectionId);
+  }
+  if (targetId && lecture.sectionId && targetId === lecture.sectionId && subType !== 'stage' && subType !== 'lecture') {
     return true;
   }
 
@@ -56,16 +68,17 @@ export function coversLecture(subscription, lecture, allLectures = []) {
     if (subscription.includedItemIds.includes(lecture.stageId)) return true;
   }
 
-  // 5. Stage-Level match (STRICT: only within the exact same stage)
-  const isStageSub = subType === 'stage' || 
-    targetId.startsWith('sec-') || 
-    targetId.startsWith('prep-') || 
-    targetId.startsWith('pri-') || 
-    targetId === 'foundation' ||
-    targetId === subStage ||
-    Boolean(subscription.stageId);
+  // 5. Stage-Level Subscription (Unlocks all current and future months and lectures in this stage)
+  const isExplicitStageSub = subType === 'stage' ||
+    targetId === CANONICAL_STAGES.SEC_3 ||
+    targetId === CANONICAL_STAGES.SEC_2 ||
+    targetId === CANONICAL_STAGES.SEC_1 ||
+    targetId === CANONICAL_STAGES.PREP ||
+    targetId === CANONICAL_STAGES.PRI ||
+    targetId === CANONICAL_STAGES.FOUNDATION ||
+    (targetId && targetId === subStage && targetId !== lecture.sectionId && targetId !== lecture.id);
 
-  if (isStageSub) {
+  if (isExplicitStageSub) {
     if (subStage && lectureStage && subStage === lectureStage) {
       return true;
     }
@@ -120,6 +133,7 @@ export function validateCodeTarget(targetOrCode, { stages = [], sections = [], l
       targetType: 'month',
       targetTitle: foundSection.title || foundSection.name || `شهر: ${clean}`,
       section: foundSection,
+      stageId: foundSection.stageId,
       coveredCount: count
     };
   }
@@ -127,9 +141,9 @@ export function validateCodeTarget(targetOrCode, { stages = [], sections = [], l
   // 2. Check Stage
   const canon = normalizeStageId(clean);
   const foundStage = stages.find(s => s.id === clean || s.id === canon);
-  if (foundStage || clean.startsWith('sec-') || clean === 'pri' || clean === 'prep' || clean === 'foundation') {
-    const stageId = foundStage ? foundStage.id : canon;
-    const count = lectures.filter(l => !l.isDeleted && normalizeStageId(l.stageId) === canon).length;
+  if (foundStage || clean.startsWith('sec-') || clean.startsWith('stage-') || clean === 'pri' || clean === 'prep' || clean === 'foundation') {
+    const stageId = foundStage ? foundStage.id : (clean.startsWith('stage-') ? clean : canon);
+    const count = lectures.filter(l => !l.isDeleted && (l.stageId === stageId || normalizeStageId(l.stageId) === canon)).length;
     return {
       valid: true,
       isValid: true,
@@ -149,6 +163,8 @@ export function validateCodeTarget(targetOrCode, { stages = [], sections = [], l
       targetType: 'lecture',
       targetTitle: foundLecture.title || `محاضرة: ${clean}`,
       lecture: foundLecture,
+      stageId: foundLecture.stageId,
+      sectionId: foundLecture.sectionId,
       coveredCount: 1
     };
   }

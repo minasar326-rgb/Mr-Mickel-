@@ -199,8 +199,8 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>تاريخ الانتهاء:</span>
-                <strong style={{ fontSize: '0.88rem', color: '#059669' }}>{successResult.expirationDate || successResult.expiresAtFormatted}</strong>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>مدة الصلاحية:</span>
+                <strong style={{ fontSize: '0.88rem', color: '#059669' }}>دائم ومستمر لحسابك مدى الحياة ♾️</strong>
               </div>
             </div>
 
@@ -305,9 +305,9 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
                 <Key size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>شحن وتفعيل كود المرحلة</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>تفعيل كود الاشتراك والدروس 🔑</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                  أدخل كود التفعيل المستلم لفتح المرحلة وربطها بحساب Google الخاص بك
+                  أدخل كود التفعيل المكون من 10 أرقام المستلم من المستر لفتح المحتوى وربطه بحسابك بشكل دائم
                 </p>
               </div>
             </div>
@@ -383,10 +383,11 @@ export default function CodeRedeemModal({ isOpen, onClose, onNavigate }) {
                 </div>
 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>رمز كود التفعيل (Activation Code):</label>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '6px' }}>رمز كود التفعيل (10 أرقام):</label>
                   <input
                     type="text"
-                    placeholder={lockoutRemaining > 0 ? `تم القفل المؤقت: انتظر ${lockoutRemaining} ثانية` : "مثال: ABC123 أو MS-SEC3-8812"}
+                    inputMode="numeric"
+                    placeholder={lockoutRemaining > 0 ? `تم القفل المؤقت: انتظر ${lockoutRemaining} ثانية` : "أدخل كود التفعيل (10 أرقام مثل: 8492019384)"}
                     value={codeInput}
                     disabled={lockoutRemaining > 0 || isSubmitting}
                     onChange={e => {

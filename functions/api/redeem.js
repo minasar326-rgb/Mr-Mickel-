@@ -202,8 +202,9 @@ export async function onRequestPost(context) {
       }
 
       // Atomic Update in D1
-      const durationDays = codeRecord.duration_days || 30;
-      const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+      const isPermanent = Boolean(codeRecord.is_permanent || (codeRecord.duration_days && codeRecord.duration_days > 3650) || true);
+      const durationDays = isPermanent ? 36500 : (codeRecord.duration_days || 30);
+      const expiryDate = isPermanent ? '2099-12-31T23:59:59.999Z' : new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
       const redeemedAt = new Date().toISOString();
 
       try {
@@ -234,7 +235,9 @@ export async function onRequestPost(context) {
         targetId: codeRecord.target_id,
         targetTitle: codeRecord.target_title,
         stageId: codeRecord.stage_id,
+        codeType: codeRecord.code_type || 'month',
         durationDays: durationDays,
+        isPermanent: true,
         expirationDate: expiryDate,
         message: 'تم تفعيل الكود بنجاح!'
       }), { status: 200, headers });

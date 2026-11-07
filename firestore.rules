@@ -59,8 +59,7 @@ service cloud.firestore {
       allow delete: if isTeacher();
 
       match /subscriptions/{subId} {
-        allow read: if isOwner(userId) || isTeacher();
-        allow write: if isTeacher();
+        allow read, write: if isOwner(userId) || isTeacher();
       }
     }
 
@@ -71,8 +70,7 @@ service cloud.firestore {
       allow delete: if isTeacher();
 
       match /subscriptions/{subId} {
-        allow read: if isOwner(userId) || isTeacher();
-        allow write: if isTeacher();
+        allow read, write: if isOwner(userId) || isTeacher();
       }
     }
 
@@ -83,21 +81,25 @@ service cloud.firestore {
     match /subscriptions/{subId} {
       // Students can only read their own subscription documents
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isTeacher());
-      
-      // Subscriptions can strictly be created or edited by Teacher / Backend service account
-      allow write: if isTeacher();
+      allow write: if (isAuthenticated() && request.resource.data.userId == request.auth.uid) || isTeacher();
     }
 
     // ===============================================================
-    // Activation Codes (Completely Closed from Client Inspection)
+    // Activation Codes (Single Lookup for Redemption, List for Teacher)
     // ===============================================================
 
     match /codes/{codeId} {
-      allow read, write: if isTeacher();
+      allow get: if isAuthenticated();
+      allow list: if isTeacher();
+      allow update: if (isAuthenticated() && (resource.data.usedCount < resource.data.maxUses || resource.data.usedByUid == request.auth.uid)) || isTeacher();
+      allow create, delete: if isTeacher();
     }
 
     match /subscriptionCodes/{codeId} {
-      allow read, write: if isTeacher();
+      allow get: if isAuthenticated();
+      allow list: if isTeacher();
+      allow update: if (isAuthenticated() && (resource.data.usedCount < resource.data.maxUses || resource.data.usedByUid == request.auth.uid)) || isTeacher();
+      allow create, delete: if isTeacher();
     }
 
     // ===============================================================

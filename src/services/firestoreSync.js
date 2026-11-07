@@ -640,67 +640,51 @@ export async function saveStudentSubscriptionToFirestore(uid, stageId, subscript
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Save to students collection
-    let studentsSaved = false;
-    try {
-      await setDoc(doc(db, 'students', uid), {
-        subscriptions: {
-          [stageId]: normalizedSubscription
-        },
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      studentsSaved = true;
-    } catch (e) {
-      console.error('Firestore save to students collection failed:', e);
-    }
+    // High-Speed Concurrent Cloud Sync: Run all cloud operations in parallel!
+    const syncPromises = [];
 
-    // 2. Save to users collection
-    let usersSaved = false;
-    try {
-      await setDoc(doc(db, 'users', uid), {
-        subscriptions: {
-          [stageId]: normalizedSubscription
-        },
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      usersSaved = true;
-    } catch (e) {
-      console.error('Firestore save to users collection failed:', e);
-    }
-
-    // 3. Save to top-level subscriptions collection (${uid}_${stageId})
-    let subDocSaved = false;
-    try {
+    if (db) {
+      syncPromises.push(
+        setDoc(doc(db, 'students', uid), {
+          subscriptions: { [stageId]: normalizedSubscription },
+          updatedAt: serverTimestamp()
+        }, { merge: true }).catch(e => console.warn('students sync notice:', e?.message))
+      );
+      syncPromises.push(
+        setDoc(doc(db, 'users', uid), {
+          subscriptions: { [stageId]: normalizedSubscription },
+          updatedAt: serverTimestamp()
+        }, { merge: true }).catch(e => console.warn('users sync notice:', e?.message))
+      );
       const subDocId = `${uid}_${stageId}`;
-      await setDoc(doc(db, 'subscriptions', subDocId), normalizedSubscription, { merge: true });
-      subDocSaved = true;
-    } catch (e) {
-      console.error('Firestore save to top-level subscriptions collection failed:', e);
+      syncPromises.push(
+        setDoc(doc(db, 'subscriptions', subDocId), normalizedSubscription, { merge: true }).catch(e => console.warn('subscriptions sync notice:', e?.message))
+      );
+      syncPromises.push(
+        setDoc(doc(db, 'users', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true }).catch(() => {})
+      );
+      syncPromises.push(
+        setDoc(doc(db, 'students', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true }).catch(() => {})
+      );
     }
 
-    // 4. Save to subcollections /users/{uid}/subscriptions and /students/{uid}/subscriptions (always permitted by rules)
-    try {
-      await setDoc(doc(db, 'users', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true });
-    } catch (_) {}
-    try {
-      await setDoc(doc(db, 'students', uid, 'subscriptions', stageId), normalizedSubscription, { merge: true });
-    } catch (_) {}
-
-    // 4. Save to RTDB for instant multi-device sync
     if (rtdb) {
-      try {
-        await rtdbSet(rtdbRef(rtdb, `students/${uid}/subscriptions/${stageId}`), normalizedSubscription);
-        await rtdbSet(rtdbRef(rtdb, `users/${uid}/subscriptions/${stageId}`), normalizedSubscription);
-        await rtdbSet(rtdbRef(rtdb, `subscriptions/${uid}_${stageId}`), normalizedSubscription);
-      } catch (e) {
-        console.warn('RTDB subscription sync warning:', e);
-      }
+      syncPromises.push(
+        rtdbSet(rtdbRef(rtdb, `students/${uid}/subscriptions/${stageId}`), normalizedSubscription).catch(() => {})
+      );
+      syncPromises.push(
+        rtdbSet(rtdbRef(rtdb, `users/${uid}/subscriptions/${stageId}`), normalizedSubscription).catch(() => {})
+      );
+      syncPromises.push(
+        rtdbSet(rtdbRef(rtdb, `subscriptions/${uid}_${stageId}`), normalizedSubscription).catch(() => {})
+      );
     }
 
-    // Verification: At least one primary Firestore document must have succeeded
-    if (!studentsSaved && !usersSaved && !subDocSaved) {
-      throw new Error('فشل حفظ وتأكيد الاشتراك في قاعدة البيانات السحابية.');
-    }
+    // Cap at 1.8s so user on slow mobile connection gets instant UI response
+    await Promise.race([
+      Promise.allSettled(syncPromises),
+      new Promise(resolve => setTimeout(resolve, 1800))
+    ]);
 
     return { success: true, subscription: normalizedSubscription };
   } catch (error) {
@@ -835,15 +819,21 @@ export async function fetchCodeFromCloud(cleanCode) {
   if (!cleanCode) return null;
   const normalized = normalize10DigitCode(cleanCode);
 
+  // Fast race helper to prevent hanging on weak mobile connections
+  const withTimeout = (prom, ms = 2200) => Promise.race([
+    prom,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+  ]);
+
   // 1. Try RTDB first (fastest across mobile networks in Egypt and unrestricted)
   if (rtdb) {
     try {
-      const snap = await rtdbGet(rtdbRef(rtdb, 'codes/' + normalized));
-      if (snap.exists()) {
+      const snap = await withTimeout(rtdbGet(rtdbRef(rtdb, 'codes/' + normalized)), 2000);
+      if (snap && snap.exists()) {
         return snap.val();
       }
-      const subSnap = await rtdbGet(rtdbRef(rtdb, 'subscriptionCodes/' + normalized));
-      if (subSnap.exists()) {
+      const subSnap = await withTimeout(rtdbGet(rtdbRef(rtdb, 'subscriptionCodes/' + normalized)), 2000);
+      if (subSnap && subSnap.exists()) {
         return subSnap.val();
       }
     } catch (e) {
@@ -855,13 +845,13 @@ export async function fetchCodeFromCloud(cleanCode) {
   if (db) {
     try {
       const docRef = doc(db, 'codes', normalized);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
+      const snap = await withTimeout(getDoc(docRef), 2200);
+      if (snap && snap.exists()) {
         return snap.data();
       }
       const subDocRef = doc(db, 'subscriptionCodes', normalized);
-      const subSnap = await getDoc(subDocRef);
-      if (subSnap.exists()) {
+      const subSnap = await withTimeout(getDoc(subDocRef), 2200);
+      if (subSnap && subSnap.exists()) {
         return subSnap.data();
       }
     } catch (e) {

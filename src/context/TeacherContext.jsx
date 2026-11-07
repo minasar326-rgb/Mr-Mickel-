@@ -1059,30 +1059,28 @@ export function TeacherProvider({ children }) {
 
         const expiryStr = sub.expirationDate || sub.expiresAt;
         if (expiryStr && new Date(expiryStr).getTime() > now) {
-          const canonStage = normalizeStageId(sId, sub.stageId || sub.targetTitle || '');
-          activeIds.push(sId);
-          activeIds.push(canonStage);
+          // Identify subscription scope strictly: Month vs Lecture vs Stage
+          const isMonthSub = sub.codeType === 'month' || sub.type === 'month' || sId.startsWith('sec-') || (sections || []).some(sec => sec.id === sId || sec.id === sub.targetId);
+          const isLecSub = sub.codeType === 'lecture' || sub.type === 'lecture' || sId.startsWith('lec-') || (lectures || []).some(l => l.id === sId || l.id === sub.targetId);
 
           const safeSub = {
             ...sub,
             userId: currentUid,
             targetId: sId,
-            targetTitle: sub.targetTitle || `اشتراك مرحلة: ${sId}`,
+            targetTitle: sub.targetTitle || (isMonthSub ? `اشتراك شهر: ${sId}` : isLecSub ? `اشتراك محاضرة: ${sId}` : `اشتراك مرحلة: ${sId}`),
             startDate: sub.startDate || sub.activatedAt || new Date().toISOString(),
             expirationDate: expiryStr,
             expiresAt: expiryStr,
             durationDays: sub.durationDays || 30
           };
 
-          activeUnlocks[sId] = safeSub;
-          activeUnlocks[canonStage] = safeSub;
-
-          // Identify subscription scope: Month vs Lecture vs Stage
-          const isMonthSub = sub.codeType === 'month' || sub.type === 'month' || sId.startsWith('sec-') || (sections || []).some(sec => sec.id === sId || sec.id === sub.targetId);
-          const isLecSub = sub.codeType === 'lecture' || sub.type === 'lecture' || sId.startsWith('lec-') || (lectures || []).some(l => l.id === sId || l.id === sub.targetId);
-
           if (isMonthSub) {
+            // Month subscription: ONLY unlock this specific month and its lectures!
+            // NEVER unlock the parent stage or other months in that stage!
             const targetSecId = sub.sectionId || sub.targetId || sId;
+            activeIds.push(targetSecId);
+            activeUnlocks[targetSecId] = safeSub;
+
             (lectures || []).filter(l => l.sectionId === targetSecId || l.sectionId === sId).forEach(l => {
               activeIds.push(l.id);
               activeUnlocks[l.id] = {
@@ -1092,6 +1090,8 @@ export function TeacherProvider({ children }) {
               };
             });
           } else if (isLecSub) {
+            // Lecture subscription: ONLY unlock this single lecture!
+            // NEVER unlock the parent month or stage!
             const targetLecId = sub.lectureId || sub.targetId || sId;
             activeIds.push(targetLecId);
             activeUnlocks[targetLecId] = {
@@ -1099,7 +1099,13 @@ export function TeacherProvider({ children }) {
               targetId: targetLecId
             };
           } else {
-            // Stage-level subscription unlocks all lectures in that stage
+            // Stage-level subscription (VIP): Unlocks the stage and all its current and future lectures/months
+            const canonStage = normalizeStageId(sId, sub.stageId || sub.targetTitle || '');
+            activeIds.push(sId);
+            activeIds.push(canonStage);
+            activeUnlocks[sId] = safeSub;
+            activeUnlocks[canonStage] = safeSub;
+
             (lectures || []).filter(l => l.stageId === sId || normalizeStageId(l.stageId) === canonStage).forEach(l => {
               activeIds.push(l.id);
               activeUnlocks[l.id] = {
@@ -2650,19 +2656,28 @@ export function TeacherProvider({ children }) {
         } 
         // Canonical stage match (e.g. sec-3)
         else if (userSubs[canonId] && (!userSubs[canonId].userId || userSubs[canonId].userId === currentUid)) {
-          sub = userSubs[canonId];
+          const subType = (userSubs[canonId].codeType || userSubs[canonId].type || '').trim().toLowerCase();
+          if (subType !== 'month' && subType !== 'lecture' && !canonId.startsWith('sec-') && !canonId.startsWith('lec-')) {
+            sub = userSubs[canonId];
+          }
         } 
         // All-access VIP subscription covers everything
         else if (userSubs['all-access'] && (!userSubs['all-access'].userId || userSubs['all-access'].userId === currentUid)) {
           sub = userSubs['all-access'];
         } 
-        // Search through all active subscriptions to see if any covers this stage
+        // Search through all active subscriptions to see if any covers this stage (STAGE SUBSCRIPTIONS ONLY!)
         else {
           for (const key of Object.keys(userSubs)) {
             const currentSub = userSubs[key];
             if (!currentSub) continue;
             if (currentSub.userId && currentSub.userId !== currentUid) continue;
             
+            const subType = (currentSub.codeType || currentSub.type || '').trim().toLowerCase();
+            // STRICT: Month or lecture subscriptions NEVER cover a whole stage!
+            if (subType === 'month' || subType === 'course' || subType === 'lecture' || key.startsWith('sec-') || key.startsWith('lec-')) {
+              continue;
+            }
+
             const normalizedKey = normalizeStageId(key);
             const normalizedSubStage = normalizeStageId(currentSub.stageId || currentSub.courseId || currentSub.targetId);
             
@@ -2673,7 +2688,30 @@ export function TeacherProvider({ children }) {
           }
         }
 
-        // If targetId is a lecture ID, check if its parent section or stage is subscribed
+        // If targetId is a SECTION (month), check if its parent stage has a stage-level VIP subscription
+        if (!sub && (targetId.startsWith('sec-') || (sections || []).some(s => s.id === targetId))) {
+          const secItem = (sections || []).find(s => s.id === targetId);
+          if (secItem?.stageId) {
+            const parentCanon = normalizeStageId(secItem.stageId);
+            for (const key of Object.keys(userSubs)) {
+              const currentSub = userSubs[key];
+              if (!currentSub) continue;
+              if (currentSub.userId && currentSub.userId !== currentUid) continue;
+
+              const subType = (currentSub.codeType || currentSub.type || '').trim().toLowerCase();
+              if (subType === 'stage' || subType === 'all-access' || key === 'all-access') {
+                const normSubKey = normalizeStageId(key);
+                const normSubStage = normalizeStageId(currentSub.stageId || currentSub.targetId);
+                if (normSubKey === parentCanon || normSubStage === parentCanon || normSubKey === 'all-access' || normSubStage === 'all-access') {
+                  sub = currentSub;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // If targetId is a lecture ID, check if its parent section or parent stage is subscribed
         if (!sub && (targetId.startsWith('lec-') || (lectures || []).some(l => l.id === targetId))) {
           const foundLec = (lectures || []).find(l => l.id === targetId);
           if (foundLec) {
@@ -2681,10 +2719,20 @@ export function TeacherProvider({ children }) {
               sub = userSubs[foundLec.sectionId];
             } else if (foundLec.stageId) {
               const parentStageCanon = normalizeStageId(foundLec.stageId);
-              if (userSubs[foundLec.stageId] && (!userSubs[foundLec.stageId].userId || userSubs[foundLec.stageId].userId === currentUid)) {
-                sub = userSubs[foundLec.stageId];
-              } else if (userSubs[parentStageCanon] && (!userSubs[parentStageCanon].userId || userSubs[parentStageCanon].userId === currentUid)) {
-                sub = userSubs[parentStageCanon];
+              for (const key of Object.keys(userSubs)) {
+                const currentSub = userSubs[key];
+                if (!currentSub) continue;
+                if (currentSub.userId && currentSub.userId !== currentUid) continue;
+
+                const subType = (currentSub.codeType || currentSub.type || '').trim().toLowerCase();
+                if (subType === 'stage' || subType === 'all-access' || key === 'all-access') {
+                  const normSubKey = normalizeStageId(key);
+                  const normSubStage = normalizeStageId(currentSub.stageId || currentSub.targetId);
+                  if (normSubKey === parentStageCanon || normSubStage === parentStageCanon || normSubKey === 'all-access' || normSubStage === 'all-access') {
+                    sub = currentSub;
+                    break;
+                  }
+                }
               }
             }
           }
@@ -2697,7 +2745,7 @@ export function TeacherProvider({ children }) {
           const cachedUid = localStorage.getItem('ms_unlocked_uid');
           if (cachedUid && cachedUid === currentUid) {
             const expiryDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
-            const candidate = expiryDict[targetId] || expiryDict[canonId] || expiryDict['all-access'];
+            const candidate = expiryDict[targetId];
             if (candidate && (!candidate.userId || candidate.userId === currentUid)) {
               sub = candidate;
             }

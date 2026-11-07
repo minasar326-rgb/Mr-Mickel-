@@ -74,7 +74,7 @@ export async function executeRedeemCode({
     try {
       const codeRef = doc(db, 'codes', sanitizedCode);
 
-      const transactionResult = await runTransaction(db, async (transaction) => {
+      const transactionPromise = runTransaction(db, async (transaction) => {
         const codeSnap = await transaction.get(codeRef);
 
         if (!codeSnap.exists()) {
@@ -183,6 +183,12 @@ export async function executeRedeemCode({
           studentAlreadyUsed
         };
       });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('firestore_timeout')), 3500)
+      );
+
+      const transactionResult = await Promise.race([transactionPromise, timeoutPromise]);
 
       firestoreSuccess = true;
       return handleSuccessfulRedemption({
@@ -334,19 +340,18 @@ async function handleSuccessfulRedemption({
     expiresAt: '2099-12-31T23:59:59.999Z'
   };
 
-  // Sync to Firestore & RTDB
-  try {
-    await saveStudentSubscriptionToFirestore(studentUid, targetId, sub);
-  } catch (e) {
-    console.warn('Subscription cloud sync notice:', e);
-  }
-
-  // Trigger callback if provided
+  // Trigger callback if provided, otherwise sync directly
   if (typeof onSubscriptionAdded === 'function') {
     try {
       await onSubscriptionAdded(targetId, sub);
     } catch (e) {
       console.warn('onSubscriptionAdded error:', e);
+    }
+  } else {
+    try {
+      await saveStudentSubscriptionToFirestore(studentUid, targetId, sub);
+    } catch (e) {
+      console.warn('Subscription cloud sync notice:', e);
     }
   }
 
@@ -371,21 +376,32 @@ async function handleSuccessfulRedemption({
     }
   });
 
+  const startDateRaw = sub.startDate || codeData?.usedAt || codeData?.startDate || new Date().toISOString();
+  let formattedStartDate = '';
+  try {
+    formattedStartDate = new Date(startDateRaw).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch (e) {
+    formattedStartDate = new Date().toLocaleDateString('ar-EG');
+  }
+
+  const resolvedTitle = sub.targetTitle || codeData?.targetTitle || 'الشهر التعليمي';
+  const alreadyUsedMsg = `هذا الكود مخصص لـ (${resolvedTitle}) ومسجل بحسابك بالفعل منذ ${formattedStartDate} واشتراكك فيه دائم! ولا يمكن استخدامه لتفعيل شهر آخر.`;
+
   return {
     ok: true,
     success: true,
     alreadyActive: Boolean(studentAlreadyUsed),
     subscription: sub,
-    stageName: sub.targetTitle || 'المحتوى التعليمي',
-    targetTitle: sub.targetTitle || 'المحتوى التعليمي',
-    startDate: new Date(sub.startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }),
+    stageName: resolvedTitle,
+    targetTitle: resolvedTitle,
+    startDate: formattedStartDate,
     expirationDate: 'دائم مدى الحياة ♾️',
     isPermanent: true,
-    durationDays: sub.durationDays,
+    durationDays: sub.durationDays || 36500,
     coveredLectures: covered,
     unlockedLectures: unlocked,
     lockedLectures: progressionLocked,
     firstUnlockedLecture: unlocked[0] || null,
-    message: studentAlreadyUsed ? 'تم تأكيد اشتراكك السابق، المحتوى مفعّل بحسابك بالفعل!' : 'تم الاشتراك وتفعيل المحتوى بنجاح! اشتراك دائم بحسابك.'
+    message: studentAlreadyUsed ? alreadyUsedMsg : `تم الاشتراك وتفعيل (${resolvedTitle}) بنجاح! اشتراك دائم بحسابك.`
   };
 }

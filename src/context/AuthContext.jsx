@@ -35,10 +35,57 @@ async function ensureStudentProfile(firebaseUser) {
   }
 
   const promise = (async () => {
+    const studentUid = firebaseUser.uid;
+    const existingSubs = {};
+
+    try {
+      // 1. Recover from local active user profile
+      const saved = localStorage.getItem('madarek_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.uid === studentUid || parsed.id === studentUid)) {
+          if (parsed.subscriptions && typeof parsed.subscriptions === 'object') {
+            Object.keys(parsed.subscriptions).forEach(k => {
+              const s = parsed.subscriptions[k];
+              if (s && (!s.userId || s.userId === studentUid)) {
+                existingSubs[k] = { ...s, userId: studentUid };
+              }
+            });
+          }
+        }
+      }
+
+      // 2. Recover from unshakeable permanent vault: ms_permanent_subs_${studentUid}
+      const vaultSaved = localStorage.getItem(`ms_permanent_subs_${studentUid}`);
+      if (vaultSaved) {
+        const vaultParsed = JSON.parse(vaultSaved);
+        if (vaultParsed && typeof vaultParsed === 'object') {
+          Object.keys(vaultParsed).forEach(k => {
+            const s = vaultParsed[k];
+            if (s && (!s.userId || s.userId === studentUid)) {
+              existingSubs[k] = { ...(existingSubs[k] || {}), ...s, userId: studentUid };
+            }
+          });
+        }
+      }
+
+      // 3. Recover from ms_unlocked_with_expiry
+      const activeUnlocksUid = localStorage.getItem('ms_unlocked_uid');
+      if (activeUnlocksUid === studentUid) {
+        const expiryDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
+        Object.keys(expiryDict).forEach(k => {
+          const s = expiryDict[k];
+          if (s && (!s.userId || s.userId === studentUid) && s.targetId) {
+            existingSubs[k] = { ...(existingSubs[k] || {}), ...s, userId: studentUid };
+          }
+        });
+      }
+    } catch (_) {}
+
     let profile = null;
     try {
       // Fast fetch with 2.5s timeout to prevent hanging on offline / slow mobile connections
-      const fetchPromise = getStudentAccountFromFirestore(firebaseUser.uid);
+      const fetchPromise = getStudentAccountFromFirestore(studentUid);
       const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 2500));
       profile = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (e) {
@@ -47,20 +94,20 @@ async function ensureStudentProfile(firebaseUser) {
 
     if (!profile) {
       profile = {
-        uid: firebaseUser.uid,
-        id: firebaseUser.uid,
-        name: firebaseUser.displayName || 'طالب جديد',
+        uid: studentUid,
+        id: studentUid,
+        name: firebaseUser.displayName || 'طالب المنصة',
         email: firebaseUser.email || '',
         photoURL: firebaseUser.photoURL || '',
         avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
         createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
-        subscriptions: {},
+        subscriptions: existingSubs, // NEVER wipe out existing subscriptions on timeout or reload!
         role: 'student'
       };
     } else {
-      profile.uid = firebaseUser.uid;
-      profile.id = firebaseUser.uid;
+      profile.uid = studentUid;
+      profile.id = studentUid;
       profile.lastLoginAt = new Date().toISOString();
       if (firebaseUser.displayName) profile.name = firebaseUser.displayName;
       if (firebaseUser.photoURL) {
@@ -68,22 +115,24 @@ async function ensureStudentProfile(firebaseUser) {
         profile.avatar = firebaseUser.photoURL;
       }
 
-      const validSubs = {};
+      // Merge cloud subscriptions with local subscriptions so nothing is ever lost
+      const mergedSubs = { ...existingSubs };
       if (profile.subscriptions && typeof profile.subscriptions === 'object') {
         Object.keys(profile.subscriptions).forEach((key) => {
           const subscription = profile.subscriptions[key];
-          if (!subscription.userId || subscription.userId === firebaseUser.uid) {
-            validSubs[key] = { ...subscription, userId: firebaseUser.uid };
+          if (!subscription.userId || subscription.userId === studentUid) {
+            mergedSubs[key] = { ...(mergedSubs[key] || {}), ...subscription, userId: studentUid };
           }
         });
       }
-      profile.subscriptions = validSubs;
+      profile.subscriptions = mergedSubs;
     }
 
-    // Always guarantee active profile is saved locally first
+    // Always guarantee active profile is saved locally and in permanent vault
     try {
-      localStorage.setItem('ms_active_uid', firebaseUser.uid);
+      localStorage.setItem('ms_active_uid', studentUid);
       localStorage.setItem('madarek_user', JSON.stringify(profile));
+      localStorage.setItem(`ms_permanent_subs_${studentUid}`, JSON.stringify(profile.subscriptions || {}));
     } catch (_) {}
 
     // Asynchronously synchronize with Cloud Firestore & RTDB in the background
@@ -578,17 +627,26 @@ export function AuthProvider({ children }) {
     const studentUid = currentUser?.uid || currentUser?.id;
     if (!studentUid) return false;
 
-    const canonStage = normalizeStageId(stageId);
     const safeSub = {
       ...subscriptionData,
-      userId: studentUid
+      userId: studentUid,
+      targetId: stageId,
+      isPermanent: true,
+      expiresAt: '2099-12-31T23:59:59.999Z'
     };
+
+    const isMonthOrLec = safeSub.codeType === 'month' || safeSub.codeType === 'lecture' || stageId.startsWith('sec-') || stageId.startsWith('lec-');
+    const canonStage = isMonthOrLec ? stageId : normalizeStageId(stageId);
 
     const updatedSubs = {
       ...(currentUser?.subscriptions || {}),
-      [stageId]: safeSub,
-      [canonStage]: safeSub
+      [stageId]: safeSub
     };
+
+    // ONLY add canonStage if this is an explicit stage-level subscription!
+    if (!isMonthOrLec) {
+      updatedSubs[canonStage] = safeSub;
+    }
 
     const updatedUser = {
       ...(currentUser || {}),
@@ -600,17 +658,22 @@ export function AuthProvider({ children }) {
     setCurrentUser(updatedUser);
     try {
       localStorage.setItem('madarek_user', JSON.stringify(updatedUser));
+      localStorage.setItem('ms_active_uid', studentUid);
       localStorage.setItem('ms_unlocked_uid', studentUid);
+      localStorage.setItem(`ms_permanent_subs_${studentUid}`, JSON.stringify(updatedSubs));
+
       // Also update ms_unlocked_with_expiry directly
       const expiryDict = JSON.parse(localStorage.getItem('ms_unlocked_with_expiry') || '{}');
       expiryDict[stageId] = safeSub;
-      expiryDict[canonStage] = safeSub;
+      if (!isMonthOrLec) {
+        expiryDict[canonStage] = safeSub;
+      }
       localStorage.setItem('ms_unlocked_with_expiry', JSON.stringify(expiryDict));
     } catch (e) {}
 
     const res1 = await saveStudentSubscriptionToFirestore(studentUid, stageId, safeSub);
     let res2 = { success: true };
-    if (canonStage !== stageId) {
+    if (!isMonthOrLec && canonStage !== stageId) {
       res2 = await saveStudentSubscriptionToFirestore(studentUid, canonStage, safeSub);
     }
     const isOk = res1.success !== false && res2.success !== false;

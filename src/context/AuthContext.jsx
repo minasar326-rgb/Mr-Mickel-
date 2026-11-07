@@ -226,12 +226,15 @@ export function AuthProvider({ children }) {
             if (!cloudStudent) return;
             setCurrentUser(prev => {
               if (!prev || (prev.uid !== newUid && prev.id !== newUid)) return prev;
-              const validSubs = {};
+              // Preserve local active subscriptions and merge with cloud subscriptions
+              const validSubs = {
+                ...(prev.subscriptions || {})
+              };
               if (cloudStudent.subscriptions && typeof cloudStudent.subscriptions === 'object') {
                 Object.keys(cloudStudent.subscriptions).forEach(k => {
                   const s = cloudStudent.subscriptions[k];
                   if (!s.userId || s.userId === newUid) {
-                    validSubs[k] = { ...s, userId: newUid };
+                    validSubs[k] = { ...(validSubs[k] || {}), ...s, userId: newUid };
                   }
                 });
               }

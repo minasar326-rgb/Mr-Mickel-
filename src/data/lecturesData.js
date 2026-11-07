@@ -5,6 +5,7 @@ export const lecturesData = [
   {
     id: "lec-s3-01",
     stageId: "sec-3",
+    sectionId: "sec3-month-1",
     unitNumber: "Unit 1",
     title: "المحاضرة 1: شرح أزمنة الماضي (Past Simple, Continuous & Perfect) والكلمات الأساسية",
     subtitle: "تفكيك قواعد الوحدة الأولى والفرق الدقيق بين Past Simple و Past Perfect مع حل 100 جملة من امتحانات الثانوية السابقة.",
@@ -56,6 +57,7 @@ export const lecturesData = [
   {
     id: "lec-s3-02",
     stageId: "sec-3",
+    sectionId: "sec3-month-1",
     unitNumber: "Unit 2",
     title: "المحاضرة 2: أزمنة المضارع التام (Present Perfect & Continuous) والمشتقات",
     subtitle: "شرح الفروق الجوهرية بين Since و For و Have been to و Have gone to مع حل بنك أسئلة الوزارة.",
@@ -92,6 +94,7 @@ export const lecturesData = [
   {
     id: "lec-s3-03",
     stageId: "sec-3",
+    sectionId: "sec3-month-2",
     unitNumber: "Unit 3",
     title: "المحاضرة 3: المستقبل بجميع أشكاله (Future Forms) وكتابة المقال (Essay Writing)",
     subtitle: "متى نستخدم Will و Going to و Present Continuous و Present Simple للتعبير عن المستقبل + أسرار كتابة الإيسي المقالي.",
@@ -122,6 +125,7 @@ export const lecturesData = [
   {
     id: "lec-s2-01",
     stageId: "sec-2",
+    sectionId: "sec2-month-1",
     unitNumber: "Unit 1",
     title: "المحاضرة 1 (2ث): قواعد الإلزام والضرورة (Must, Have to, Need to) ومفردات الصحة",
     subtitle: "شرح شامل للضرورة في المضارع والماضي والمستقبل ونفيها (Mustn't vs Don't have to) مع حل تدريبات شاملة.",
@@ -152,6 +156,7 @@ export const lecturesData = [
   {
     id: "lec-s1-01",
     stageId: "sec-1",
+    sectionId: "sec1-month-1",
     unitNumber: "Unit 1",
     title: "المحاضرة 1 (1ث): الماضي البسيط والمستمر والتأسيس في بناء الجملة الإنجليزية",
     subtitle: "مدخل قوي للمرحلة الثانوية: تركيب الجملة الإنجليزية الصحيحة + شرح قواعد الوحدة الأولى من الصفر.",
@@ -181,6 +186,7 @@ export const lecturesData = [
   {
     id: "lec-fnd-01",
     stageId: "foundation",
+    sectionId: "fnd-month-1",
     unitNumber: "Level 1",
     title: "المحاضرة 1: أسرار النطق الصوتي الصحيح وقواعد الـ Phonetics (UK vs US)",
     subtitle: "كيف تنطق الحروف المركبة والأصوات الصامتة والمتحركة مثل المتحدث الأصلي بطلاقة وثقة.",
@@ -211,6 +217,7 @@ export const lecturesData = [
   {
     id: "lec-prep-01",
     stageId: "prep",
+    sectionId: "prep-month-1",
     unitNumber: "Unit 1",
     title: "المحاضرة 1: قواعد ومفردات الوحدة الأولى (Around Town) لطلاب المرحلة الإعدادية",
     subtitle: "شرح زمن المضارع البسيط واستخدامه في جداول المواعيد مع حل كافة تدريبات كتاب المدرسة وكتاب The Master.",
@@ -242,6 +249,7 @@ export const lecturesData = [
   {
     id: "lec-pri-01",
     stageId: "pri",
+    sectionId: "pri-month-1",
     unitNumber: "Unit 1",
     title: "المحاضرة 1: التأسيس الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
     subtitle: "شرح تفاعلي بالرسوم والألوان، تأسيس الفونكس والقواعد الأساسية (Present Simple) بطريقة مبسطة وممتعة.",

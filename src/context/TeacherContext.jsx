@@ -1,3 +1,27 @@
+export function assignDefaultSectionId(lec) {
+  if (lec?.sectionId && String(lec.sectionId).trim()) return String(lec.sectionId).trim();
+  const stage = String(lec?.stageId || '').toLowerCase().trim();
+  if (stage === 'sec-3') {
+    if (lec?.id === 'lec-s3-03' || lec?.unitNumber?.includes('3') || lec?.title?.includes('3')) return 'sec3-month-2';
+    return 'sec3-month-1';
+  }
+  if (stage === 'sec-2') {
+    if (lec?.unitNumber?.includes('2') || lec?.title?.includes('2')) return 'sec2-month-2';
+    return 'sec2-month-1';
+  }
+  if (stage === 'sec-1') {
+    if (lec?.unitNumber?.includes('2') || lec?.title?.includes('2')) return 'sec1-month-2';
+    return 'sec1-month-1';
+  }
+  if (stage === 'prep') {
+    if (lec?.unitNumber?.includes('3') || lec?.unitNumber?.includes('4')) return 'prep-month-2';
+    return 'prep-month-1';
+  }
+  if (stage === 'pri') return 'pri-month-1';
+  if (stage === 'foundation') return 'fnd-month-1';
+  return '';
+}
+
 import { normalize10DigitCode } from '../utils/codeNormalizer.js';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { teacherProfile as initialTeacherProfile } from '../data/teacherData';
@@ -274,6 +298,7 @@ const richInitialStudents = [
 ];
 
 export const initialSections = [
+  // 1. الصف الثالث الثانوي
   {
     id: "sec3-month-1",
     stageId: "sec-3",
@@ -285,6 +310,7 @@ export const initialSections = [
     price: 180,
     cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
     isVisible: true,
+    enforceProgression: false,
     order: 1,
     createdAt: "2026-08-01"
   },
@@ -299,6 +325,7 @@ export const initialSections = [
     price: 180,
     cover: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80",
     isVisible: true,
+    enforceProgression: false,
     order: 2,
     createdAt: "2026-09-01"
   },
@@ -312,9 +339,73 @@ export const initialSections = [
     price: 250,
     cover: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80",
     isVisible: true,
+    enforceProgression: false,
     order: 3,
     createdAt: "2026-07-15"
   },
+  // 2. الصف الثاني الثانوي
+  {
+    id: "sec2-month-1",
+    stageId: "sec-2",
+    stageName: "الصف الثاني الثانوي",
+    title: "الشهر الأول: منهج New Hello (2ث) - القواعد والترجمة",
+    type: "month",
+    monthNumber: 1,
+    description: "شرح شامل ومبسط لقواعد الإلزام والضرورة والمفردات مع تدريبات مكثفة على نظام الثانوية الجديد.",
+    price: 150,
+    cover: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 1,
+    createdAt: "2026-08-01"
+  },
+  {
+    id: "sec2-month-2",
+    stageId: "sec-2",
+    stageName: "الصف الثاني الثانوي",
+    title: "الشهر الثاني: مهارات الترجمة المتقدمة وكتابة المقال والقصة",
+    type: "month",
+    monthNumber: 2,
+    description: "فنون الترجمة والحل النموذجي على القطع مع شرح القصة والتدريب على الأسئلة المقالية.",
+    price: 150,
+    cover: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 2,
+    createdAt: "2026-09-01"
+  },
+  // 3. الصف الأول الثانوي
+  {
+    id: "sec1-month-1",
+    stageId: "sec-1",
+    stageName: "الصف الأول الثانوي",
+    title: "الشهر الأول: التأسيس الشامل وقواعد اللغة (1ث)",
+    type: "month",
+    monthNumber: 1,
+    description: "الانتقال السلس من الإعدادية للثانوية وشرح أزمنة الماضي والمضارع التام مع حل بنك أسئلة الوزارة.",
+    price: 140,
+    cover: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 1,
+    createdAt: "2026-08-01"
+  },
+  {
+    id: "sec1-month-2",
+    stageId: "sec-1",
+    stageName: "الصف الأول الثانوي",
+    title: "الشهر الثاني: القواعد المركبة وقصة جزيرة الكنز",
+    type: "month",
+    monthNumber: 2,
+    description: "قواعد المستقبل والمبني للمجهول مع قصة Treasure Island وتدريبات النماذج الاسترشادية.",
+    price: 140,
+    cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 2,
+    createdAt: "2026-09-01"
+  },
+  // 4. المرحلة الإعدادية
   {
     id: "prep-month-1",
     stageId: "prep",
@@ -326,9 +417,26 @@ export const initialSections = [
     price: 120,
     cover: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80",
     isVisible: true,
+    enforceProgression: false,
     order: 1,
     createdAt: "2026-08-15"
   },
+  {
+    id: "prep-month-2",
+    stageId: "prep",
+    stageName: "الصف الثالث الإعدادي",
+    title: "الشهر الثاني: منهج New Hello Unit 3 & 4 + حل الامتحانات",
+    type: "month",
+    monthNumber: 2,
+    description: "شرح أزمنة الماضي والمستقبل وحل 10 امتحانات محافظات سابقة لضمان الدرجة النهائية.",
+    price: 120,
+    cover: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 2,
+    createdAt: "2026-09-15"
+  },
+  // 5. المرحلة الابتدائية
   {
     id: "pri-month-1",
     stageId: "pri",
@@ -340,8 +448,25 @@ export const initialSections = [
     price: 100,
     cover: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80",
     isVisible: true,
+    enforceProgression: false,
     order: 1,
     createdAt: "2026-08-15"
+  },
+  // 6. كورس التأسيس الشامل
+  {
+    id: "fnd-month-1",
+    stageId: "foundation",
+    stageName: "كورس التأسيس الشامل",
+    title: "المستوى الأول: أسرار النطق الصوتي وتكوين الجمل",
+    type: "month",
+    monthNumber: 1,
+    description: "أساسيات تكوين الجملة الإنجليزية والأصوات والتراكيب للمبتدئين والمتوسطين.",
+    price: 160,
+    cover: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80",
+    isVisible: true,
+    enforceProgression: false,
+    order: 1,
+    createdAt: "2026-07-15"
   }
 ];
 
@@ -423,7 +548,7 @@ export function TeacherProvider({ children }) {
     return Array.isArray(initialTeacherProfile.stages) ? initialTeacherProfile.stages : [];
   });
 
-  // Sanitizers to eliminate dead blob: URLs from previous browser sessions
+  // Sanitizers to eliminate dead blob: URLs and guarantee strict section assignment
   const sanitizeLectures = (list) => {
     if (!Array.isArray(list)) return [];
     return list.map(lec => {
@@ -431,7 +556,14 @@ export function TeacherProvider({ children }) {
       const cleanUrl = (lec.videoUrl && typeof lec.videoUrl === 'string' && !lec.videoUrl.startsWith('blob:')) 
         ? lec.videoUrl 
         : '';
-      return { ...lec, videoUrl: cleanUrl };
+      const resolvedSectionId = (lec.sectionId && String(lec.sectionId).trim()) 
+        ? String(lec.sectionId).trim() 
+        : assignDefaultSectionId(lec);
+      return { 
+        ...lec, 
+        videoUrl: cleanUrl,
+        sectionId: resolvedSectionId
+      };
     });
   };
 
@@ -787,7 +919,15 @@ export function TeacherProvider({ children }) {
       const saved = localStorage.getItem('ms_sections');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map(parsed.map(s => [s.id, s]));
+          initialSections.forEach(is => {
+            if (!map.has(is.id)) {
+              map.set(is.id, is);
+            }
+          });
+          return Array.from(map.values());
+        }
       }
     } catch (e) {}
     return initialSections;
@@ -2846,14 +2986,15 @@ export function TeacherProvider({ children }) {
 
     // 6. Check section progression toggle
     const currentSection = (sections || []).find(s => s.id === lecture.sectionId);
-    const enforceProgression = currentSection?.enforceProgression !== false;
+    const enforceProgression = Boolean(currentSection?.enforceProgression);
 
-    if (!enforceProgression) {
+    // If progression is not strictly enforced, or if student subscribed directly to this lecture/month/stage, unlock immediately
+    if (!enforceProgression || matchingSub.codeType === 'lecture' || matchingSub.targetId === lecture.id) {
       return {
         allowed: true,
         reasonCode: 'unlocked',
-        reasonText: 'المحاضرة متاحة ضمن اشتراكك النشط',
-        reason: 'المحاضرة متاحة ضمن اشتراكك النشط'
+        reasonText: 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط',
+        reason: 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط'
       };
     }
 

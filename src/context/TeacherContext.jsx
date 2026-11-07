@@ -498,9 +498,10 @@ export function TeacherProvider({ children }) {
       }
       if (map.has(incoming.id)) {
         const existing = map.get(incoming.id);
-        const bestVideoUrl = (existing.videoUrl && /^https?:\/\//i.test(existing.videoUrl))
-          ? existing.videoUrl
-          : (incoming.videoUrl || '');
+        // Cloud manifest incoming videoUrl always takes precedence (especially FastStart optimized)
+        const bestVideoUrl = (incoming.videoUrl && /^https?:\/\//i.test(incoming.videoUrl))
+          ? incoming.videoUrl
+          : (existing.videoUrl || '');
         const bestDuration = (existing.duration && existing.duration !== '0' && existing.duration !== '00:00')
           ? existing.duration
           : (incoming.duration || '1:30:00');

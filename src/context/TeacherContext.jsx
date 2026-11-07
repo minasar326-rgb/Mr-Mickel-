@@ -562,7 +562,8 @@ export function TeacherProvider({ children }) {
       return { 
         ...lec, 
         videoUrl: cleanUrl,
-        sectionId: resolvedSectionId
+        sectionId: resolvedSectionId,
+        allowDirectWatch: Boolean(lec.allowDirectWatch)
       };
     });
   };
@@ -2984,17 +2985,21 @@ export function TeacherProvider({ children }) {
       };
     }
 
-    // 6. Check section progression toggle
+    // 6. Check section progression toggle & direct watch override
     const currentSection = (sections || []).find(s => s.id === lecture.sectionId);
     const enforceProgression = Boolean(currentSection?.enforceProgression);
 
-    // If progression is not strictly enforced, or if student subscribed directly to this lecture/month/stage, unlock immediately
-    if (!enforceProgression || matchingSub.codeType === 'lecture' || matchingSub.targetId === lecture.id) {
+    // If lecture explicitly allows direct watch, or progression is not strictly enforced, or if student subscribed directly to this lecture/month/stage, unlock immediately
+    if (lecture.allowDirectWatch || !enforceProgression || matchingSub.codeType === 'lecture' || matchingSub.targetId === lecture.id) {
       return {
         allowed: true,
-        reasonCode: 'unlocked',
-        reasonText: 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط',
-        reason: 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط'
+        reasonCode: lecture.allowDirectWatch ? 'unlocked_direct' : 'unlocked',
+        reasonText: lecture.allowDirectWatch 
+          ? 'المحاضرة متاحة للمشاهدة المباشرة دون اشتراط المحاضرات السابقة' 
+          : 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط',
+        reason: lecture.allowDirectWatch 
+          ? 'المحاضرة متاحة للمشاهدة المباشرة دون اشتراط المحاضرات السابقة' 
+          : 'المحاضرة متاحة ومفتوحة بالكامل ضمن اشتراكك النشط'
       };
     }
 

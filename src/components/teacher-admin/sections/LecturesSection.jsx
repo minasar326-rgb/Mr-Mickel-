@@ -66,6 +66,7 @@ export default function LecturesSection({ onNavigate }) {
 
   // Inline Exam Studio State
   const [hasLectureExam, setHasLectureExam] = useState(false);
+  const [allowDirectWatch, setAllowDirectWatch] = useState(false);
   const [bldExamTitle, setBldExamTitle] = useState('');
   const [bldExamDuration, setBldExamDuration] = useState(25);
   const [bldExamPassMarks, setBldExamPassMarks] = useState(10);
@@ -282,6 +283,7 @@ export default function LecturesSection({ onNavigate }) {
     setVideoPreviewUrl(lec.videoUrl || '');
     setThumbnailPreview(lec.thumbnail || '');
     setLocalMediaKey(lec.localMediaKey || null);
+    setAllowDirectWatch(Boolean(lec.allowDirectWatch));
 
     if (lec.pdfBooklet) {
       setPdfTitle(lec.pdfBooklet.title || 'مذكرة The Master الشاملة.pdf');
@@ -302,6 +304,7 @@ export default function LecturesSection({ onNavigate }) {
       setBldExamQuestions(ex.questions || []);
     } else {
       setHasLectureExam(false);
+    setAllowDirectWatch(false);
       setBldExamQuestions([]);
     }
 
@@ -394,6 +397,7 @@ export default function LecturesSection({ onNavigate }) {
       isLocked: !isFreeLecture,
       homeworkRequired: true,
       examRequired: Boolean(hasLectureExam),
+      allowDirectWatch: Boolean(allowDirectWatch),
       exam: examPayload,
       pdfBooklet: {
         title: pdfTitle,
@@ -425,6 +429,7 @@ export default function LecturesSection({ onNavigate }) {
       setLocalMediaKey(null);
       setPdfDownloadUrl('');
       setHasLectureExam(false);
+      setAllowDirectWatch(false);
       setBldExamQuestions([]);
       setUploadProgress(0);
     } catch (err) {
@@ -780,196 +785,259 @@ export default function LecturesSection({ onNavigate }) {
             </div>
           </div>
 
-          {/* Inline Exam Studio Toggle */}
-          <div style={{ border: '1px solid var(--admin-border)', borderRadius: 'var(--admin-radius-lg)', padding: '1.25rem', background: 'var(--admin-bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  id="hasLectureExam"
-                  checked={hasLectureExam}
-                  onChange={e => setHasLectureExam(e.target.checked)}
-                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                />
-                <label htmlFor="hasLectureExam" style={{ fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer', color: 'var(--admin-text)' }}>
-                  تفعيل امتحان إلكتروني خاص بهذه المحاضرة 📝
-                </label>
+          {/* Controls: Direct Watch & Exam Toggle */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '1rem' }}>
+            {/* Direct Watch Toggle */}
+            <div style={{
+              border: allowDirectWatch ? '2px solid #10B981' : '1px solid var(--admin-border)',
+              borderRadius: 'var(--admin-radius-lg)',
+              padding: '1.25rem',
+              background: allowDirectWatch ? 'rgba(16, 185, 129, 0.05)' : 'var(--admin-bg-surface)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input
+                    type="checkbox"
+                    id="allowDirectWatch"
+                    checked={allowDirectWatch}
+                    onChange={e => setAllowDirectWatch(e.target.checked)}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#10B981' }}
+                  />
+                  <label htmlFor="allowDirectWatch" style={{ fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer', color: 'var(--admin-text)' }}>
+                    السماح بالمشاهدة المباشرة دون قيود سابقة 🔓
+                  </label>
+                </div>
+                <p style={{ margin: '8px 0 0', fontSize: '0.82rem', color: 'var(--admin-text-muted)', lineHeight: '1.5' }}>
+                  تتيح لأي طالب مشترك في هذا الشهر أو المرحلة مشاهدة هذه المحاضرة مباشرة دون اشتراط مشاهدة المحاضرات السابقة أو اجتياز امتحاناتها.
+                </p>
               </div>
-
-              {hasLectureExam && (
-                <span className="admin-badge admin-badge-primary">
-                  {bldExamQuestions.length} أسئلة مضافة
-                </span>
+              {allowDirectWatch && (
+                <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 800, color: '#059669', background: '#D1FAE5', padding: '4px 10px', borderRadius: '6px', width: 'fit-content' }}>
+                  <span>✓</span>
+                  <span>مفعل: مشاهدة مباشرة لجميع المشتركين</span>
+                </div>
               )}
             </div>
 
-            {hasLectureExam && (
-              <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--admin-border)', paddingTop: '1rem' }}>
-                
-                {/* 5-Metric Exam Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>مدة الامتحان (بالدقائق):</label>
+            {/* Exam Studio Toggle */}
+            <div style={{
+              border: hasLectureExam ? '2px solid var(--admin-accent)' : '1px solid var(--admin-border)',
+              borderRadius: 'var(--admin-radius-lg)',
+              padding: '1.25rem',
+              background: hasLectureExam ? 'rgba(99, 102, 241, 0.05)' : 'var(--admin-bg-surface)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input
-                      type="number"
-                      value={bldExamDuration}
-                      onChange={e => setBldExamDuration(e.target.value)}
-                      className="admin-input"
-                      style={{ width: '100%', fontSize: '0.85rem' }}
+                      type="checkbox"
+                      id="hasLectureExam"
+                      checked={hasLectureExam}
+                      onChange={e => setHasLectureExam(e.target.checked)}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--admin-accent)' }}
                     />
+                    <label htmlFor="hasLectureExam" style={{ fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer', color: 'var(--admin-text)' }}>
+                      تفعيل امتحان إلكتروني خاص بهذه المحاضرة 📝
+                    </label>
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>الدرجة الكلية:</label>
-                    <input
-                      type="number"
-                      value={bldExamTotalMarks}
-                      onChange={e => setBldExamTotalMarks(e.target.value)}
-                      className="admin-input"
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>درجة النجاح:</label>
-                    <input
-                      type="number"
-                      value={bldExamPassMarks}
-                      onChange={e => setBldExamPassMarks(e.target.value)}
-                      className="admin-input"
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>أقصى محاولات:</label>
-                    <input
-                      type="number"
-                      value={bldExamMaxAttempts}
-                      onChange={e => setBldExamMaxAttempts(e.target.value)}
-                      className="admin-input"
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>عرض النتيجة فوراً:</label>
-                    <select
-                      value={bldExamShowResult ? 'yes' : 'no'}
-                      onChange={e => setBldExamShowResult(e.target.value === 'yes')}
-                      className="admin-input"
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                    >
-                      <option value="yes">نعم، عرض النتيجة</option>
-                      <option value="no">إخفاء حتى اعتماد المستر</option>
-                    </select>
-                  </div>
+                  {hasLectureExam && (
+                    <span className="admin-badge admin-badge-primary">
+                      {bldExamQuestions.length} أسئلة مضافة
+                    </span>
+                  )}
                 </div>
-
-                {/* Questions List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {bldExamQuestions.map((q, idx) => (
-                    <div 
-                      key={q.id}
-                      style={{ 
-                        background: 'var(--admin-bg-subtle)', 
-                        border: '1px solid var(--admin-border)', 
-                        borderRadius: 'var(--admin-radius-md)', 
-                        padding: '1rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--admin-text)' }}>
-                          سؤال {idx + 1} ({q.type === 'mcq' ? 'اختيار من متعدد' : q.type === 'tf' ? 'صح أو خطأ' : q.type === 'essay' ? 'سؤال مقالي' : 'إجابة قصيرة'})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteQuestion(q.id)}
-                          className="admin-btn admin-btn-ghost admin-btn-sm"
-                          style={{ color: '#EF4444' }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-
-                      <input
-                        type="text"
-                        placeholder="نص السؤال..."
-                        value={q.questionText}
-                        onChange={e => handleUpdateQuestion(q.id, 'questionText', e.target.value)}
-                        className="admin-input"
-                        style={{ width: '100%', fontSize: '0.9rem', fontWeight: 700 }}
-                      />
-
-                      {/* MCQ Options */}
-                      {q.type === 'mcq' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                          {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <input
-                                type="radio"
-                                name={`correct-${q.id}`}
-                                checked={q.correctAnswer === oIdx}
-                                onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', oIdx)}
-                                title="تحديد كإجابة صحيحة"
-                              />
-                              <input
-                                type="text"
-                                placeholder={`اختيار ${oIdx + 1}`}
-                                value={opt}
-                                onChange={e => {
-                                  const newOpts = [...q.options];
-                                  newOpts[oIdx] = e.target.value;
-                                  handleUpdateQuestion(q.id, 'options', newOpts);
-                                }}
-                                className="admin-input"
-                                style={{ width: '100%', fontSize: '0.82rem' }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Questions Toolbar at Bottom */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px dashed var(--admin-border)' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestion('mcq')}
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                  >
-                    <Plus size={14} /> <span>+ اختيار من متعدد (MCQ)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestion('tf')}
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                  >
-                    <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestion('essay')}
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                  >
-                    <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddQuestion('short_answer')}
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                  >
-                    <Plus size={14} /> <span>+ إجابة قصيرة</span>
-                  </button>
-                </div>
+                <p style={{ margin: '8px 0 0', fontSize: '0.82rem', color: 'var(--admin-text-muted)', lineHeight: '1.5' }}>
+                  إرفاق بنك أسئلة وتصحيح تلقائي أو مقالي مرتبط بالمحاضرة لتحديد مستوى استيعاب الطلاب.
+                </p>
               </div>
-            )}
+              {hasLectureExam && (
+                <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 800, color: 'var(--admin-accent)', background: 'rgba(99, 102, 241, 0.12)', padding: '4px 10px', borderRadius: '6px', width: 'fit-content' }}>
+                  <span>✓</span>
+                  <span>تم تفعيل الامتحان (محرر الأسئلة بالأسفل)</span>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Inline Exam Studio Editor (Appears directly below when hasLectureExam is active) */}
+          {hasLectureExam && (
+            <div style={{ border: '1px solid var(--admin-accent)', borderRadius: 'var(--admin-radius-lg)', padding: '1.25rem', background: 'var(--admin-bg-surface)', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                
+                {/* 5-Metric Exam Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>مدة الامتحان (بالدقائق):</label>
+                    <input
+                      type="number"
+                      value={bldExamDuration}
+                      onChange={e => setBldExamDuration(e.target.value)}
+                      className="admin-input"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>الدرجة الكلية:</label>
+                    <input
+                      type="number"
+                      value={bldExamTotalMarks}
+                      onChange={e => setBldExamTotalMarks(e.target.value)}
+                      className="admin-input"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>درجة النجاح:</label>
+                    <input
+                      type="number"
+                      value={bldExamPassMarks}
+                      onChange={e => setBldExamPassMarks(e.target.value)}
+                      className="admin-input"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>أقصى محاولات:</label>
+                    <input
+                      type="number"
+                      value={bldExamMaxAttempts}
+                      onChange={e => setBldExamMaxAttempts(e.target.value)}
+                      className="admin-input"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>عرض النتيجة فوراً:</label>
+                    <select
+                      value={bldExamShowResult ? 'yes' : 'no'}
+                      onChange={e => setBldExamShowResult(e.target.value === 'yes')}
+                      className="admin-input"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      <option value="yes">نعم، عرض النتيجة</option>
+                      <option value="no">إخفاء حتى اعتماد المستر</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Questions List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {bldExamQuestions.map((q, idx) => (
+                    <div 
+                      key={q.id}
+                      style={{ 
+                        background: 'var(--admin-bg-subtle)', 
+                        border: '1px solid var(--admin-border)', 
+                        borderRadius: 'var(--admin-radius-md)', 
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--admin-text)' }}>
+                          سؤال {idx + 1} ({q.type === 'mcq' ? 'اختيار من متعدد' : q.type === 'tf' ? 'صح أو خطأ' : q.type === 'essay' ? 'سؤال مقالي' : 'إجابة قصيرة'})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          style={{ color: '#EF4444' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      <input
+                        type="text"
+                        placeholder="نص السؤال..."
+                        value={q.questionText}
+                        onChange={e => handleUpdateQuestion(q.id, 'questionText', e.target.value)}
+                        className="admin-input"
+                        style={{ width: '100%', fontSize: '0.9rem', fontWeight: 700 }}
+                      />
+
+                      {/* MCQ Options */}
+                      {q.type === 'mcq' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                          {q.options.map((opt, oIdx) => (
+                            <div key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <input
+                                type="radio"
+                                name={`correct-${q.id}`}
+                                checked={q.correctAnswer === oIdx}
+                                onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', oIdx)}
+                                title="تحديد كإجابة صحيحة"
+                              />
+                              <input
+                                type="text"
+                                placeholder={`اختيار ${oIdx + 1}`}
+                                value={opt}
+                                onChange={e => {
+                                  const newOpts = [...q.options];
+                                  newOpts[oIdx] = e.target.value;
+                                  handleUpdateQuestion(q.id, 'options', newOpts);
+                                }}
+                                className="admin-input"
+                                style={{ width: '100%', fontSize: '0.82rem' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Questions Toolbar at Bottom */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '8px', borderTop: '1px dashed var(--admin-border)' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('mcq')}
+                    className="admin-btn admin-btn-sm admin-btn-secondary"
+                  >
+                    <Plus size={14} /> <span>+ اختيار من متعدد (MCQ)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('tf')}
+                    className="admin-btn admin-btn-sm admin-btn-secondary"
+                  >
+                    <Plus size={14} /> <span>+ صح أو خطأ (True/False)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('essay')}
+                    className="admin-btn admin-btn-sm admin-btn-secondary"
+                  >
+                    <Plus size={14} /> <span>+ سؤال مقالي (تصحيح يدوي)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('short_answer')}
+                    className="admin-btn admin-btn-sm admin-btn-secondary"
+                  >
+                    <Plus size={14} /> <span>+ إجابة قصيرة</span>
+                  </button>
+                </div>
+              
+              </div>
+            </div>
+          )}
 
           {/* Form Action Submit Button */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', borderTop: '1px solid var(--admin-border)', paddingTop: '1.25rem' }}>
@@ -1154,6 +1222,10 @@ export default function LecturesSection({ onNavigate }) {
                           <span className="admin-badge admin-badge-warning">💾 فيديو محلي متاح</span>
                         ) : (
                           <span className="admin-badge" style={{ background: '#FEF2F2', color: '#DC2626' }}>⚠️ يحتاج فيديو</span>
+                        )}
+
+                        {lec.allowDirectWatch && (
+                          <span className="admin-badge" style={{ background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>🔓 مشاهدة مباشرة</span>
                         )}
 
                         {lec.exam && (

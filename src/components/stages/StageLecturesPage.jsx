@@ -213,7 +213,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
             }}>
               {isTeacher 
                 ? `🔒 باشتراك (${lec.price || '70 ج.م'}) • معاينة المعلم 👑` 
-                : (lec.isFree ? '🎁 تجريبية مجانية' : '✓ باشتراك سارٍ 🟢')}
+                : (lec.isFree ? '🎁 تجريبية مجانية' : (lec.allowDirectWatch ? '✓ باشتراك • مشاهدة مباشرة 🔓' : '✓ باشتراك سارٍ 🟢'))}
             </span>
           ) : accessCheck.isProgressionLocked ? (
             <span style={{ 

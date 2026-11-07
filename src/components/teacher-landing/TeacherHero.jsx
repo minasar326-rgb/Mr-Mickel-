@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTeacher } from '../../context/TeacherContext';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Sparkles, Award, Trophy, Users, BookOpen, Key, 
   ArrowLeft, CheckCircle2, MessageCircle, Send, Play, Shield,
@@ -9,6 +10,9 @@ import TeacherAvatar3D from '../common/TeacherAvatar3D';
 
 export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
   const { teacherProfile } = useTeacher();
+  const { currentUser } = useAuth();
+  const userSubs = currentUser?.subscriptions && typeof currentUser.subscriptions === 'object' ? currentUser.subscriptions : {};
+  const hasActiveSubscriptions = Boolean(currentUser && Object.keys(userSubs).length > 0);
   const targetSlotRef = useRef(null);
 
   // Dynamic Avatar Source with fallback sanitization
@@ -528,7 +532,7 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
             opacity: introPhase === 'intro' ? 0 : 1,
             transition: 'opacity 0.6s ease'
           }}>
-            {/* Master Official Badge */}
+            {/* Student Welcome / Master Official Badge */}
             <div 
               className={introPhase === 'complete' ? '' : 'hero-elem-stagger-1'}
               style={{
@@ -537,17 +541,23 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
                 gap: '8px',
                 padding: '6px 16px',
                 borderRadius: 'var(--radius-full)',
-                background: 'linear-gradient(135deg, #F5F1E8 0%, #E8E3D8 100%)',
-                color: '#1F4D3A',
-                border: '1px solid #D6CEBF',
+                background: hasActiveSubscriptions 
+                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.22) 100%)' 
+                  : 'linear-gradient(135deg, #F5F1E8 0%, #E8E3D8 100%)',
+                color: hasActiveSubscriptions ? '#059669' : '#1F4D3A',
+                border: hasActiveSubscriptions ? '1.5px solid #10B981' : '1px solid #D6CEBF',
                 fontSize: '0.88rem',
                 fontWeight: 800,
                 marginBottom: '1.25rem',
-                boxShadow: '0 2px 10px rgba(31, 77, 58, 0.1)'
+                boxShadow: hasActiveSubscriptions ? '0 4px 15px rgba(16, 185, 129, 0.2)' : '0 2px 10px rgba(31, 77, 58, 0.1)'
               }}
             >
-              <Trophy size={16} color="#A67C52" />
-              <span>{teacherProfile?.welcomeBadge || 'المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧'}</span>
+              {hasActiveSubscriptions ? <Shield size={16} color="#10B981" /> : <Trophy size={16} color="#A67C52" />}
+              <span>
+                {hasActiveSubscriptions 
+                  ? `أهلاً بعودتك يا ${currentUser?.name || 'بطلنا'}! 👋 • أنت طالب مشترك رسمي في المنصة 🟢`
+                  : (teacherProfile?.welcomeBadge || 'المنصة التعليمية الرسمية • ابتدائي وإعدادي وثانوي 🇬🇧')}
+              </span>
             </div>
 
             {/* Main Headline */}
@@ -588,24 +598,54 @@ export default function TeacherHero({ onNavigate, onOpenCodeModal }) {
               className={`teacher-hero-cta-group ${introPhase === 'complete' ? '' : 'hero-elem-stagger-4'}`}
               style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}
             >
-              <button
-                onClick={onOpenCodeModal}
-                className="btn btn-primary btn-lg"
-                style={{ gap: '10px', boxShadow: '0 8px 25px rgba(31, 77, 58, 0.4)' }}
-              >
-                <Key size={20} />
-                <span>شحن كود الحصة والبدء فوراً</span>
-                <ArrowLeft size={18} />
-              </button>
+              {hasActiveSubscriptions ? (
+                <>
+                  <button
+                    onClick={() => onNavigate('stages')}
+                    className="btn btn-primary btn-lg"
+                    style={{ 
+                      gap: '10px', 
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                      fontWeight: 900
+                    }}
+                  >
+                    <Play size={20} fill="currentColor" />
+                    <span>استكمال محاضراتك ودراستك الآن 🚀</span>
+                    <ArrowLeft size={18} />
+                  </button>
 
-              <button
-                onClick={() => onNavigate('stages')}
-                className="btn btn-secondary btn-lg"
-                style={{ gap: '8px' }}
-              >
-                <BookOpen size={20} />
-                <span>استعراض الصفوف والمحاضرات</span>
-              </button>
+                  <button
+                    onClick={onOpenCodeModal}
+                    className="btn btn-secondary btn-lg"
+                    style={{ gap: '8px', fontWeight: 700 }}
+                  >
+                    <Key size={18} />
+                    <span>شحن كود شهر جديد 🔑</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={onOpenCodeModal}
+                    className="btn btn-primary btn-lg"
+                    style={{ gap: '10px', boxShadow: '0 8px 25px rgba(31, 77, 58, 0.4)' }}
+                  >
+                    <Key size={20} />
+                    <span>شحن كود الحصة والبدء فوراً</span>
+                    <ArrowLeft size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('stages')}
+                    className="btn btn-secondary btn-lg"
+                    style={{ gap: '8px' }}
+                  >
+                    <BookOpen size={20} />
+                    <span>استعراض الصفوف والمحاضرات</span>
+                  </button>
+                </>
+              )}
 
               {/* Watch Cinematic Intro Button (allows user/teacher to replay anytime) */}
               <button

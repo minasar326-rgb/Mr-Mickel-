@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTeacher, normalizeStageId } from '../../context/TeacherContext';
-import { BookOpen, Users, Key, ArrowLeft, CheckCircle2, Sparkles } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { BookOpen, Users, Key, ArrowLeft, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function StageSection({ onNavigate, onOpenCodeModal }) {
   const { stages, lectures, getSubscriptionStatus } = useTeacher();
+  const { currentUser } = useAuth();
 
   return (
     <section style={{ padding: '4.5rem 0', background: 'var(--bg-surface)' }}>
@@ -43,8 +45,17 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
         }}>
           {(Array.isArray(stages) ? stages : []).map((stage, idx) => {
             const stageLectures = (Array.isArray(lectures) ? lectures : []).filter(l => l && !l.isDeleted && (l.stageId === stage.id || normalizeStageId(l.stageId) === normalizeStageId(stage.id)));
-            const sub = getSubscriptionStatus ? getSubscriptionStatus(stage.id) : { isSubscribed: false };
-            const isSubscribed = sub.isSubscribed;
+            const directSub = getSubscriptionStatus ? getSubscriptionStatus(stage.id) : { isSubscribed: false };
+            const allAccessSub = getSubscriptionStatus ? getSubscriptionStatus('all-access') : { isSubscribed: false };
+            const userSubs = currentUser?.subscriptions || {};
+            const hasMonthSub = Object.values(userSubs).some(s => s && (
+              s.stageId === stage.id || 
+              normalizeStageId(s.stageId) === normalizeStageId(stage.id) || 
+              (s.codeType === 'month' && stageLectures.some(l => l.sectionId === s.targetId))
+            ));
+            const isSubscribed = Boolean((directSub.isSubscribed && !directSub.isExpired) || 
+                                 (allAccessSub.isSubscribed && !allAccessSub.isExpired) || 
+                                 hasMonthSub);
             const isFeatured = idx === 0 || stage.id === 'sec-3';
 
             return (
@@ -88,8 +99,9 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
                     alignItems: 'center',
                     gap: '6px'
                   }}>
-                    <span>🟢 اشتراكك نشط ومفعّل</span>
-                    <span>(متبقي {sub.daysRemaining} يوم)</span>
+                    <span>🟢 أنت مشترك في هذا المسار</span>
+                    <span>•</span>
+                    <span>دائم مدى الحياة ♾️</span>
                   </div>
                 ) : isFeatured ? (
                   <div style={{
@@ -129,24 +141,26 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
                   {/* Price Tag or Active Subscription Box */}
                   {isSubscribed ? (
                     <div style={{
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      padding: '0.85rem 1rem',
-                      borderRadius: 'var(--radius-md)',
-                      marginBottom: '1.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                      border: '1.5px solid #10B981',
+                      padding: '0.9rem 1.1rem',
+                      borderRadius: 'var(--radius-lg)',
+                      marginBottom: '1.25rem'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle2 size={18} color="#10B981" />
-                        <span style={{ fontSize: '0.82rem', color: '#065F46', fontWeight: 700 }}>
-                          اشتراك مدفوع ونشط
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CheckCircle2 size={18} color="#10B981" />
+                          <span style={{ fontSize: '0.85rem', color: '#065F46', fontWeight: 800 }}>
+                            أنت حالياً مشترك رسمي في هذا المسار
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', background: '#10B981', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 800 }}>
+                          مفعّل ومفتوح ✅
                         </span>
                       </div>
-                      <strong style={{ fontSize: '0.85rem', color: '#059669' }}>
-                        ساري حتى {sub.expiresAtFormatted}
-                      </strong>
+                      <div style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 700 }}>
+                        ♾️ الصلاحية: دائم مدى الحياة (يشمل كافة المحاضرات الحالية والجديدة)
+                      </div>
                     </div>
                   ) : (
                     <div style={{
@@ -187,18 +201,20 @@ export default function StageSection({ onNavigate, onOpenCodeModal }) {
                       fontWeight: 800
                     }}
                   >
-                    <span>{isSubscribed ? `دخول محاضراتك الآن 🚀` : `دخول محاضرات ${stage.name.split(' ')[0]}`}</span>
+                    <span>{isSubscribed ? `متابعة دراستك في ${stage.name.split(' ')[0]} 🚀` : `دخول محاضرات ${stage.name.split(' ')[0]}`}</span>
                     <ArrowLeft size={16} />
                   </button>
 
-                  <button
-                    onClick={onOpenCodeModal}
-                    className="btn btn-ghost btn-sm"
-                    style={{ gap: '6px', color: isSubscribed ? '#059669' : 'var(--primary-600)', fontWeight: 700 }}
-                  >
-                    <Key size={15} />
-                    <span>{isSubscribed ? 'تجديد أو شحن كود آخر 🔑' : 'شحن كود هذه المرحلة 🔑'}</span>
-                  </button>
+                  {!isSubscribed && (
+                    <button
+                      onClick={onOpenCodeModal}
+                      className="btn btn-ghost btn-sm"
+                      style={{ gap: '6px', color: 'var(--primary-600)', fontWeight: 700 }}
+                    >
+                      <Key size={15} />
+                      <span>شحن كود هذه المرحلة 🔑</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

@@ -171,6 +171,33 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
   const isTeacher = Boolean((verifyAdminSession()?.valid || verifyAdminSession()?.isValid) && role === 'instructor');
 
+  // Subscribed sections (months/courses) inside THIS stage
+  const subscribedSections = stageSections.filter(sec => {
+    const secStatus = getSubscriptionStatus(sec.id);
+    return secStatus.isSubscribed && !secStatus.isExpired;
+  });
+  const isAnySectionSubscribed = subscribedSections.length > 0;
+
+  // Subscribed individual lectures in this stage
+  const subscribedLectureList = stageLectures.filter(lec => {
+    const s = getSubscriptionStatus(lec.id);
+    return s.isSubscribed && !s.isExpired;
+  });
+
+  // Overall student subscription state in THIS stage
+  const isStudentSubscribedInStage = Boolean(isStageSubscribed || isAnySectionSubscribed || subscribedLectureList.length > 0);
+
+  // Compute accessible lectures for this student
+  const accessibleLectures = stageLectures.filter(lec => {
+    if (isTeacher) return true;
+    const accessCheck = canAccessLecture ? canAccessLecture(lec, stage.id) : { allowed: isStageSubscribed || isLectureUnlocked(lec, stage.id) };
+    return accessCheck.allowed;
+  });
+
+  const completedCount = completedLectureIds.filter(id => stageLectures.some(l => l.id === id)).length;
+  const submittedHwCount = Object.keys(homeworkSubmissions || {}).filter(id => stageLectures.some(l => l.id === id)).length;
+  const completedExamsCount = Object.keys(examResults || {}).filter(id => stageLectures.some(l => l.id === id)).length;
+
   // 4. Hide Empty Sections: If a month/section has 0 lectures, do not display it to students!
   const displayedSections = stageSections.filter(sec => {
     if (filterType !== 'all' && sec.type !== filterType) return false;
@@ -327,11 +354,11 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
           }}>
             <span className="badge badge-subtle">⏱️ {lec.duration}</span>
             {isUnlocked && !lec.isFree && !isTeacher && (
-              <span className="badge badge-success" style={{ fontWeight: 700 }}>
-                ⏳ اشتراك سارٍ (متبقي {stageSub.daysRemaining || lecSub.daysRemaining || 30} يوم)
+              <span className="badge badge-success" style={{ fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                ✓ مفعّل بحسابك 🟢 (دائم مدى الحياة ♾️)
               </span>
             )}
-            {!lec.isFree && (
+            {!isUnlocked && !lec.isFree && (
               <span className="badge badge-primary" style={{ fontWeight: 700 }}>
                 💰 باشتراك ({lec.price || '70 ج.م'})
               </span>
@@ -448,9 +475,10 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                 <span>كافة المراحل</span>
               </button>
               <span className="badge badge-gold">{stage.badge}</span>
-              {isStageSubscribed && (
-                <span className="badge badge-success" style={{ background: '#10B981', color: 'white', fontWeight: 800 }}>
-                  ✓ اشتراك VIP للمرحلة نشط
+              {isStudentSubscribedInStage && !isTeacher && (
+                <span className="badge badge-success" style={{ background: '#10B981', color: 'white', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={13} />
+                  <span>{isStageSubscribed ? '✓ اشتراك VIP للمرحلة نشط' : '✓ طالب مشترك بالمنصة 🟢'}</span>
                 </span>
               )}
             </div>
@@ -465,76 +493,316 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
           </div>
         </div>
 
-        {/* Dynamic Subscription Status Banner */}
-        {isStageSubscribed ? (
+        {/* Dynamic VIP Student Dashboard & Welcome Center */}
+        {isStudentSubscribedInStage && !isTeacher ? (
           <div className="card animate-fade-in" style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.22) 100%)',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.22) 50%, rgba(15, 23, 42, 0.15) 100%)',
             border: '2px solid #10B981',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.5rem 2rem',
-            marginBottom: '2rem',
-            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1.25rem'
+            borderRadius: 'var(--radius-2xl, 24px)',
+            padding: '2rem',
+            marginBottom: '2.5rem',
+            boxShadow: '0 12px 35px rgba(16, 185, 129, 0.2)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Ambient Background Glow */}
+            <div style={{
+              position: 'absolute',
+              top: '-60px',
+              left: '-60px',
+              width: '200px',
+              height: '200px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)',
+              pointerEvents: 'none'
+            }} />
+
+            {/* Top Greeting Bar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1.25rem',
+              borderBottom: '1px solid rgba(16, 185, 129, 0.25)',
+              paddingBottom: '1.5rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '20px',
+                  background: 'linear-gradient(135deg, #10B981 0%, #047857 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.45)',
+                  flexShrink: 0
+                }}>
+                  <Award size={36} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ 
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', 
+                      color: 'white', 
+                      padding: '4px 12px', 
+                      borderRadius: '9999px', 
+                      fontSize: '0.82rem', 
+                      fontWeight: 900,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)'
+                    }}>
+                      <ShieldCheck size={15} />
+                      <span>أنت حالياً مشترك رسمي في المنصة 🟢</span>
+                    </span>
+
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      padding: '4px 12px',
+                      borderRadius: '9999px',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      color: 'var(--text-secondary)'
+                    }}>
+                      🔒 موثق ومربوط بحسابك: {currentUser?.email || currentUser?.name || 'طالب متميز'}
+                    </span>
+                  </div>
+
+                  <h2 style={{ fontSize: '1.45rem', fontWeight: 900, margin: '0 0 6px', color: 'var(--text-main)' }}>
+                    أهلاً بك يا {currentUser?.name || 'طالبنا المتميز'} في {stage.name}! 🎓✨
+                  </h2>
+
+                  <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6', maxWidth: '720px' }}>
+                    منصة <strong style={{ color: '#10B981' }}>The Master</strong> ومستر <strong style={{ color: '#10B981' }}>مايكل شحاتة</strong> ترحب بك وتتمنى لك رحلة تعليمية ملهمة وممتعة وتحقيق أعلى الدرجات والتفوق في اللغة الإنجليزية!
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Device Pill */}
               <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                color: 'white',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-lg)',
+                color: '#059669',
+                fontSize: '0.82rem',
+                fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 18px rgba(16, 185, 129, 0.45)',
-                flexShrink: 0
+                gap: '8px'
               }}>
-                <ShieldCheck size={32} />
+                <CheckCircle2 size={16} color="#10B981" />
+                <span>مفتوح ومفعل على جميع أجهزتك (موبايل، تابلت، كمبيوتر)</span>
               </div>
+            </div>
+
+            {/* Subscription Validity Section (يفضل سارياً لحد إمتى) */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '1.1rem 1.4rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ 
-                    background: '#10B981', color: 'white', padding: '3px 10px', 
-                    borderRadius: '20px', fontSize: '0.78rem', fontWeight: 900 
-                  }}>
-                    🟢 الحالة: مشترك بالمرحلة (VIP)
-                  </span>
-                  <span style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 800 }}>
-                    مفعل ومربوط بحسابك ✅
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10B981' }}>
+                    {isStageSubscribed 
+                      ? '🏆 نطاق الاشتراك: اشتراك المرحلة بالكامل (VIP All-Access)' 
+                      : isAnySectionSubscribed 
+                      ? `📅 نطاق الاشتراك: ${subscribedSections.map(s => s.title).join(' • ')}`
+                      : '🎯 نطاق الاشتراك: اشتراك محاضرة محددة'}
                   </span>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'var(--text-main)' }}>
-                  جميع شهور وكورسات {stage.name} مفتوحة لك وجاهزة للمشاهدة فوراً
-                </h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                  {stageSub.startDateFormatted && (
-                    <span>📅 تاريخ البداية: <strong>{stageSub.startDateFormatted}</strong></span>
-                  )}
-                  {stageSub.startDateFormatted && <span>•</span>}
-                  <span>📅 تاريخ الانتهاء: <strong>{stageSub.expiresAtFormatted}</strong></span>
-                  <span>•</span>
-                  <span>⏳ متبقي في اشتراك المرحلة: <strong style={{ color: '#059669' }}>{stageSub.daysRemaining} يوم</strong></span>
+                <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>⏳ مدة وصلاحية الاشتراك:</span>
+                  <span style={{ color: '#059669', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 10px', borderRadius: '8px' }}>
+                    ♾️ اشتراك دائم مدى الحياة (Permanent)
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                  {isStageSubscribed 
+                    ? 'يفتح لك جميع شهور ومحاضرات هذه المرحلة الحالية، وأي محاضرات أو شهور جديدة تنزل مستقبلاً دون أي تكلفة إضافية.'
+                    : 'يظل هذا الشهر ومحاضراته وواجباته وامتحاناته مفتوحاً لك دائماً، بما في ذلك أي محاضرات جديدة تُضاف لنفس الشهر مستقبلاً، حتى بعد مرور سنوات!'}
+                </p>
+              </div>
+
+              <button
+                onClick={onOpenCodeModal}
+                className="btn btn-secondary btn-sm"
+                style={{ gap: '6px', fontSize: '0.82rem', fontWeight: 700 }}
+              >
+                <Key size={14} />
+                <span>شحن كود شهر إضافي 🔑</span>
+              </button>
+            </div>
+
+            {/* 4 Academic KPI Information Boxes (كم معلومة كده) */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.25rem'
+            }}>
+              {/* Box 1: Available Lectures */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10B981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <BookOpen size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                    {accessibleLectures.length} محاضرة
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    متاحة للمشاهدة بدون تقطيع
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Watch Progress */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  color: '#3B82F6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Play size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                    {completedCount} من {accessibleLectures.length} مكتملة
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    نسبة الإنجاز: {accessibleLectures.length > 0 ? Math.round((completedCount / accessibleLectures.length) * 100) : 0}% 🚀
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 3: Homework & Exams */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#F59E0B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Award size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                    {submittedHwCount} واجب • {completedExamsCount} امتحان
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    متابعة أسبوعية مع المستر
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 4: Student XP & Level */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  color: '#A855F7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                    {currentUser?.xp || 100} XP
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    المستوى {Math.floor((currentUser?.xp || 100) / 100) + 1} ⚡ استمر في التفوق
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Motivational Advice Strip from Teacher */}
             <div style={{
-              background: 'rgba(16, 185, 129, 0.15)',
-              color: '#065F46',
-              padding: '8px 14px',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px dashed rgba(16, 185, 129, 0.35)',
               borderRadius: 'var(--radius-lg)',
-              fontWeight: 800,
-              fontSize: '0.85rem',
+              padding: '0.75rem 1.25rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '10px',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)'
             }}>
-              <CheckCircle2 size={18} color="#10B981" />
-              <span>مفتوح على كل أجهزتك</span>
+              <span style={{ fontSize: '1.1rem' }}>💡</span>
+              <span>
+                <strong style={{ color: 'var(--text-main)' }}>نصيحة مستر مايكل:</strong> ركز في حل التدريبات والواجبات فور الانتهاء من سماع كل محاضرة، واستعن بالمذكرات المرفقة لضمان تثبيت المعلومة والحصول على الدرجة النهائية!
+              </span>
             </div>
           </div>
         ) : stageSub.isExpired ? (
@@ -604,7 +872,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               </a>
             </div>
           </div>
-        ) : (
+        ) : !isTeacher ? (
           <div className="card" style={{
             background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.03) 100%)',
             border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -669,7 +937,7 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Teacher Preview Mode Notice Banner */}
         {isTeacher && (
@@ -890,19 +1158,19 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
 
                         {isSecSubscribed ? (
                           <span style={{
-                            padding: '3px 10px',
+                            padding: '4px 12px',
                             borderRadius: '20px',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
-                            background: '#10B981',
+                            fontSize: '0.78rem',
+                            fontWeight: 900,
+                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                             color: 'white',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '5px',
+                            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
                           }}>
-                            <Check size={13} />
-                            <span>مفتوح ضمن اشتراكك</span>
-                            {secSub.daysRemaining ? ` (متبقي ${secSub.daysRemaining} يوم)` : ''}
+                            <CheckCircle2 size={14} />
+                            <span>مفعّل ومفتوح بحسابك 🟢 • دائم مدى الحياة ♾️</span>
                           </span>
                         ) : secSub.isExpired ? (
                           <span style={{
@@ -940,6 +1208,24 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    {isSecSubscribed && (
+                      <span style={{
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        color: '#059669',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-lg)',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <CheckCircle2 size={15} color="#10B981" />
+                        <span>جاهز للمشاهدة فوراً 🟢</span>
+                      </span>
+                    )}
+
                     {!isSecSubscribed && (
                       <>
                         <a

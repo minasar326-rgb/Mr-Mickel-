@@ -90,6 +90,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const [bufferAheadSeconds, setBufferAheadSeconds] = useState(0);
   const retryCountRef = useRef(0);
   const stallTimerRef = useRef(null);
+  const bufferingTimeoutRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -159,13 +160,13 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   const [isHwSubmitted, setIsHwSubmitted] = useState(!!(lecture && homeworkSubmissions?.[lecture.id]));
 
   // Anti-Piracy Watermark Coordinates Animation
-  const [watermarkPos, setWatermarkPos] = useState({ top: '15%', left: '20%' });
+  const [watermarkPos, setWatermarkPos] = useState({ x: 20, y: 15 });
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const randomTop = Math.floor(10 + Math.random() * 70) + '%';
-      const randomLeft = Math.floor(10 + Math.random() * 65) + '%';
-      setWatermarkPos({ top: randomTop, left: randomLeft });
+      const rx = Math.floor(8 + Math.random() * 65);
+      const ry = Math.floor(10 + Math.random() * 70);
+      setWatermarkPos({ x: rx, y: ry });
     }, 8000);
 
     return () => clearInterval(interval);
@@ -260,16 +261,23 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
       }
     }
     const pct = Math.min(100, Math.round((maxBufferedEnd / video.duration) * 100));
-    setBufferedPercent(pct);
-    setBufferAheadSeconds(Math.round(forwardBuffer));
+    const ahead = Math.round(forwardBuffer);
+    setBufferedPercent(prev => Math.abs(prev - pct) >= 2 ? pct : prev);
+    setBufferAheadSeconds(prev => Math.abs(prev - ahead) >= 2 ? ahead : prev);
   };
 
   const handleWaiting = () => {
-    setIsBuffering(true);
-    updateBufferedProgress();
+    if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
+    bufferingTimeoutRef.current = setTimeout(() => {
+      setIsBuffering(true);
+    }, 350);
   };
 
   const handlePlaying = () => {
+    if (bufferingTimeoutRef.current) {
+      clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
     setIsBuffering(false);
     setIsPlaying(true);
     setVideoHasError(false);
@@ -282,11 +290,19 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
   };
 
   const handleCanPlay = () => {
+    if (bufferingTimeoutRef.current) {
+      clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
     setIsBuffering(false);
     updateBufferedProgress();
   };
 
   const handleCanPlayThrough = () => {
+    if (bufferingTimeoutRef.current) {
+      clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
     setIsBuffering(false);
     updateBufferedProgress();
   };
@@ -781,13 +797,14 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
-                onCanPlay={() => { setIsBuffering(false); updateBufferedProgress(); }}
-                onCanPlayThrough={() => { setIsBuffering(false); updateBufferedProgress(); }}
-                onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => { setIsBuffering(false); setVideoHasError(false); updateBufferedProgress(); }}
-                onProgress={updateBufferedProgress}
+                onCanPlay={handleCanPlay}
+                onCanPlayThrough={handleCanPlayThrough}
+                onWaiting={handleWaiting}
+                onPlaying={handlePlaying}
+                onProgress={handleProgress}
+                onStalled={handleStalled}
                 onClick={togglePlay}
-                onError={() => { setIsBuffering(false); setVideoHasError(true); }}
+                onError={handleVideoError}
                 controlsList="nodownload nofullscreen noremoteplayback"
                 disablePictureInPicture
                 disableRemotePlayback
@@ -847,21 +864,23 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
             </div>
           )}
 
-          {/* Dynamic Floating Watermark (Anti-Screen Recording) */}
+          {/* Dynamic Floating Watermark (Anti-Screen Recording - GPU Accelerated) */}
           <div style={{
             position: 'absolute',
-            top: watermarkPos.top,
-            left: watermarkPos.left,
+            top: 0,
+            left: 0,
+            transform: `translate3d(${watermarkPos.x}vw, ${watermarkPos.y}vh, 0)`,
+            willChange: 'transform',
+            transition: 'transform 2.5s cubic-bezier(0.25, 1, 0.5, 1)',
             pointerEvents: 'none',
             color: 'rgba(255, 255, 255, 0.42)',
             fontSize: '0.85rem',
             fontWeight: 800,
             textShadow: '0 0 4px rgba(0,0,0,0.8)',
-            background: 'rgba(0, 0, 0, 0.35)',
+            background: 'rgba(0, 0, 0, 0.4)',
             padding: '4px 10px',
             borderRadius: '6px',
             border: '1px solid rgba(255, 255, 255, 0.15)',
-            transition: 'top 2s ease, left 2s ease',
             zIndex: 10,
             userSelect: 'none'
           }}>
@@ -877,14 +896,13 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              background: 'rgba(15, 23, 42, 0.85)',
-              backdropFilter: 'blur(8px)',
+              background: 'rgba(15, 23, 42, 0.92)',
               padding: '16px 24px',
               borderRadius: '16px',
               border: '1px solid rgba(245, 158, 11, 0.4)',
               color: 'white',
               zIndex: 16,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
               pointerEvents: 'none'
             }}>
               <Loader2 size={36} className="animate-spin" style={{ color: '#F59E0B' }} />
@@ -894,7 +912,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
                 </p>
                 {bufferAheadSeconds > 0 && (
                   <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-                    تم تخزين ${bufferAheadSeconds} ثانية مسبقاً
+                    تم تخزين {bufferAheadSeconds} ثانية مسبقاً
                   </span>
                 )}
               </div>
@@ -905,7 +923,7 @@ export default function LecturePlayerRoom({ lectureId, onNavigate, onOpenCodeMod
           <div style={{
             position: 'absolute',
             bottom: '22%',
-            right: watermarkPos.left,
+            right: `${watermarkPos.x}%`,
             pointerEvents: 'none',
             color: 'rgba(255, 255, 255, 0.16)',
             fontSize: '0.72rem',

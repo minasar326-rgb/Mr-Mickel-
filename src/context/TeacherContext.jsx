@@ -554,6 +554,48 @@ export function TeacherProvider({ children }) {
     return Array.from(map.values());
   };
 
+  const areLecturesEqual = (a = [], b = []) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const la = a[i];
+      const lb = b[i];
+      if (!la || !lb) return false;
+      if (la.id !== lb.id) return false;
+      if (la.videoUrl !== lb.videoUrl) return false;
+      if (la.title !== lb.title) return false;
+      if (Boolean(la.isLocked) !== Boolean(lb.isLocked)) return false;
+      if (Boolean(la.isFree) !== Boolean(lb.isFree)) return false;
+      if (Boolean(la.isDeleted) !== Boolean(lb.isDeleted)) return false;
+      if (la.duration !== lb.duration) return false;
+      if (la.stageId !== lb.stageId) return false;
+      if (la.sectionId !== lb.sectionId) return false;
+      if (la.videoStatus !== lb.videoStatus) return false;
+    }
+    return true;
+  };
+
+  const areStagesEqual = (a = [], b = []) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i]?.id !== b[i]?.id || a[i]?.name !== b[i]?.name) return false;
+    }
+    return true;
+  };
+
+  const areSectionsEqual = (a = [], b = []) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i]?.id !== b[i]?.id || a[i]?.title !== b[i]?.title || a[i]?.stageId !== b[i]?.stageId) return false;
+    }
+    return true;
+  };
+
   const applyCloudManifest = (manifestData) => {
     if (!manifestData) return false;
     let anyApplied = false;
@@ -599,6 +641,9 @@ export function TeacherProvider({ children }) {
     if (incomingLectures.length > 0 || deletedChanged) {
       setLectures(prev => {
         const merged = mergeLectures(prev, sanitizeLectures(incomingLectures), incomingDeletedIds);
+        if (areLecturesEqual(prev, merged)) {
+          return prev;
+        }
         try { localStorage.setItem('ms_lectures', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
@@ -610,6 +655,9 @@ export function TeacherProvider({ children }) {
       if (Array.isArray(manifestData.stages) && manifestData.stages.length > 0) {
         setStages(prev => {
           const merged = mergeStages(prev, manifestData.stages);
+          if (areStagesEqual(prev, merged)) {
+            return prev;
+          }
           try { localStorage.setItem('ms_stages', JSON.stringify(merged)); } catch (e) {}
           return merged;
         });
@@ -618,6 +666,9 @@ export function TeacherProvider({ children }) {
       if (Array.isArray(manifestData.sections) && manifestData.sections.length > 0) {
         setSections(prev => {
           const merged = mergeSections(prev, manifestData.sections);
+          if (areSectionsEqual(prev, merged)) {
+            return prev;
+          }
           try { localStorage.setItem('ms_sections', JSON.stringify(merged)); } catch (e) {}
           return merged;
         });

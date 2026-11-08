@@ -822,20 +822,30 @@ export function TeacherProvider({ children }) {
 
   // 3. Lectures
   const [lectures, setLectures] = useState(() => {
+    const deletedIds = getDeletedLectureIds();
+    if (typeof window !== 'undefined' && Array.isArray(window.__MS_DELETED_LECTURES__)) {
+      window.__MS_DELETED_LECTURES__.forEach(id => { if (id) deletedIds.add(id); });
+    }
     try {
       const saved = localStorage.getItem('ms_lectures');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const cleaned = sanitizeLectures(parsed);
-          try {
-            localStorage.setItem('ms_lectures', JSON.stringify(cleaned));
-          } catch (e) {}
-          return cleaned;
+          const cleaned = sanitizeLectures(parsed).filter(l => l && l.id && !deletedIds.has(l.id) && !l.isDeleted);
+          if (cleaned.length > 0) {
+            try {
+              localStorage.setItem('ms_lectures', JSON.stringify(cleaned));
+            } catch (e) {}
+            return cleaned;
+          }
         }
       }
     } catch (e) {}
-    return sanitizeLectures(initialLectures);
+    if (typeof window !== 'undefined' && Array.isArray(window.__MS_LECTURES_MANIFEST__)) {
+      const manifestList = sanitizeLectures(window.__MS_LECTURES_MANIFEST__).filter(l => l && l.id && !deletedIds.has(l.id) && !l.isDeleted);
+      if (manifestList.length > 0) return manifestList;
+    }
+    return sanitizeLectures(initialLectures).filter(l => l && l.id && !deletedIds.has(l.id) && !l.isDeleted);
   });
 
   // 4. Booklets

@@ -265,7 +265,8 @@ async function checkAndOptimizeAllVideos() {
     }
   }
 
-  const lectures = manifest.lectures || [];
+  const initialDeletedSet = new Set(manifest.deletedLectureIds || []);
+  const lectures = (manifest.lectures || []).filter(l => l && l.id && !initialDeletedSet.has(l.id));
   let manifestChanged = false;
 
   for (const lec of lectures) {
@@ -333,8 +334,36 @@ async function checkAndOptimizeAllVideos() {
 
   if (manifestChanged) {
     console.log('[AutoTranscode] Saving and syncing updated manifests to Cloudflare R2...');
-    manifest.updatedAt = new Date().toISOString();
-    const jsonStr = JSON.stringify(manifest, null, 2);
+    let latestManifest = manifest;
+    try {
+      latestManifest = await fetchJson(manifestUrl);
+    } catch (_) {}
+
+    const latestDeletedSet = new Set([
+      ...(manifest.deletedLectureIds || []),
+      ...(latestManifest.deletedLectureIds || [])
+    ]);
+
+    const updatedUrlMap = new Map();
+    lectures.forEach(l => {
+      if (l.videoUrl && l.videoUrl.includes('_faststart.mp4')) {
+        updatedUrlMap.set(l.id, l.videoUrl);
+      }
+    });
+
+    const finalLectures = (latestManifest.lectures || [])
+      .filter(l => l && l.id && !latestDeletedSet.has(l.id))
+      .map(l => {
+        if (updatedUrlMap.has(l.id)) {
+          return { ...l, videoUrl: updatedUrlMap.get(l.id) };
+        }
+        return l;
+      });
+
+    latestManifest.lectures = finalLectures;
+    latestManifest.deletedLectureIds = Array.from(latestDeletedSet);
+    latestManifest.updatedAt = new Date().toISOString();
+    const jsonStr = JSON.stringify(latestManifest, null, 2);
 
     // Save locally
     ['public/lectures-manifest.json', 'lectures-manifest.json'].forEach(p => {

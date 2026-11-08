@@ -1,277 +1,600 @@
 export const lecturesData = [
-  // ==========================================
-  // الصف الثالث الثانوي (Senior 3)
-  // ==========================================
   {
-    id: "lec-s3-01",
-    stageId: "sec-3",
-    sectionId: "sec3-month-1",
-    unitNumber: "Unit 1",
-    title: "المحاضرة 1: شرح أزمنة الماضي (Past Simple, Continuous & Perfect) والكلمات الأساسية",
-    subtitle: "تفكيك قواعد الوحدة الأولى والفرق الدقيق بين Past Simple و Past Perfect مع حل 100 جملة من امتحانات الثانوية السابقة.",
-    duration: "1:45:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 4250,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الشرح والتدريبات - الوحدة الأولى (The Master Booklet).pdf",
-      size: "4.8 MB",
-      pages: 32,
-      previewImages: [
-        "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
-        "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80"
-      ]
+    "stageId": "stage-1793823838440",
+    "stageName": "خامسه ابتدائى",
+    "sectionId": "sec-1794003102422",
+    "unitNumber": "Unit 5",
+    "title": "شرح قاعده المقارنه الجزء الاول ",
+    "subtitle": "تفكيك وتبسيط القواعد بشكل سهل ",
+    "duration": "18:01",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823838440/lectures/videos/1793998629056_1106_1__faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1106(1).mp4",
+    "videoFileSize": "125.3 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "30 ج.م",
+    "homeworkRequired": true,
+    "examRequired": true,
+    "exam": {
+      "id": "exam-1794001152668",
+      "lectureId": "lec-1794001152669",
+      "title": "امتحان: شرح قاعده المقارنه الجزء الاول",
+      "timeMinutes": 25,
+      "totalMarks": 20,
+      "passingMarks": 10,
+      "maxAttempts": 2,
+      "showResult": true,
+      "showCorrectAnswers": true,
+      "status": "published",
+      "questions": [
+        {
+          "id": "q-1794000714476-0zvp",
+          "type": "short_answer",
+          "question": "1. Ali is (tall) than Omar. صحح الخطا",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "taller",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794000915094-rg65",
+          "type": "short_answer",
+          "question": "2. A car is( fastest) than a bike. صحح الخطا",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "faster",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794000986368-aqtm",
+          "type": "short_answer",
+          "question": "3. My bag is( biger) than yours.",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "bigger",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794001046444-p4t1",
+          "type": "short_answer",
+          "question": "4. A lion is (strong) than a cat.",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "stronger",
+          "points": 4,
+          "explanation": ""
+        }
+      ],
+      "createdAt": "2026-11-06T22:14:55.705Z",
+      "hasManualQuestions": true
     },
-    vocabList: [
-      { word: "Piracy", ipa: "/ˈpaɪ.rə.si/", arabic: "القرصنة / سرقة الملكية الفكرية", example: "Online piracy causes severe losses to publishers.", ukAudio: "https://actions.google.com/sounds/v1/speech/piracy_uk.mp3", usAudio: "https://actions.google.com/sounds/v1/speech/piracy_us.mp3" },
-      { word: "Casualty", ipa: "/ˈkæʒ.u.əl.ti/", arabic: "ضحية / خسائر بشرية ومادية", example: "The accident caused several casualties.", ukAudio: "#", usAudio: "#" },
-      { word: "Compensate", ipa: "/ˈkɒm.pən.seɪt/", arabic: "يعوض (عن ضرر أو خسارة)", example: "The company compensated the workers for the delay.", ukAudio: "#", usAudio: "#" },
-      { word: "Tabloid", ipa: "/ˈtæb.lɔɪd/", arabic: "صحيفة شعبية (تركز على الإثارة والصور)", example: "Tabloid newspapers usually have sensational headlines.", ukAudio: "#", usAudio: "#" },
-      { word: "Broadsheet", ipa: "/ˈbrɔːd.ʃiːt/", arabic: "صحيفة رسمية كبيرة ورصينة", example: "The Times is a well-known British broadsheet.", ukAudio: "#", usAudio: "#" },
-      { word: "Investigate", ipa: "/ɪnˈves.tɪ.ɡeɪt/", arabic: "يحقق في / يبحث عن الحقيقة", example: "Police are investigating the cause of the incident.", ukAudio: "#", usAudio: "#" }
-    ],
-    grammarRules: [
+    "pdfBooklet": {
+      "title": "مذكرة The Master الشاملة.pdf",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
+    },
+    "vocabList": [
       {
-        title: "الفرق بين Past Simple و Past Continuous",
-        rule: "Past Simple يعبر عن حدث بدأ وانتهى في الماضي، بينما Past Continuous يعبر عن حدث كان مستمراً وقطعه حدث آخر (While / As / Just as + Past Continuous, Past Simple).",
-        example: "While I was studying English, the light went out."
-      },
-      {
-        title: "الماضي التام (Past Perfect: Had + P.P)",
-        rule: "يستخدم للتعبير عن الحدث الأول الذي وقع قبل حدث آخر في الماضي (After / As soon as + Had + P.P, Past Simple).",
-        example: "After he had finished his homework, he went to sleep."
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
       }
     ],
-    homeworkSheet: {
-      title: "واجب المحاضرة الأولى - مذكرة The Master (صفحة 14 إلى 22)",
-      totalQuestions: 60,
-      dueDate: "الخميس القادم الساعة 11:59 مساءً"
-    }
-  },
-  {
-    id: "lec-s3-02",
-    stageId: "sec-3",
-    sectionId: "sec3-month-1",
-    unitNumber: "Unit 2",
-    title: "المحاضرة 2: أزمنة المضارع التام (Present Perfect & Continuous) والمشتقات",
-    subtitle: "شرح الفروق الجوهرية بين Since و For و Have been to و Have gone to مع حل بنك أسئلة الوزارة.",
-    duration: "2:05:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 2,
-    viewsCount: 3890,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الوحدة الثانية - مراجعة المضارع التام وحروف الجر.pdf",
-      size: "5.1 MB",
-      pages: 28,
-      previewImages: ["https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80"]
-    },
-    vocabList: [
-      { word: "Prejudice", ipa: "/ˈpredʒ.ə.dɪs/", arabic: "التحيز والتعصب الأعمى", example: "We must eliminate prejudice in our community.", ukAudio: "#", usAudio: "#" },
-      { word: "Stereotype", ipa: "/ˈster.i.ə.taɪp/", arabic: "صورة نمطية مسبقة", example: "Challenging cultural stereotypes is important.", ukAudio: "#", usAudio: "#" },
-      { word: "Inspire", ipa: "/ɪnˈspaɪər/", arabic: "يلهم ويحفز", example: "Her perseverance inspires all of us.", ukAudio: "#", usAudio: "#" },
-      { word: "Significant", ipa: "/sɪɡˈnɪf.ɪ.kənt/", arabic: "هام / ذو مغزى وتأثير كبير", example: "He made a significant contribution to science.", ukAudio: "#", usAudio: "#" }
-    ],
-    grammarRules: [
+    "grammarRules": [
       {
-        title: "Present Perfect (Have / Has + P.P)",
-        rule: "يعبر عن حدث تم في الماضي وله أثر واضح في الحاضر أو خبرات وتجارب سابقة دون تحديد وقت حدوثها بدقة.",
-        example: "I have lost my keys, so I cannot open the door now."
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
       }
-    ]
+    ],
+    "id": "lec-1794001152669",
+    "viewsCount": 1,
+    "order": 8,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "createdByName": "Michael Shehata",
+    "createdAt": "2026-11-06T21:39:12.669Z",
+    "lastSavedAt": "2026-11-06T21:39:12.735Z",
+    "updatedAt": "2026-11-06T22:14:55.705Z",
+    "updatedByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "updatedByName": "Michael Shehata",
+    "isStreamOptimized": true,
+    "allowDirectWatch": false
   },
   {
-    id: "lec-s3-03",
-    stageId: "sec-3",
-    sectionId: "sec3-month-2",
-    unitNumber: "Unit 3",
-    title: "المحاضرة 3: المستقبل بجميع أشكاله (Future Forms) وكتابة المقال (Essay Writing)",
-    subtitle: "متى نستخدم Will و Going to و Present Continuous و Present Simple للتعبير عن المستقبل + أسرار كتابة الإيسي المقالي.",
-    duration: "1:55:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 3,
-    viewsCount: 3410,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الوحدة الثالثة ودليل كتابة المقال المقالي بالتفصيل.pdf",
-      size: "6.2 MB",
-      pages: 35
+    "stageId": "stage-1793823838440",
+    "stageName": "خامسه ابتدائى",
+    "sectionId": "sec-1794003102422",
+    "unitNumber": "Unit 5",
+    "title": "شرح قاعده المقارنه الجزء 2",
+    "subtitle": "تبسيط كامل للمعلومه ",
+    "duration": "5:59",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823838440/lectures/videos/1794002936724_1106_2__faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1106(2).mp4",
+    "videoFileSize": "48.4 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "30 ج.م",
+    "homeworkRequired": true,
+    "examRequired": true,
+    "exam": {
+      "id": "exam-1794002706070",
+      "lectureId": "lec-1794002706071",
+      "title": "امتحان: شرح قاعده المقارنه الجزء 2",
+      "timeMinutes": 5,
+      "totalMarks": 20,
+      "passingMarks": 10,
+      "maxAttempts": 2,
+      "showResult": true,
+      "showCorrectAnswers": true,
+      "status": "published",
+      "questions": [
+        {
+          "id": "q-1794002478609-504w",
+          "type": "short_answer",
+          "question": "",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "5. Mona is( happyer )than Sara. صحح الخطا",
+          "points": 4,
+          "explanation": "happier"
+        },
+        {
+          "id": "q-1794002537606-nwo0",
+          "type": "short_answer",
+          "question": "English is (good) than Arabic ",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "better",
+          "points": 4,
+          "explanation": ""
+        }
+      ],
+      "createdAt": "2026-11-06T22:14:29.035Z",
+      "hasManualQuestions": true
     },
-    vocabList: [
-      { word: "Astronaut", ipa: "/ˈæs.trə.nɔːt/", arabic: "رائد فضاء", example: "Astronauts travel into outer space.", ukAudio: "#", usAudio: "#" },
-      { word: "Innovation", ipa: "/ˌɪn.əˈveɪ.ʃən/", arabic: "ابتكار / إبداع جديد", example: "Technological innovation shapes our future.", ukAudio: "#", usAudio: "#" }
-    ]
+    "pdfBooklet": {
+      "title": "مذكرة The Master الشاملة.pdf",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
+    },
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1794002706071",
+    "viewsCount": 1,
+    "order": 2,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "createdByName": "Michael Shehata",
+    "createdAt": "2026-11-06T22:05:06.071Z",
+    "lastSavedAt": "2026-11-06T22:05:06.237Z",
+    "updatedAt": "2026-11-06T22:14:29.036Z",
+    "updatedByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "updatedByName": "Michael Shehata",
+    "isStreamOptimized": true,
+    "allowDirectWatch": false
   },
-
-  // ==========================================
-  // الصف الثاني الثانوي (Senior 2)
-  // ==========================================
   {
-    id: "lec-s2-01",
-    stageId: "sec-2",
-    sectionId: "sec2-month-1",
-    unitNumber: "Unit 1",
-    title: "المحاضرة 1 (2ث): قواعد الإلزام والضرورة (Must, Have to, Need to) ومفردات الصحة",
-    subtitle: "شرح شامل للضرورة في المضارع والماضي والمستقبل ونفيها (Mustn't vs Don't have to) مع حل تدريبات شاملة.",
-    duration: "1:30:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 2900,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الصف الثاني الثانوي - الوحدة الأولى (The Master).pdf",
-      size: "3.9 MB",
-      pages: 24
+    "stageId": "stage-1793823853201",
+    "stageName": "سادسه ابتدائى",
+    "sectionId": "sec-1794034221104",
+    "unitNumber": "Unit 5",
+    "title": "شرح زمن ماضى بسيط ",
+    "subtitle": "تسهيل القواعد ",
+    "duration": "24:19",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823853201/lectures/videos/1794035264323_1107_faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1107_faststart.mp4",
+    "videoFileSize": "148.0 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "30 ج.م",
+    "isLocked": true,
+    "homeworkRequired": true,
+    "examRequired": true,
+    "exam": {
+      "id": "exam-1794035946144",
+      "lectureId": null,
+      "title": "امتحان: شرح زمن ماضى بسيط",
+      "timeMinutes": 10,
+      "totalMarks": 20,
+      "passingMarks": 10,
+      "maxAttempts": 2,
+      "showResult": true,
+      "showCorrectAnswers": true,
+      "status": "published",
+      "questions": [
+        {
+          "id": "q-1794035308901-2wig",
+          "type": "short_answer",
+          "question": "yesterday I (catch) fish",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "caught",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794035389147-bwdw",
+          "type": "short_answer",
+          "question": "we (share) our food last night ",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "shared ",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794035453648-66ka",
+          "type": "short_answer",
+          "question": "?Be) she at home last night )",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "was",
+          "points": 4,
+          "explanation": ""
+        },
+        {
+          "id": "q-1794035579230-rcpp",
+          "type": "short_answer",
+          "question": "?were you happy yesterday\n(yes I (were",
+          "questionImage": "",
+          "options": [],
+          "optionImages": [],
+          "correctAnswer": 0,
+          "modelAnswer": "was",
+          "points": 4,
+          "explanation": ""
+        }
+      ],
+      "createdAt": "2026-11-07T07:19:06.144Z",
+      "hasManualQuestions": true
     },
-    vocabList: [
-      { word: "Emergency", ipa: "/ɪˈmɜː.dʒən.si/", arabic: "حالة طوارئ", example: "In case of emergency, call the medical team.", ukAudio: "#", usAudio: "#" },
-      { word: "Infection", ipa: "/ɪnˈfek.ʃən/", arabic: "عدوى / التهاب", example: "Wash your hands to prevent infection.", ukAudio: "#", usAudio: "#" }
-    ]
+    "pdfBooklet": {
+      "title": "",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
+    },
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1794035946145",
+    "viewsCount": 1,
+    "order": 3,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "createdByName": "Michael Shehata",
+    "createdAt": "2026-11-07T07:19:06.145Z",
+    "allowDirectWatch": false,
+    "lastSavedAt": "2026-11-08T21:02:00.229Z",
+    "updatedAt": null
   },
-
-  // ==========================================
-  // الصف الأول الثانوي (Senior 1)
-  // ==========================================
   {
-    id: "lec-s1-01",
-    stageId: "sec-1",
-    sectionId: "sec1-month-1",
-    unitNumber: "Unit 1",
-    title: "المحاضرة 1 (1ث): الماضي البسيط والمستمر والتأسيس في بناء الجملة الإنجليزية",
-    subtitle: "مدخل قوي للمرحلة الثانوية: تركيب الجملة الإنجليزية الصحيحة + شرح قواعد الوحدة الأولى من الصفر.",
-    duration: "1:25:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 2400,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الصف الأول الثانوي - الوحدة الأولى والتأسيس.pdf",
-      size: "3.5 MB",
-      pages: 20
+    "stageId": "stage-1793823838440",
+    "stageName": "خامسه ابتدائى",
+    "sectionId": "sec-1794003102422",
+    "unitNumber": "Unit 5",
+    "title": "شرح قاعده مقارنه الصفات الجزء الاول ",
+    "subtitle": "تبسيط المعلومه ",
+    "duration": "18:01",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823838440/lectures/videos/1794004644590_1106_1_.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1106(1).mp4",
+    "videoFileSize": "1314.7 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "70 ج.م",
+    "homeworkRequired": true,
+    "examRequired": false,
+    "exam": null,
+    "pdfBooklet": {
+      "title": "مذكرة The Master الشاملة.pdf",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
     },
-    vocabList: [
-      { word: "Eco-tourism", ipa: "/ˈiː.kəʊˌtʊə.rɪ.zəm/", arabic: "السياحة البيئية المستدامة", example: "Eco-tourism helps protect endangered wildlife.", ukAudio: "#", usAudio: "#" }
-    ]
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1794005194127",
+    "viewsCount": 1,
+    "order": 2,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "pDVoGbrqf9WCxcpsAezeaD4Jl3E2",
+    "createdByName": "Michael Shehata",
+    "createdAt": "2026-11-06T22:46:34.127Z",
+    "updatedByUid": "jzTgonHLhKVOdKR430XpJfOiaB73",
+    "updatedByName": "Mina Sear",
+    "updatedAt": "2026-11-06T22:52:57.338Z",
+    "allowDirectWatch": false,
+    "lastSavedAt": "2026-11-06T22:52:57.429Z"
   },
-
-  // ==========================================
-  // كورس التأسيس والمحادثة (Foundation)
-  // ==========================================
   {
-    id: "lec-fnd-01",
-    stageId: "foundation",
-    sectionId: "fnd-month-1",
-    unitNumber: "Level 1",
-    title: "المحاضرة 1: أسرار النطق الصوتي الصحيح وقواعد الـ Phonetics (UK vs US)",
-    subtitle: "كيف تنطق الحروف المركبة والأصوات الصامتة والمتحركة مثل المتحدث الأصلي بطلاقة وثقة.",
-    duration: "1:15:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 5600,
-    homeworkRequired: false,
-    examRequired: true,
-    pdfBooklet: {
-      title: "كتيب أسرار الصوتيات والنطق المتقدم - مستر أحمد حسام.pdf",
-      size: "4.2 MB",
-      pages: 26
+    "stageId": "stage-1793823759992",
+    "stageName": "ثالثه ابتدائى",
+    "sectionId": "",
+    "unitNumber": "Unit 1",
+    "title": "محاضرة الوحدة الأولى الرسمية 1793997305361",
+    "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
+    "duration": "0:03",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997305638_test-laptop-video_faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1793997305638_test-laptop-video_faststart.mp4",
+    "videoFileSize": "0.0 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "70 ج.م",
+    "homeworkRequired": true,
+    "examRequired": false,
+    "exam": null,
+    "pdfBooklet": {
+      "title": "",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
     },
-    vocabList: [
-      { word: "Fluency", ipa: "/ˈfluː.ən.si/", arabic: "الطلاقة والفصاحة في التحدث", example: "Practice is the key to English speaking fluency.", ukAudio: "#", usAudio: "#" },
-      { word: "Pronunciation", ipa: "/prəˌnʌn.siˈeɪ.ʃən/", arabic: "النطق ومخارج الحروف", example: "Good pronunciation makes communication smooth.", ukAudio: "#", usAudio: "#" }
-    ]
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1793997306984",
+    "viewsCount": 1,
+    "order": 9,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "teacher-admin",
+    "createdByName": "Mr. Michael Shehata",
+    "createdAt": "2026-11-06T20:35:06.984Z",
+    "allowDirectWatch": false
   },
-
-  // ==========================================
-  // المرحلة الإعدادية (Preparatory Stage)
-  // ==========================================
   {
-    id: "lec-prep-01",
-    stageId: "prep",
-    sectionId: "prep-month-1",
-    unitNumber: "Unit 1",
-    title: "المحاضرة 1: قواعد ومفردات الوحدة الأولى (Around Town) لطلاب المرحلة الإعدادية",
-    subtitle: "شرح زمن المضارع البسيط واستخدامه في جداول المواعيد مع حل كافة تدريبات كتاب المدرسة وكتاب The Master.",
-    duration: "1:10:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 3800,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "مذكرة الشرح والتدريبات - المرحلة الإعدادية (The Master).pdf",
-      size: "5.1 MB",
-      pages: 28
+    "stageId": "stage-1793823759992",
+    "stageName": "ثالثه ابتدائى",
+    "sectionId": "",
+    "unitNumber": "Unit 1",
+    "title": "محاضرة الوحدة الأولى الرسمية 1793997446618",
+    "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
+    "duration": "0:03",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997446692_test-laptop-video_faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1793997446692_test-laptop-video_faststart.mp4",
+    "videoFileSize": "0.0 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "70 ج.م",
+    "homeworkRequired": true,
+    "examRequired": false,
+    "exam": null,
+    "pdfBooklet": {
+      "title": "",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
     },
-    vocabList: [
-      { word: "Aquarium", ipa: "/əˈkweə.ri.əm/", arabic: "متحف الأحياء المائية", example: "We saw colourful fish at the aquarium.", ukAudio: "#", usAudio: "#" },
-      { word: "Botanical garden", ipa: "/bəˈtæn.ɪ.kəl/", arabic: "حديقة نباتية", example: "The botanical garden has rare trees.", ukAudio: "#", usAudio: "#" },
-      { word: "Monument", ipa: "/ˈmɒn.jə.mənt/", arabic: "أثر تاريخي / تمثال", example: "Cairo has many famous ancient monuments.", ukAudio: "#", usAudio: "#" }
-    ]
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1793997448033",
+    "viewsCount": 1,
+    "order": 10,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "teacher-admin",
+    "createdByName": "Mr. Michael Shehata",
+    "createdAt": "2026-11-06T20:37:28.033Z",
+    "allowDirectWatch": false
   },
-
-  // ==========================================
-  // المرحلة الابتدائية (Primary Stage)
-  // ==========================================
   {
-    id: "lec-pri-01",
-    stageId: "pri",
-    sectionId: "pri-month-1",
-    unitNumber: "Unit 1",
-    title: "المحاضرة 1: التأسيس الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
-    subtitle: "شرح تفاعلي بالرسوم والألوان، تأسيس الفونكس والقواعد الأساسية (Present Simple) بطريقة مبسطة وممتعة.",
-    duration: "0:50:00",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&q=80",
-    isLocked: true,
-    isFree: false,
-    price: "70 ج.م",
-    order: 1,
-    viewsCount: 2900,
-    homeworkRequired: true,
-    examRequired: true,
-    pdfBooklet: {
-      title: "كراسة التأسيس والتلوين لطلاب المرحلة الابتدائية.pdf",
-      size: "3.5 MB",
-      pages: 20
+    "stageId": "stage-1793823853201",
+    "stageName": "سادسه ابتدائى",
+    "sectionId": "sec-1794003485324",
+    "unitNumber": "Unit 4",
+    "title": "اسمع مني ",
+    "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
+    "duration": "1:06",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823759992/lectures/videos/1794004799500_____________________________________-________-_YouTube_and_3_more_pages_-_Personal_-_Microsoft__Edge_2026-08-09_14-10-02_faststart.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "شبيك لبيك _مسرحية عيد النيروز ١٧٤٢ش - ٢٠٢٥م_ - YouTube and 3 more pages - Personal - Microsoft​ Edge 2026-08-09 14-10-02.mp4",
+    "videoFileSize": "12.3 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "70 ج.م",
+    "homeworkRequired": true,
+    "examRequired": false,
+    "exam": null,
+    "pdfBooklet": {
+      "title": "",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
     },
-    vocabList: [
-      { word: "Community garden", ipa: "/kəˈmjuː.nə.ti/", arabic: "حديقة المجتمع / حديقة الحي", example: "We plant fresh vegetables in the community garden.", ukAudio: "#", usAudio: "#" },
-      { word: "Harvest", ipa: "/ˈhɑː.vɪst/", arabic: "يحصد / محصول", example: "Farmers harvest crops in the autumn.", ukAudio: "#", usAudio: "#" },
-      { word: "Organic", ipa: "/ɔːˈɡæn.ɪk/", arabic: "عضوي / طبيعي بدون كيماويات", example: "Organic fruit is delicious and healthy.", ukAudio: "#", usAudio: "#" }
-    ]
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "ا��تثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1794004864599",
+    "viewsCount": 1,
+    "order": 1,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "q8NmqpjUtgMPqqCE7isRunE2wzA3",
+    "createdByName": "Mo On",
+    "createdAt": "2026-11-06T22:41:04.599Z",
+    "isStreamOptimized": true,
+    "allowDirectWatch": false
+  },
+  {
+    "stageId": "stage-1793823759992",
+    "stageName": "ثالثه ابتدائى",
+    "sectionId": "",
+    "unitNumber": "Unit 4",
+    "title": "اول واحد تجربه ",
+    "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
+    "duration": "1:30:00",
+    "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/stage-1793823759992/lectures/videos/1794005068528_1000291446.mp4",
+    "videoStatus": "ready",
+    "localMediaKey": "",
+    "videoFileName": "1000291446.mp4",
+    "videoFileSize": "4.1 MB",
+    "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+    "isFree": false,
+    "price": "70 ج.م",
+    "homeworkRequired": true,
+    "examRequired": false,
+    "exam": null,
+    "pdfBooklet": {
+      "title": "",
+      "size": "5.2 MB",
+      "pages": 30,
+      "url": "",
+      "downloadUrl": ""
+    },
+    "vocabList": [
+      {
+        "word": "Extraordinary",
+        "ipa": "/ɪkˈstrɔː.dɪn.ər.i/",
+        "arabic": "استثنائي / خارق للعادة",
+        "example": "She showed extraordinary commitment."
+      }
+    ],
+    "grammarRules": [
+      {
+        "title": "قاعدة الوحدة الجديدة",
+        "rule": "تطبيق عملي لأهم نقاط الجرامر.",
+        "example": "Hard work leads to success."
+      }
+    ],
+    "id": "lec-1794005081998",
+    "viewsCount": 1,
+    "order": 1,
+    "isLocked": true,
+    "isPermanent": true,
+    "isDeleted": false,
+    "createdByUid": "jzTgonHLhKVOdKR430XpJfOiaB73",
+    "createdByName": "Mina Sear",
+    "createdAt": "2026-11-06T22:44:41.998Z",
+    "allowDirectWatch": false
   }
 ];

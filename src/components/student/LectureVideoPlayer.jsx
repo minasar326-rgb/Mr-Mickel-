@@ -50,6 +50,8 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
   const lastRenderedTimeRef = useRef(0);
   const lastBufferCheckRef = useRef(0);
   const bufferingTimeoutRef = useRef(null);
+  const stallRecoveryTimeoutRef = useRef(null);
+  const retryCountRef = useRef(0);
 
   // Sync progress safely without thrashing React
   const syncProgressNow = useCallback(() => {
@@ -72,6 +74,8 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
     setCurrentTime(0);
     setIsPlaying(false);
     setIsBuffering(false);
+    if (stallRecoveryTimeoutRef.current) { clearTimeout(stallRecoveryTimeoutRef.current); stallRecoveryTimeoutRef.current = null; }
+    retryCountRef.current = 0;
     setVideoHasError(false);
     setBufferedPercent(0);
     setBufferAheadSeconds(0);
@@ -166,7 +170,21 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
     if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
     bufferingTimeoutRef.current = setTimeout(() => {
       setIsBuffering(true);
-    }, 400);
+    }, 1200);
+  };
+
+  const handleStalled = () => {
+    if (stallRecoveryTimeoutRef.current) clearTimeout(stallRecoveryTimeoutRef.current);
+    stallRecoveryTimeoutRef.current = setTimeout(() => {
+      const v = videoRef.current;
+      if (v && !v.paused && v.readyState < 3) {
+        console.warn('[LectureVideoPlayer] Stream stall detected; applying gentle nudge to restore playback...');
+        try {
+          v.currentTime = v.currentTime + 0.05;
+          v.play().catch(() => {});
+        } catch (_) {}
+      }
+    }, 2200);
   };
 
   const handlePlaying = () => {
@@ -174,6 +192,11 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
       clearTimeout(bufferingTimeoutRef.current);
       bufferingTimeoutRef.current = null;
     }
+    if (stallRecoveryTimeoutRef.current) {
+      clearTimeout(stallRecoveryTimeoutRef.current);
+      stallRecoveryTimeoutRef.current = null;
+    }
+    retryCountRef.current = 0;
     setIsBuffering(false);
     setIsPlaying(true);
     setVideoHasError(false);
@@ -181,6 +204,7 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
   };
 
   const handlePause = () => {
+    if (stallRecoveryTimeoutRef.current) { clearTimeout(stallRecoveryTimeoutRef.current); stallRecoveryTimeoutRef.current = null; }
     setIsPlaying(false);
     syncProgressNow();
   };
@@ -214,6 +238,21 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
 
   const handleVideoError = (e) => {
     console.warn('[LectureVideoPlayer] Video playback error caught:', e);
+    const video = videoRef.current;
+    if (video && resolvedVideoUrl && retryCountRef.current < 3) {
+      retryCountRef.current += 1;
+      const savedTime = video.currentTime || lastPlaybackTimeRef.current || 0;
+      console.log(`[LectureVideoPlayer] Auto-recovering dropped stream (attempt ${retryCountRef.current}/3) at ${savedTime.toFixed(1)}s`);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.src = resolvedVideoUrl;
+          videoRef.current.load();
+          videoRef.current.currentTime = savedTime;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 800);
+      return;
+    }
     setVideoHasError(true);
     setIsBuffering(false);
     setIsPlaying(false);
@@ -302,6 +341,8 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
             onCanPlay={handleCanPlay}
             onCanPlayThrough={handleCanPlay}
             onWaiting={handleWaiting}
+            onStalled={handleStalled}
+            onSuspend={handleStalled}
             onPlaying={handlePlaying}
             onPause={handlePause}
             onEnded={handleEnded}

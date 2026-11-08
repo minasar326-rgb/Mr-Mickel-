@@ -1,3 +1,4 @@
+import { optimizeMp4ForStreaming } from './fastStartMp4.js';
 // r2Storage.js — الرفع السحابي المباشر فائق السرعة لـ Cloudflare R2 مع دعم Cloudflare Worker
 import { auth } from './firebase';
 import { validateUploadedFile } from './securityValidator.js';
@@ -220,10 +221,28 @@ export async function uploadFileToR2(file, folderPath = 'lectures/videos', onPro
     throw new UploadError('INVALID_FILE', validation.error || 'فشل التحقق الأمني من الملف.');
   }
 
+  // Optimize video container (FastStart: relocate moov atom before mdat for zero-buffer instant streaming)
+  let fileToUpload = file;
+  if (category === 'video' && file) {
+    try {
+      if (onProgress) {
+        onProgress({ percent: 1, transferredMB: '0', totalMB: (file.size / (1024 * 1024)).toFixed(1), state: 'optimizing' });
+      }
+      const fastStartResult = await optimizeMp4ForStreaming(file);
+      if (fastStartResult && fastStartResult.optimized && fastStartResult.file) {
+        console.log('[r2Storage] FastStart container optimization applied: moov moved before mdat!');
+        fileToUpload = fastStartResult.file;
+        fileToUpload.name = file.name || 'video.mp4';
+      }
+    } catch (optErr) {
+      console.warn('[r2Storage] FastStart pre-pass warning:', optErr);
+    }
+  }
+
   // 1. إذا كان عنوان الـ Worker مضبوطاً، استخدمه
   if (UPLOAD_API_URL && !UPLOAD_API_URL.includes('YOUR-SUBDOMAIN')) {
     try {
-      const res = await uploader.uploadFile(file, { folder: folderPath, category, onProgress, signal });
+      const res = await uploader.uploadFile(fileToUpload, { folder: folderPath, category, onProgress, signal });
       return {
         success: true,
         downloadUrl: res.url,
@@ -238,7 +257,7 @@ export async function uploadFileToR2(file, folderPath = 'lectures/videos', onPro
   }
 
   // 2. الرفع المباشر إلى Cloudflare R2 (جاهز ويعمل دائماً بدون أي إعدادات)
-  return await uploadDirectToR2(file, folderPath, onProgress, signal);
+  return await uploadDirectToR2(fileToUpload, folderPath, onProgress, signal);
 }
 
 async function toBlob(fileOrDataUrl, fallbackType) {

@@ -468,6 +468,12 @@ export default function TeacherAdminCenter({ onNavigate }) {
         ? `${hours}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`
         : `${mins}:${secs < 10 ? '0' : ''}${secs}`;
       setDuration(durStr);
+      if (totalSecs > 0) {
+        const bitrateKbps = Math.round((file.size * 8) / (totalSecs * 1000));
+        if (bitrateKbps > 2500 || file.size > 300 * 1024 * 1024) {
+          addToast(`⚡ تم تفعيل تقنية البث المباشر الفوري (FastStart) تلقائياً لهذا الفيديو (${sizeMB} MB) لضمان انسيابية المشاهدة وعدم التقطيع لدى الطلاب.`, 'info', 7000);
+        }
+      }
     };
 
     await startVideoUpload(file);

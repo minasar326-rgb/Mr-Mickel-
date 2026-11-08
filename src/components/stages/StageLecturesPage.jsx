@@ -140,7 +140,11 @@ export default function StageLecturesPage({ stageId, onNavigate, onOpenCodeModal
   const deletedIds = (() => {
     try {
       const raw = localStorage.getItem('ms_deleted_lectures');
-      return new Set(raw ? JSON.parse(raw) : []);
+      const set = new Set(raw ? JSON.parse(raw) : []);
+      if (typeof window !== 'undefined' && Array.isArray(window.__MS_DELETED_LECTURES__)) {
+        window.__MS_DELETED_LECTURES__.forEach(id => { if (id) set.add(id); });
+      }
+      return set;
     } catch (_) {
       return new Set();
     }

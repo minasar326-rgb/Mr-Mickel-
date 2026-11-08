@@ -597,26 +597,18 @@ export function TeacherProvider({ children }) {
     const deletedIds = getDeletedLectureIds();
     (incomingDeletedIds || []).forEach(id => { if (id) deletedIds.add(id); });
 
+    // Synchronize tombstones in localStorage immediately
+    try {
+      localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
+    } catch (e) {}
+
     if (!Array.isArray(incomingList) || incomingList.length === 0) {
       return (prevList || []).filter(l => l && !l.isDeleted && !deletedIds.has(l.id));
     }
 
-    const incomingIds = new Set(incomingList.map(l => l.id).filter(Boolean));
-    const cloudDeletedSet = new Set(incomingDeletedIds || []);
-
-    // Safety: If incomingList has active lectures not in cloudDeletedSet,
-    // they were NEVER deleted by the teacher! Clear any stale local deletedIds.
-    incomingList.forEach(l => {
-      if (l && l.id && !l.isDeleted && !cloudDeletedSet.has(l.id)) {
-        if (deletedIds.has(l.id)) {
-          deletedIds.delete(l.id);
-        }
-      }
-    });
     const map = new Map();
-    const now = Date.now();
 
-    // 1. Seed with previous/local lectures that are not explicitly deleted
+    // 1. Seed with previous/local lectures that are NOT deleted
     (prevList || []).forEach(item => {
       if (!item || !item.id || deletedIds.has(item.id) || item.isDeleted) {
         return;
@@ -624,18 +616,13 @@ export function TeacherProvider({ children }) {
       map.set(item.id, item);
     });
 
-    try {
-      localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
-    } catch (e) {}
-
-    // 2. Merge incoming cloud/manifest lectures
+    // 2. Merge incoming cloud/manifest lectures - strictly rejecting any deleted items
     incomingList.forEach(incoming => {
       if (!incoming || !incoming.id || deletedIds.has(incoming.id) || incoming.isDeleted) {
         return;
       }
       if (map.has(incoming.id)) {
         const existing = map.get(incoming.id);
-        // Cloud manifest incoming videoUrl always takes precedence (especially FastStart optimized)
         const bestVideoUrl = (incoming.videoUrl && /^https?:\/\//i.test(incoming.videoUrl))
           ? incoming.videoUrl
           : (existing.videoUrl || '');
@@ -656,7 +643,7 @@ export function TeacherProvider({ children }) {
       }
     });
 
-    return Array.from(map.values()).filter(l => !l.isDeleted && !deletedIds.has(l.id));
+    return Array.from(map.values()).filter(l => l && l.id && !deletedIds.has(l.id) && !l.isDeleted);
   };
 
   const mergeStages = (prevList = [], incomingList = []) => {
@@ -761,14 +748,8 @@ export function TeacherProvider({ children }) {
       ? manifestData
       : (Array.isArray(manifestData.lectures) ? manifestData.lectures : []);
     const cloudDeletedSet = new Set(incomingDeletedIds);
-    // Safety: If cloud manifest delivers active lectures not present in cloudDeletedSet,
-    // clear them from localDeleted immediately so they are never suppressed
-    incomingLectures.forEach(l => {
-      if (l && l.id && !l.isDeleted && !cloudDeletedSet.has(l.id) && localDeleted.has(l.id)) {
-        localDeleted.delete(l.id);
-        deletedChanged = true;
-      }
-    });
+    // Strictly filter incoming lectures against known deleted tombstones
+    const safeIncoming = incomingLectures.filter(l => l && l.id && !l.isDeleted && !localDeleted.has(l.id) && !cloudDeletedSet.has(l.id));
     if (deletedChanged) {
       try {
         localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(localDeleted)));
@@ -1574,7 +1555,7 @@ export function TeacherProvider({ children }) {
         const cloudList = typeof data === 'object' ? Object.values(data) : [];
         if (cloudList.length > 0) {
           setLectures(prev => {
-            const merged = mergeLectures(prev, sanitizeLectures(cloudList));
+            const merged = mergeLectures(prev, sanitizeLectures(cloudList), Array.from(getDeletedLectureIds()));
             try { localStorage.setItem('ms_lectures', JSON.stringify(merged)); } catch (e) {}
             return merged;
           });
@@ -1706,7 +1687,7 @@ export function TeacherProvider({ children }) {
     // 2. Listen to Firestore collections as secondary backup
     const unsubLectures = listenToLectures((cloudLectures) => {
       if (isCancelled || !Array.isArray(cloudLectures) || cloudLectures.length === 0) return;
-      setLectures(prev => mergeLectures(prev, sanitizeLectures(cloudLectures)));
+      setLectures(prev => mergeLectures(prev, sanitizeLectures(cloudLectures), Array.from(getDeletedLectureIds())));
     });
 
     const unsubStudents = listenToStudents((cloudStudents) => {
@@ -1727,7 +1708,7 @@ export function TeacherProvider({ children }) {
     // 3. Rehydrate from local IndexedDB if available
     loadCollectionFromLocal(STORES.LECTURES).then(localLectures => {
       if (!isCancelled && Array.isArray(localLectures) && localLectures.length > 0) {
-        setLectures(prev => mergeLectures(prev, sanitizeLectures(localLectures)));
+        setLectures(prev => mergeLectures(prev, sanitizeLectures(localLectures), Array.from(getDeletedLectureIds())));
       }
     }).catch(() => {});
 
@@ -2142,14 +2123,13 @@ export function TeacherProvider({ children }) {
   };
 
   // Safe Deletion: Soft delete flags the lecture so students cannot see it, but data is 100% recoverable
-  const deleteLecture = async (lectureId, hardDelete = false) => {
+  const deleteLecture = async (lectureId) => {
     const targetLecture = lectures.find(l => l.id === lectureId);
     if (!targetLecture) return;
     const modifierUid = currentUser?.uid || currentUser?.id || 'teacher-admin';
     const modifierName = currentUser?.name || teacherProfile.name || 'مستر مايكل شحاته';
 
-    // Strict Instructor/Teacher-Only Deletion Guard:
-    // NO ONE except the teacher or an authorized staff admin can EVER delete ANY lecture!
+    // Strict Instructor/Teacher/Admin Deletion Guard:
     const isAuthorizedTeacher = (
       (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
       currentUser?.role === 'super_admin' || 
@@ -2167,91 +2147,94 @@ export function TeacherProvider({ children }) {
       return;
     }
 
-    // Strict Owner-Only Hard Deletion Guard
-    const isSuperOwner = (
-      (Boolean(verifyAdminSession()?.valid) && role === 'instructor') ||
-      currentUser?.role === 'super_admin' || 
-      currentAdminUser?.role === 'super_admin' || 
-      currentUser?.email === 'mrmichaelshehata@gmail.com' ||
-      currentUser?.uid === 'teacher-admin' ||
-      Boolean(verifyAdminSession()?.isValid)
-    );
-    let effectiveHardDelete = Boolean(hardDelete);
-    if (effectiveHardDelete && !isSuperOwner) {
-      addToast('عذراً! الحذف النهائي محصور للمالك الرئيسي فقط 🛡️ تم نقل المحاضرة لسلة المهملات بأمان.', 'warning', 6000);
-      effectiveHardDelete = false;
-    }
-
-    // Mark as deleted in local storage
+    // 1. Mark as permanently deleted tombstone in local storage and memory
     const deletedIds = getDeletedLectureIds();
     deletedIds.add(lectureId);
     try {
       localStorage.setItem('ms_deleted_lectures', JSON.stringify(Array.from(deletedIds)));
     } catch (e) {}
+    if (typeof window !== 'undefined') {
+      window.__MS_DELETED_LECTURES__ = Array.from(deletedIds);
+    }
+
+    // 2. Persist tombstone to Firebase Realtime Database
     try {
       await saveToRtdb('deletedLectureIds/' + lectureId, { deletedAt: new Date().toISOString() });
     } catch (_) {}
 
-    if (effectiveHardDelete) {
-      const updated = lectures.filter(l => l.id !== lectureId);
-      setLectures(updated);
+    // 3. Immediately eradicate lecture from React state and local storage
+    const updated = lectures.filter(l => l.id !== lectureId);
+    setLectures(updated);
+    try {
+      localStorage.setItem('ms_lectures', JSON.stringify(updated));
+    } catch (e) {}
+
+    // 4. Remove from student entitlements and unlocked caches
+    setUnlockedLectureIds(prev => {
+      const next = (prev || []).filter(id => id !== lectureId);
       try {
-        localStorage.setItem('ms_lectures', JSON.stringify(updated));
-      } catch (e) {}
-      try {
-        await syncLecturesManifestToR2(updated, { stages, sections, deletedLectureIds: Array.from(deletedIds) });
+        localStorage.setItem('ms_unlocked_lectures', JSON.stringify(next));
       } catch (_) {}
+      return next;
+    });
+
+    // 5. Remove from completed lectures tracking
+    setCompletedLectures(prev => {
+      const next = (prev || []).filter(id => id !== lectureId);
+      try {
+        localStorage.setItem('ms_completed_lectures', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+
+    // 6. Delete permanently from Firestore & Realtime Database
+    try {
       await deleteLectureFromFirestore(lectureId, targetLecture?.stageId);
-      if (targetLecture?.localMediaKey) {
+    } catch (_) {}
+    try {
+      await removeFromRtdb('lectures/' + lectureId);
+    } catch (_) {}
+
+    // 7. Delete local media if present and update IndexedDB
+    if (targetLecture?.localMediaKey) {
+      try {
         await deleteMediaPermanently(targetLecture.localMediaKey);
-      }
-      await persistCollectionLocally(STORES.LECTURES, updated);
-      logPlatformAuditAction({
-        action: 'lecture_hard_deleted',
-        actionLabel: 'حذف نهائي لمحاضرة 🗑️',
-        entityType: 'lecture',
-        entityId: lectureId,
-        details: `تم الحذف النهائي للمحاضرة (${targetLecture.title})`,
-        performedByUid: modifierUid,
-        performedByName: modifierName
-      }).catch(() => {});
-      addToast('تم حذف المحاضرة من المنصة نهائياً 🗑️', 'info');
-    } else {
-      // Soft Delete: Preserves content and metadata on platform level
-      const updated = lectures.map(l => {
-        if (l.id === lectureId) {
-          return {
-            ...l,
-            isDeleted: true,
-            deletedAt: new Date().toISOString(),
-            deletedByUid: modifierUid,
-            deletedByName: modifierName
-          };
-        }
-        return l;
-      });
-      setLectures(updated);
-      try {
-        localStorage.setItem('ms_lectures', JSON.stringify(updated));
-      } catch (e) {}
-      try {
-        await syncLecturesManifestToR2(updated, { stages, sections, deletedLectureIds: Array.from(deletedIds) });
       } catch (_) {}
-      const softLec = updated.find(l => l.id === lectureId);
-      if (softLec) {
-        await saveLectureToFirestore(softLec);
-      }
-      logPlatformAuditAction({
-        action: 'lecture_soft_deleted',
-        actionLabel: 'نقل محاضرة لسلة المهملات 📦',
-        entityType: 'lecture',
-        entityId: lectureId,
-        details: `تم نقل المحاضرة (${targetLecture.title}) إلى المحذوفات مع إمكانية استعادتها فوراً`,
-        performedByUid: modifierUid,
-        performedByName: modifierName
-      }).catch(() => {});
-      addToast(`تم نقل المحاضرة (${targetLecture.title}) إلى سلة المهملات مع الحفاظ الكامل على بياناتها 📦`, 'info');
     }
+    try {
+      await persistCollectionLocally(STORES.LECTURES, updated);
+    } catch (_) {}
+
+    // 8. Sync updated list and tombstones to Cloudflare R2 Global Manifest
+    try {
+      await syncLecturesManifestToR2(updated, { stages, sections, deletedLectureIds: Array.from(deletedIds) });
+    } catch (_) {}
+
+    // 9. Sync to local backend dev endpoint if available
+    try {
+      await fetch('/api/sync-manifest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lectures: updated,
+          stages,
+          sections,
+          deletedLectureIds: Array.from(deletedIds)
+        })
+      });
+    } catch (_) {}
+
+    logPlatformAuditAction({
+      action: 'lecture_hard_deleted',
+      actionLabel: 'حذف نهائي لمحاضرة 🗑️',
+      entityType: 'lecture',
+      entityId: lectureId,
+      details: 'تم الحذف النهائي للمحاضرة (' + targetLecture.title + ')',
+      performedByUid: modifierUid,
+      performedByName: modifierName
+    }).catch(() => {});
+
+    addToast('تم حذف محاضرة "' + targetLecture.title + '" نهائياً من المنصة 🗑️', 'info');
   };
 
   // Restore Soft-Deleted Lecture

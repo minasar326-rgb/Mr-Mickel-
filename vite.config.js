@@ -112,7 +112,7 @@ function manifestSyncPlugin() {
               const safeDeletedIds = Array.from(new Set([
                 ...(Array.isArray(parsed?.deletedLectureIds) ? parsed.deletedLectureIds : []),
                 ...(Array.isArray(existingManifest?.deletedLectureIds) ? existingManifest.deletedLectureIds : [])
-              ])).filter(id => id && !activeIncomingIds.has(id));
+              ])).filter(Boolean);
               const deletedSet = new Set(safeDeletedIds);
 
               const incomingLectures = (Array.isArray(parsed) ? parsed : (parsed?.lectures || []))

@@ -341,8 +341,22 @@ async function checkAndOptimizeAllVideos() {
       if (fs.existsSync(path.dirname(p))) fs.writeFileSync(p, jsonStr, 'utf8');
     });
 
-    const jsContent = `window.__MNASA_LECTURES_MANIFEST__ = ${jsonStr};\n` +
-      `if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ms:platform-manifest-loaded', { detail: window.__MNASA_LECTURES_MANIFEST__ }));\n`;
+    const jsContent = `(function() {
+  var payload = ${jsonStr};
+  window.__MS_LECTURES_MANIFEST__ = payload.lectures || payload;
+  window.__MS_STAGES_MANIFEST__ = payload.stages || [];
+  window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
+  window.__MS_CODES_MANIFEST__ = payload.codes || [];
+  window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
+  window.__MNASA_LECTURES_MANIFEST__ = payload;
+  window.__MS_PLATFORM_MANIFEST__ = payload;
+  if (typeof window.__onLecturesManifest === 'function') {
+    try { window.__onLecturesManifest(payload); } catch(e) {}
+  }
+  try {
+    window.dispatchEvent(new CustomEvent('ms:platform-manifest-loaded', { detail: payload }));
+  } catch(e) {}
+})();\n`;
 
     ['public/lectures-manifest.js', 'lectures-manifest.js'].forEach(p => {
       if (fs.existsSync(path.dirname(p))) fs.writeFileSync(p, jsContent, 'utf8');

@@ -402,12 +402,9 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
     }
     deletedLectureIds = Array.isArray(deletedLectureIds) ? Array.from(new Set(deletedLectureIds.filter(Boolean))) : [];
 
+    const deletedSet = new Set(deletedLectureIds);
     // Filter incoming lectures that are explicitly marked deleted
-    const incomingClean = lecturesList.filter(l => l && !l.isDeleted && !deletedLectureIds.includes(l.id));
-
-    // Active incoming lectures must NEVER be in deletedLectureIds!
-    const activeIds = new Set(incomingClean.map(l => l.id).filter(Boolean));
-    deletedLectureIds = deletedLectureIds.filter(id => !activeIds.has(id));
+    const incomingClean = lecturesList.filter(l => l && !l.isDeleted && !deletedSet.has(l.id));
 
     // Smart Merge: Merge with previously known manifest so partial tab states never drop lectures
     const existingList = (typeof window !== 'undefined' && Array.isArray(window.__MS_LECTURES_MANIFEST__))
@@ -415,17 +412,18 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
       : [];
     const lectureMap = new Map();
     existingList.forEach(l => {
-      if (l && l.id && !deletedLectureIds.includes(l.id)) {
+      if (l && l.id && !deletedSet.has(l.id) && !l.isDeleted) {
         lectureMap.set(l.id, l);
       }
     });
     incomingClean.forEach(l => {
-      if (l && l.id && !deletedLectureIds.includes(l.id)) {
+      if (l && l.id && !deletedSet.has(l.id) && !l.isDeleted) {
         const prev = lectureMap.get(l.id) || {};
         lectureMap.set(l.id, { ...prev, ...l });
       }
     });
-    const cleanLectures = Array.from(lectureMap.values());
+    const cleanLectures = Array.from(lectureMap.values()).filter(l => l && l.id && !deletedSet.has(l.id) && !l.isDeleted);
+    deletedLectureIds = Array.from(deletedSet);
 
     let stages = extra.stages;
     let sections = extra.sections;
@@ -482,6 +480,7 @@ export async function syncLecturesManifestToR2(lecturesList, extra = {}) {
   window.__MS_SECTIONS_MANIFEST__ = payload.sections || [];
   window.__MS_CODES_MANIFEST__ = payload.codes || [];
   window.__MS_DELETED_LECTURES__ = payload.deletedLectureIds || [];
+  window.__MNASA_LECTURES_MANIFEST__ = payload;
   window.__MS_PLATFORM_MANIFEST__ = payload;
   if (typeof window.__onLecturesManifest === 'function') {
     try { window.__onLecturesManifest(payload); } catch(e) {}

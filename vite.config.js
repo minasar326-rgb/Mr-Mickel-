@@ -55,6 +55,30 @@ function manifestSyncPlugin() {
           return;
         }
 
+        if (req.url && req.url.startsWith('/api/optimize-cloud-videos')) {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', '*');
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+          import('child_process').then(({ exec }) => {
+            exec('node scripts/auto-optimize-cloud-videos.cjs', (error, stdout, stderr) => {
+              res.setHeader('Content-Type', 'application/json');
+              if (error) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: error.message, stderr }));
+              } else {
+                res.statusCode = 200;
+                res.end(JSON.stringify({ success: true, log: stdout }));
+              }
+            });
+          });
+          return;
+        }
+
         if (req.url === '/api/sync-manifest' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => { body += chunk; });

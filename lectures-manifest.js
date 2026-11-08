@@ -363,7 +363,7 @@ window.__MNASA_LECTURES_MANIFEST__ = {
       "id": "lec-pri-01",
       "stageId": "pri",
       "unitNumber": "Unit 1",
-      "title": "المحاضرة 1: التأسيس الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
+      "title": "المحاضرة 1: التأسي�� الصوتي والنطق الصحيح ومفردات منهج المرحلة الابتدائية",
       "subtitle": "شرح تفاعلي بالرسوم والألوان، تأسيس الفونكس والقواعد الأساسية (Present Simple) بطريقة مبسطة وممتعة.",
       "duration": "0:50:00",
       "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
@@ -415,10 +415,10 @@ window.__MNASA_LECTURES_MANIFEST__ = {
       "title": "محاضرة الوحدة الأولى الرسمية 1793997446618",
       "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
       "duration": "0:03",
-      "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997446692_test-laptop-video.mp4",
+      "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997446692_test-laptop-video_faststart.mp4",
       "videoStatus": "ready",
       "localMediaKey": "",
-      "videoFileName": "test-laptop-video.mp4",
+      "videoFileName": "1793997446692_test-laptop-video_faststart.mp4",
       "videoFileSize": "0.0 MB",
       "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
       "isFree": false,
@@ -466,10 +466,10 @@ window.__MNASA_LECTURES_MANIFEST__ = {
       "title": "محاضرة الوحدة الأولى الرسمية 1793997305361",
       "subtitle": "شرح تفصيلي ومكثف للوحدة وحل أسئلة الامتحانات.",
       "duration": "0:03",
-      "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997305638_test-laptop-video.mp4",
+      "videoUrl": "https://pub-6209dd5b4b61403592d78976eb48cac8.r2.dev/stages/sec-3/lectures/videos/1793997305638_test-laptop-video_faststart.mp4",
       "videoStatus": "ready",
       "localMediaKey": "",
-      "videoFileName": "test-laptop-video.mp4",
+      "videoFileName": "1793997305638_test-laptop-video_faststart.mp4",
       "videoFileSize": "0.0 MB",
       "thumbnail": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
       "isFree": false,
@@ -995,7 +995,7 @@ window.__MNASA_LECTURES_MANIFEST__ = {
       "stageName": "الصف الأول الإعدادي ",
       "type": "month",
       "monthNumber": 1,
-      "title": "صثعبؤتن",
+      "title": "صثع��ؤتن",
       "description": "",
       "price": 180,
       "cover": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80",
@@ -1077,6 +1077,7 @@ window.__MNASA_LECTURES_MANIFEST__ = {
     "lec-1794007910224",
     "lec-1794007937192"
   ],
-  "timestamp": 1794090835005
+  "timestamp": 1794090835005,
+  "updatedAt": "2026-11-08T21:15:12.033Z"
 };
 if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ms:platform-manifest-loaded', { detail: window.__MNASA_LECTURES_MANIFEST__ }));

@@ -121,6 +121,17 @@ const LectureVideoPlayer = memo(function LectureVideoPlayer({
     const ahead = Math.round(forwardBuffer);
     setBufferedPercent(prev => Math.abs(prev - pct) >= 2 ? pct : prev);
     setBufferAheadSeconds(prev => Math.abs(prev - ahead) >= 2 ? ahead : prev);
+
+    // Adaptive Anti-Stutter Engine:
+    // If mobile network experiences temporary dip and buffer is critically low (< 2.2s),
+    // micro-adapt playback rate by 5% to allow range buffer to catch up without freezing!
+    if (forwardBuffer > 0 && forwardBuffer < 2.2 && !video.paused && video.readyState >= 2) {
+      if (video.playbackRate === playbackSpeed) {
+        video.playbackRate = playbackSpeed * 0.94;
+      }
+    } else if (forwardBuffer >= 5.0 && video.playbackRate !== playbackSpeed) {
+      video.playbackRate = playbackSpeed;
+    }
   };
 
   const handleTimeUpdate = () => {

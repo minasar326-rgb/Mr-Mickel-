@@ -146,7 +146,7 @@ export default function ComprehensiveExamsPage({ onNavigate, initialExamId, onOp
           {generalExams.map(exam => {
             const isSelected = exam.id === currentExam?.id;
             const qCount = (exam.questions || []).length;
-            const essayCount = (exam.questions || []).filter(q => q.type === 'essay' || q.type === 'short_answer').length;
+            const essayCount = (exam.questions || []).filter(q => q.type === 'essay').length;
             const exKey = `general-${exam.id}`;
             const stdSub = currentUid && examSubmissions[exKey] ? examSubmissions[exKey][currentUid] : null;
             const hasFinished = Boolean(stdSub && stdSub.status);

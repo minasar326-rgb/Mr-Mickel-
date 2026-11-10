@@ -907,9 +907,9 @@ export default function TeacherAdminCenter({ onNavigate }) {
       questionImage: '',
       options: (type === 'mcq' || type === 'multi') ? ['اختيار 1', 'اختيار 2', 'اختيار 3', 'اختيار 4'] : (type === 'tf' ? ['صحيح (True)', 'خطأ (False)'] : []),
       optionImages: (type === 'mcq' || type === 'multi') ? ['', '', '', ''] : [],
-      correctAnswer: type === 'multi' ? [0] : 0,
-      modelAnswer: (type === 'essay' || type === 'short_answer') ? '' : '',
-      points: type === 'essay' ? 5 : (type === 'short_answer' ? 4 : 2),
+      correctAnswer: type === 'multi' ? [0] : (type === 'short_answer' || type === 'essay') ? '' : 0,
+      modelAnswer: '',
+      points: type === 'essay' ? 5 : (type === 'short_answer' ? 5 : 2),
       explanation: ''
     };
     // Append to bottom of questions list
@@ -976,8 +976,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     }
 
     // Strict Ordering Rule: Objective questions (mcq, multi, tf) first, then Essay & Short answer questions
-    const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf');
-    const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer');
+    const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf' || q.type === 'short_answer');
+    const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay');
     const strictlyOrderedQuestions = [...objectiveQuestions, ...subjectiveQuestions];
 
     const calculatedTotal = strictlyOrderedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
@@ -1025,7 +1025,7 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
   const handleOpenPreviewModal = () => {
     const calculatedTotal = bldExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
-    const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay' || q.type === 'short_answer');
+    const hasManualGrading = bldExamQuestions.some(q => q.type === 'essay');
 
     const targetLectureId = editingExamLectureId || editingLectureId || 'temp-lecture';
     const payload = {
@@ -1289,8 +1289,8 @@ export default function TeacherAdminCenter({ onNavigate }) {
     if (hasLectureExam && bldExamQuestions.length > 0) {
 
       // Rule 6: Strictly sort questions so MCQ, Multi, and True/False appear FIRST, then Essay & Short answer questions
-      const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf');
-      const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer');
+      const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf' || q.type === 'short_answer');
+      const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay');
       const strictlyOrderedQuestions = [...objectiveQuestions, ...subjectiveQuestions];
 
       const calculatedTotal = strictlyOrderedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
@@ -2464,17 +2464,17 @@ export default function TeacherAdminCenter({ onNavigate }) {
 
                                   <span className={
                                     q.type === 'essay' ? 'badge badge-gold' :
-                                    q.type === 'short_answer' ? 'badge badge-warning' :
+                                    q.type === 'short_answer' ? 'badge badge-success' :
                                     q.type === 'multi' ? 'badge badge-primary' :
                                     q.type === 'tf' ? 'badge badge-secondary' : 'badge badge-success'
                                   } style={{ fontSize: '0.75rem' }}>
                                     {q.type === 'mcq' ? 'اختيار من متعدد (إجابة واحدة)' :
                                      q.type === 'multi' ? 'اختيار من متعدد (أكثر من إجابة)' :
                                      q.type === 'tf' ? 'صح أو خطأ' :
-                                     q.type === 'essay' ? 'سؤال مقالي (تصحيح يدوي)' : 'إجابة قصيرة (تصحيح يدوي)'}
+                                     q.type === 'essay' ? 'سؤال مقالي (تصحيح يدوي)' : 'إجابة قصيرة (تصحيح تلقائي ⚡)'}
                                   </span>
 
-                                  {(q.type === 'essay' || q.type === 'short_answer') && (
+                                  {q.type === 'essay' && (
                                     <span style={{ fontSize: '0.72rem', color: 'var(--accent-600)', fontWeight: 700 }}>
                                       ⚠️ يتطلب تصحيح يدوي لفك القفل
                                     </span>
@@ -2733,11 +2733,34 @@ export default function TeacherAdminCenter({ onNavigate }) {
                                 </div>
                               )}
 
-                              {/* Model Answer for Essay & Short Answer */}
-                              {(q.type === 'essay' || q.type === 'short_answer') && (
-                                <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
-                                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, marginBottom: '4px' }}>
-                                    نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
+                              {/* 1. Short Answer Auto-grading input */}
+                              {q.type === 'short_answer' && (
+                                <div style={{ background: 'rgba(31, 77, 58, 0.08)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(31, 77, 58, 0.25)' }}>
+                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#1F4D3A', marginBottom: '4px' }}>
+                                    ⚡ الإجابة الصحيحة للتصحيح التلقائي (اكتب الكلمة أو العبارة المتوقعة):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={q.correctAnswer || q.modelAnswer || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, correctAnswer: val, modelAnswer: val } : item));
+                                    }}
+                                    placeholder="مثال: taller أو caught أو was (يمكن كتابة بدائل بفصلها بـ / مثل: was / were)"
+                                    className="input-control"
+                                    style={{ direction: 'ltr', textAlign: 'left', fontWeight: 700 }}
+                                  />
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    💡 سيتم تصحيح إجابة الطالب تلقائياً واحتساب الدرجة فوراً بناءً على هذه الإجابة.
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 2. Essay Manual Grading guidelines */}
+                              {q.type === 'essay' && (
+                                <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#D97706', marginBottom: '4px' }}>
+                                    ✍️ نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
                                   </label>
                                   <textarea
                                     value={q.modelAnswer || ''}
@@ -8116,11 +8139,34 @@ export default function TeacherAdminCenter({ onNavigate }) {
                       </div>
                     )}
 
-                    {/* Model Answer for Essay & Short Answer */}
-                    {(q.type === 'essay' || q.type === 'short_answer') && (
-                      <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, marginBottom: '4px' }}>
-                          نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
+                    {/* 1. Short Answer Auto-grading input */}
+                    {q.type === 'short_answer' && (
+                      <div style={{ background: 'rgba(31, 77, 58, 0.08)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(31, 77, 58, 0.25)' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#1F4D3A', marginBottom: '4px' }}>
+                          ⚡ الإجابة الصحيحة للتصحيح التلقائي (اكتب الكلمة أو العبارة المتوقعة):
+                        </label>
+                        <input
+                          type="text"
+                          value={q.correctAnswer || q.modelAnswer || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setBldExamQuestions(prev => prev.map((item, i) => i === qIdx ? { ...item, correctAnswer: val, modelAnswer: val } : item));
+                          }}
+                          placeholder="مثال: taller أو caught أو was (يمكن كتابة بدائل بفصلها بـ / مثل: was / were)"
+                          className="input-control"
+                          style={{ direction: 'ltr', textAlign: 'left', fontWeight: 700 }}
+                        />
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          💡 سيتم تصحيح إجابة الطالب تلقائياً واحتساب الدرجة فوراً بناءً على هذه الإجابة.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Essay Manual Grading guidelines */}
+                    {q.type === 'essay' && (
+                      <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#D97706', marginBottom: '4px' }}>
+                          ✍️ نموذج الإجابة أو المعايير التي يقيس عليها المستر أثناء التصحيح اليدوي:
                         </label>
                         <textarea
                           value={q.modelAnswer || ''}

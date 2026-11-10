@@ -1,0 +1,15 @@
+{
+  "landingPage": true,
+  "visitorLockedView": true,
+  "studentSubscribedView": true,
+  "monthIsolation": true,
+  "videoStreaming": true,
+  "codeRedemptionModal": true,
+  "screenshots": {
+    "landing": "F:\\mnasa\\artifacts\\platform-audit-landing.png",
+    "visitor": "F:\\mnasa\\artifacts\\platform-audit-visitor-locked.png",
+    "vip": "F:\\mnasa\\artifacts\\platform-audit-vip-student.png",
+    "video": "F:\\mnasa\\artifacts\\platform-audit-video-player.png",
+    "modal": "F:\\mnasa\\artifacts\\platform-audit-code-modal.png"
+  }
+}

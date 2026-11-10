@@ -247,19 +247,35 @@ export default function LecturesSection({ onNavigate }) {
     const newQ = {
       id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       type,
+      question: '',
       questionText: '',
-      points: 1,
+      points: type === 'essay' ? 5 : (type === 'short_answer' ? 5 : 2),
       options: type === 'tf' 
         ? ['صحيح (True)', 'خطأ (False)']
         : (type === 'essay' || type === 'short_answer') ? [] : ['', '', '', ''],
-      correctAnswer: type === 'tf' ? 'صحيح (True)' : (type === 'essay' || type === 'short_answer') ? '' : 0,
+      correctAnswer: type === 'tf' ? 0 : '',
+      modelAnswer: '',
       explanation: ''
     };
     setBldExamQuestions(prev => [...prev, newQ]);
   };
 
   const handleUpdateQuestion = (qId, field, value) => {
-    setBldExamQuestions(prev => prev.map(q => q.id === qId ? { ...q, [field]: value } : q));
+    setBldExamQuestions(prev => prev.map(q => {
+      if (q.id === qId) {
+        const updated = { ...q, [field]: value };
+        if (field === 'questionText') {
+          updated.question = value;
+        } else if (field === 'question') {
+          updated.questionText = value;
+        }
+        if (field === 'correctAnswer' && q.type === 'short_answer') {
+          updated.modelAnswer = value;
+        }
+        return updated;
+      }
+      return q;
+    }));
   };
 
   const handleDeleteQuestion = (qId) => {
@@ -356,8 +372,8 @@ export default function LecturesSection({ onNavigate }) {
       }
 
       // Rule: Objective questions first, subjective questions second
-      const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf');
-      const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay' || q.type === 'short_answer');
+      const objectiveQuestions = bldExamQuestions.filter(q => q.type === 'mcq' || q.type === 'multi' || q.type === 'tf' || q.type === 'short_answer');
+      const subjectiveQuestions = bldExamQuestions.filter(q => q.type === 'essay');
       const orderedQuestions = [...objectiveQuestions, ...subjectiveQuestions];
       const calculatedTotal = orderedQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
 
@@ -962,43 +978,131 @@ export default function LecturesSection({ onNavigate }) {
                         </button>
                       </div>
 
-                      <input
-                        type="text"
-                        placeholder="نص السؤال..."
-                        value={q.questionText}
-                        onChange={e => handleUpdateQuestion(q.id, 'questionText', e.target.value)}
-                        className="admin-input"
-                        style={{ width: '100%', fontSize: '0.9rem', fontWeight: 700 }}
-                      />
-
-                      {/* MCQ Options */}
-                      {q.type === 'mcq' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                          {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <input
-                                type="radio"
-                                name={`correct-${q.id}`}
-                                checked={q.correctAnswer === oIdx}
-                                onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', oIdx)}
-                                title="تحديد كإجابة صحيحة"
-                              />
-                              <input
-                                type="text"
-                                placeholder={`اختيار ${oIdx + 1}`}
-                                value={opt}
-                                onChange={e => {
-                                  const newOpts = [...q.options];
-                                  newOpts[oIdx] = e.target.value;
-                                  handleUpdateQuestion(q.id, 'options', newOpts);
-                                }}
-                                className="admin-input"
-                                style={{ width: '100%', fontSize: '0.82rem' }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="نص السؤال..."
+                          value={q.questionText || q.question || ''}
+                          onChange={e => handleUpdateQuestion(q.id, 'questionText', e.target.value)}
+                          className="admin-input"
+                          style={{ flex: 1, fontSize: '0.9rem', fontWeight: 700 }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--admin-text-muted)' }}>الدرجة:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={q.points || 5}
+                            onChange={e => handleUpdateQuestion(q.id, 'points', Number(e.target.value))}
+                            className="admin-input"
+                            style={{ width: '60px', textAlign: 'center', fontWeight: 800, padding: '4px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 1. MCQ Options */}
+                      {q.type === 'mcq' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                          {q.options.map((opt, oIdx) => (
+                            <div key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <input
+                                type="radio"
+                                name={`correct-${q.id}`}
+                                checked={Number(q.correctAnswer) === oIdx}
+                                onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', oIdx)}
+                                title="تحديد كإجابة صحيحة"
+                              />
+                              <input
+                                type="text"
+                                placeholder={`اختيار ${oIdx + 1}`}
+                                value={opt}
+                                onChange={e => {
+                                  const newOpts = [...q.options];
+                                  newOpts[oIdx] = e.target.value;
+                                  handleUpdateQuestion(q.id, 'options', newOpts);
+                                }}
+                                className="admin-input"
+                                style={{ width: '100%', fontSize: '0.82rem' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 2. True / False Options */}
+                      {q.type === 'tf' && (
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--admin-bg)', padding: '8px 12px', borderRadius: '8px' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>الإجابة الصحيحة:</span>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                            <input
+                              type="radio"
+                              name={`tf-${q.id}`}
+                              checked={Number(q.correctAnswer) === 0}
+                              onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', 0)}
+                            />
+                            <span>صحيح (True) ✓</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                            <input
+                              type="radio"
+                              name={`tf-${q.id}`}
+                              checked={Number(q.correctAnswer) === 1}
+                              onChange={() => handleUpdateQuestion(q.id, 'correctAnswer', 1)}
+                            />
+                            <span>خطأ (False) ✗</span>
+                          </label>
+                        </div>
+                      )}
+
+                      {/* 3. Short Answer (Auto-graded) */}
+                      {q.type === 'short_answer' && (
+                        <div style={{ background: 'rgba(31, 77, 58, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(31, 77, 58, 0.2)' }}>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: 'var(--admin-primary)', marginBottom: '4px' }}>
+                            ⚡ الإجابة الصحيحة للتصحيح التلقائي (اكتب الكلمة أو العبارة المتوقعة):
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="مثال: taller أو caught أو was (يمكن كتابة بدائل بفصلها بـ / مثل: was / were)"
+                            value={q.correctAnswer || q.modelAnswer || ''}
+                            onChange={e => {
+                              handleUpdateQuestion(q.id, 'correctAnswer', e.target.value);
+                              handleUpdateQuestion(q.id, 'modelAnswer', e.target.value);
+                            }}
+                            className="admin-input"
+                            style={{ width: '100%', fontSize: '0.88rem', fontWeight: 700, direction: 'ltr', textAlign: 'left' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* 4. Essay (Manual Grading) */}
+                      {q.type === 'essay' && (
+                        <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#D97706', marginBottom: '4px' }}>
+                            ✍️ نموذج الإجابة الاسترشادي للمستر أثناء التصحيح اليدوي:
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="اكتب المعايير أو الإجابة النموذجية..."
+                            value={q.modelAnswer || ''}
+                            onChange={e => handleUpdateQuestion(q.id, 'modelAnswer', e.target.value)}
+                            className="admin-input"
+                            style={{ width: '100%', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Question Explanation */}
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="شرح وتوضيح الإجابة للطالب (يظهر بعد إعلان النتيجة)..."
+                          value={q.explanation || ''}
+                          onChange={e => handleUpdateQuestion(q.id, 'explanation', e.target.value)}
+                          className="admin-input"
+                          style={{ width: '100%', fontSize: '0.8rem', color: 'var(--admin-text-muted)' }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

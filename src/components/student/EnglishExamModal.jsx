@@ -8,6 +8,12 @@ import {
   RotateCcw, Clock, BookOpen, Image as ImageIcon, Send, FileText, Check, AlertTriangle, Eye
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { 
+  gradeExamSubmission, 
+  isQuestionAnswerCorrect, 
+  getCorrectAnswerDisplay, 
+  getStudentAnswerDisplay 
+} from '../../utils/examGrading';
 
 export default function EnglishExamModal({ 
   isOpen, 
@@ -154,48 +160,17 @@ export default function EnglishExamModal({
       return;
     }
 
-    let autoScore = 0;
-    let hasManual = false;
-
-    allExamQuestions.forEach(q => {
-      const qType = q.type || 'mcq';
-      const userAns = selectedAnswers[q.id];
-      const qPoints = Number(q.points) || 1;
-
-      if (qType === 'essay' || qType === 'short_answer') {
-        hasManual = true;
-      } else if (qType === 'mcq' || qType === 'tf' || qType === 'translation') {
-        if (Number(userAns) === Number(q.correctAnswer)) {
-          autoScore += qPoints;
-        }
-      } else if (qType === 'multi') {
-        const correctArray = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
-        const userArray = Array.isArray(userAns) ? userAns : [];
-        if (
-          correctArray.length === userArray.length &&
-          correctArray.every(val => userArray.includes(val))
-        ) {
-          autoScore += qPoints;
-        }
-      }
-    });
-
-    const totalMarks = Number(exam.totalMarks) || allExamQuestions.reduce((sum, q) => sum + (Number(q.points) || 1), 0);
-    const passingMarks = Number(exam.passingMarks) || Math.ceil(totalMarks * 0.5);
-    const passed = !hasManual && autoScore >= passingMarks;
-
-    const resultObj = {
-      autoScore,
-      totalMarks,
-      passingMarks,
-      hasManualQuestions: hasManual,
-      passed,
-      status: hasManual ? 'pending_grading' : 'graded',
-      submittedAt: new Date().toISOString()
-    };
+    const resultObj = gradeExamSubmission(
+      allExamQuestions,
+      selectedAnswers,
+      exam.passingMarks,
+      exam.totalMarks
+    );
 
     setSubmissionResult(resultObj);
     setIsSubmitted(true);
+
+    const { autoScore, totalMarks, hasManualQuestions: hasManual, passed } = resultObj;
 
     if (isGeneralExam) {
       if (submitGeneralExam) {
@@ -458,16 +433,12 @@ export default function EnglishExamModal({
                 {allExamQuestions.map((q, idx) => {
                   const userAns = selectedAnswers[q.id];
                   const qType = q.type || 'mcq';
-                  const isEssay = qType === 'essay' || qType === 'short_answer';
+                  const isEssay = qType === 'essay';
+                  const isCorrect = isQuestionAnswerCorrect(q, userAns);
 
-                  let isCorrect = false;
-                  if (qType === 'mcq' || qType === 'tf' || qType === 'translation') {
-                    isCorrect = Number(userAns) === Number(q.correctAnswer);
-                  } else if (qType === 'multi') {
-                    const cArr = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer];
-                    const uArr = Array.isArray(userAns) ? userAns : [];
-                    isCorrect = cArr.length === uArr.length && cArr.every(x => uArr.includes(x));
-                  }
+                  const studentDisplay = getStudentAnswerDisplay(q, userAns);
+                  const correctDisplay = getCorrectAnswerDisplay(q);
+                  const qPoints = Number(q.points) || 1;
 
                   return (
                     <div
@@ -479,16 +450,27 @@ export default function EnglishExamModal({
                         border: `1px solid ${isEssay ? 'rgba(245, 158, 11, 0.3)' : (isCorrect ? 'rgba(31, 77, 58, 0.3)' : 'rgba(239, 68, 68, 0.3)')}`
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-                        {isEssay ? (
-                          <Clock size={18} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-                        ) : isCorrect ? (
-                          <CheckCircle2 size={18} color="#1F4D3A" style={{ flexShrink: 0, marginTop: '2px' }} />
-                        ) : (
-                          <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
-                        )}
-                        <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
-                          {idx + 1}. {q.question}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                          {isEssay ? (
+                            <Clock size={18} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          ) : isCorrect ? (
+                            <CheckCircle2 size={18} color="#1F4D3A" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          ) : (
+                            <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          )}
+                          <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                            {idx + 1}. {q.question || q.questionText}
+                          </span>
+                        </div>
+                        <span className="badge" style={{
+                          background: isCorrect ? 'rgba(31, 77, 58, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isCorrect ? '#1F4D3A' : '#EF4444',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          flexShrink: 0
+                        }}>
+                          {isCorrect ? `+${qPoints} درجة` : `0 / ${qPoints}`}
                         </span>
                       </div>
 
@@ -509,26 +491,20 @@ export default function EnglishExamModal({
                             <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}>
                               <strong>إجابتك المسجلة:</strong> {userAns || '(لم تكتب إجابة)'}
                             </p>
-                            {q.modelAnswer && (
+                            {correctDisplay && (
                               <p style={{ margin: '4px 0', color: '#1F4D3A', fontWeight: 700 }}>
-                                💡 نموذج الإجابة الاسترشادي للمستر: {q.modelAnswer}
+                                💡 نموذج الإجابة الاسترشادي للمستر: {correctDisplay}
                               </p>
                             )}
                           </>
                         ) : (
                           <>
                             <p style={{ margin: '4px 0', color: isCorrect ? '#1F4D3A' : '#EF4444' }}>
-                              <strong>إجابتك: </strong> 
-                              {qType === 'multi' 
-                                ? (Array.isArray(userAns) && userAns.length > 0 ? userAns.map(i => q.options[i]).join(' • ') : 'لم تجب')
-                                : (q.options ? q.options[userAns] : userAns || 'لم تجب')}
+                              <strong>إجابتك: </strong> {studentDisplay} {isCorrect ? '✓ (صحيحة)' : '✗ (غير صحيحة)'}
                             </p>
-                            {!isCorrect && q.options && (
+                            {!isCorrect && (
                               <p style={{ margin: '4px 0', color: '#1F4D3A', fontWeight: 700 }}>
-                                <strong>الإجابة الصحيحة: </strong> 
-                                {qType === 'multi'
-                                  ? (Array.isArray(q.correctAnswer) ? q.correctAnswer.map(i => q.options[i]).join(' • ') : q.options[q.correctAnswer])
-                                  : q.options[q.correctAnswer]}
+                                <strong>الإجابة الصحيحة النموذجية: </strong> {correctDisplay}
                               </p>
                             )}
                           </>
@@ -620,7 +596,7 @@ export default function EnglishExamModal({
                     whiteSpace: 'pre-line',
                     color: 'var(--text-primary)'
                   }}>
-                    {currentStep + 1}. {currentQ.question}
+                    {currentStep + 1}. {currentQ.question || currentQ.questionText}
                   </h4>
                   <span className="badge" style={{ background: 'rgba(166, 124, 82, 0.15)', color: '#A67C52', fontWeight: 800, flexShrink: 0 }}>
                     {currentQ.points || 1} {Number(currentQ.points) === 1 ? 'درجة' : 'درجات'}

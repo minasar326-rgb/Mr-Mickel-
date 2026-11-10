@@ -33,53 +33,49 @@ export const lecturesData = [
           "id": "q-1794000714476-0zvp",
           "type": "short_answer",
           "question": "1. Ali is (tall) than Omar. صحح الخطا",
-          "questionImage": "",
+          "questionText": "1. Ali is (tall) than Omar. صحح الخطا",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "taller",
           "modelAnswer": "taller",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "في المقارنة بين اثنين نضيف للصفة القصيرة er than فتصبح taller than"
         },
         {
           "id": "q-1794000915094-rg65",
           "type": "short_answer",
           "question": "2. A car is( fastest) than a bike. صحح الخطا",
-          "questionImage": "",
+          "questionText": "2. A car is( fastest) than a bike. صحح الخطا",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "faster",
           "modelAnswer": "faster",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "في المقارنة بين اثنين نستخدم صفة المقارنة faster than"
         },
         {
           "id": "q-1794000986368-aqtm",
           "type": "short_answer",
           "question": "3. My bag is( biger) than yours.",
-          "questionImage": "",
+          "questionText": "3. My bag is( biger) than yours.",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "bigger",
           "modelAnswer": "bigger",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "الصفة big تنتهي بساكن قبله متحرك قصير فنضاعف الحرف الأخير فتصبح bigger than"
         },
         {
           "id": "q-1794001046444-p4t1",
           "type": "short_answer",
           "question": "4. A lion is (strong) than a cat.",
-          "questionImage": "",
+          "questionText": "4. A lion is (strong) than a cat.",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "stronger",
           "modelAnswer": "stronger",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "نضيف er للصفة فتصبح stronger than"
         }
       ],
       "createdAt": "2026-11-06T22:14:55.705Z",
-      "hasManualQuestions": true
+      "hasManualQuestions": false
     },
     "pdfBooklet": {
       "title": "مذكرة The Master الشاملة.pdf",
@@ -152,30 +148,28 @@ export const lecturesData = [
         {
           "id": "q-1794002478609-504w",
           "type": "short_answer",
-          "question": "",
-          "questionImage": "",
+          "question": "5. Mona is( happyer )than Sara. صحح الخطا",
+          "questionText": "5. Mona is( happyer )than Sara. صحح الخطا",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
-          "modelAnswer": "5. Mona is( happyer )than Sara. صحح الخطا",
-          "points": 4,
-          "explanation": "happier"
+          "correctAnswer": "happier",
+          "modelAnswer": "happier",
+          "points": 10,
+          "explanation": "الصفة happy تنتهي بـ y مسبوقة بساكن تحذف الـ y ونضع ier فتصبح happier than"
         },
         {
           "id": "q-1794002537606-nwo0",
           "type": "short_answer",
           "question": "English is (good) than Arabic ",
-          "questionImage": "",
+          "questionText": "English is (good) than Arabic ",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "better",
           "modelAnswer": "better",
-          "points": 4,
-          "explanation": ""
+          "points": 10,
+          "explanation": "good صفة غير منتظمة (شاذة) وتتحول في المقارنة إلى better than"
         }
       ],
       "createdAt": "2026-11-06T22:14:29.035Z",
-      "hasManualQuestions": true
+      "hasManualQuestions": false
     },
     "pdfBooklet": {
       "title": "مذكرة The Master الشاملة.pdf",
@@ -250,53 +244,49 @@ export const lecturesData = [
           "id": "q-1794035308901-2wig",
           "type": "short_answer",
           "question": "yesterday I (catch) fish",
-          "questionImage": "",
+          "questionText": "yesterday I (catch) fish",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "caught",
           "modelAnswer": "caught",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "الفعل catch في زمن الماضي البسيط يتحول إلى caught"
         },
         {
           "id": "q-1794035389147-bwdw",
           "type": "short_answer",
           "question": "we (share) our food last night ",
-          "questionImage": "",
+          "questionText": "we (share) our food last night ",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
-          "modelAnswer": "shared ",
-          "points": 4,
-          "explanation": ""
+          "correctAnswer": "shared",
+          "modelAnswer": "shared",
+          "points": 5,
+          "explanation": "الفعل share ينتهي بـ e نضيف له فقط d في الماضي البسيط ليصبح shared"
         },
         {
           "id": "q-1794035453648-66ka",
           "type": "short_answer",
           "question": "?Be) she at home last night )",
-          "questionImage": "",
+          "questionText": "?Be) she at home last night )",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
-          "modelAnswer": "was",
-          "points": 4,
-          "explanation": ""
+          "correctAnswer": "was",
+          "modelAnswer": "was / Was",
+          "points": 5,
+          "explanation": "في السؤال عن الماضي مع الضمير المفرد she نستخدم Was"
         },
         {
           "id": "q-1794035579230-rcpp",
           "type": "short_answer",
           "question": "?were you happy yesterday\n(yes I (were",
-          "questionImage": "",
+          "questionText": "?were you happy yesterday\n(yes I (were",
           "options": [],
-          "optionImages": [],
-          "correctAnswer": 0,
+          "correctAnswer": "was",
           "modelAnswer": "was",
-          "points": 4,
-          "explanation": ""
+          "points": 5,
+          "explanation": "في الإجابة المثبتة مع الضمير I في الماضي البسيط نستخدم was"
         }
       ],
       "createdAt": "2026-11-07T07:19:06.144Z",
-      "hasManualQuestions": true
+      "hasManualQuestions": false
     },
     "pdfBooklet": {
       "title": "",

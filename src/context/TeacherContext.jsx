@@ -1312,6 +1312,7 @@ export function TeacherProvider({ children }) {
             question: 'Which of the following are relative pronouns used for persons? (Select all that apply)',
             points: 4,
             options: ['Who', 'Whom', 'Which', 'Whose'],
+            correctAnswer: [0, 1, 3],
             correctAnswers: [0, 1, 3],
             explanation: 'الضمائر Who و Whom و Whose تستخدم للإشارة للعاقل، بينما Which لغير العاقل.'
           },
@@ -1328,6 +1329,7 @@ export function TeacherProvider({ children }) {
             type: 'short_answer',
             question: 'What is the term for a word that sounds the same as another word but has a different spelling and meaning? (One word)',
             points: 10,
+            correctAnswer: 'homophone',
             modelAnswer: 'homophone',
             explanation: 'A homophone is a word pronounced the same as another word but differing in meaning and spelling.'
           }

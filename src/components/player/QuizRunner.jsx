@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCourses } from '../../context/CourseContext';
 import { X, CheckCircle2, AlertCircle, HelpCircle, Trophy, RotateCcw, ArrowLeft, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { isQuestionAnswerCorrect, getCorrectAnswerDisplay, getStudentAnswerDisplay } from '../../utils/examGrading';
 
 export default function QuizRunner({ isOpen, onClose, courseId, lessonId, quizData }) {
   const { submitQuizScore } = useCourses();
@@ -27,12 +28,12 @@ export default function QuizRunner({ isOpen, onClose, courseId, lessonId, quizDa
   const calculateScore = () => {
     let correctCount = 0;
     questions.forEach(q => {
-      if (selectedAnswers[q.id] === q.correctAnswer) {
+      if (isQuestionAnswerCorrect(q, selectedAnswers[q.id])) {
         correctCount++;
       }
     });
 
-    const scorePct = Math.round((correctCount / questions.length) * 100);
+    const scorePct = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 100;
     const passed = scorePct >= (quizData.passingScore || 70);
 
     const res = {
@@ -138,7 +139,7 @@ export default function QuizRunner({ isOpen, onClose, courseId, lessonId, quizDa
 
               {questions.map((q, idx) => {
                 const userAns = selectedAnswers[q.id];
-                const isCorrect = userAns === q.correctAnswer;
+                const isCorrect = isQuestionAnswerCorrect(q, userAns);
 
                 return (
                   <div 
@@ -157,11 +158,11 @@ export default function QuizRunner({ isOpen, onClose, courseId, lessonId, quizDa
 
                     <div style={{ fontSize: '0.85rem', paddingRight: '26px' }}>
                       <p style={{ margin: '2px 0', color: isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                        إجابتك: {q.options[userAns] || 'لم تجب'}
+                        إجابتك: {getStudentAnswerDisplay(q, userAns)}
                       </p>
                       {!isCorrect && (
                         <p style={{ margin: '2px 0', color: 'var(--success)', fontWeight: 600 }}>
-                          الإجابة الصحيحة: {q.options[q.correctAnswer]}
+                          الإجابة الصحيحة: {getCorrectAnswerDisplay(q)}
                         </p>
                       )}
                       <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: '0.82rem', background: 'rgba(255, 255, 255, 0.5)', padding: '6px 10px', borderRadius: '6px' }}>
